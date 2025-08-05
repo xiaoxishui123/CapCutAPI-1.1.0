@@ -1,11 +1,15 @@
 #!/bin/bash
-
 # CapCutAPI 服务管理脚本
-# 作者：AI助手
-# 用途：管理CapCutAPI服务的启动、停止、重启等操作
+# 提供多种方式启动、停止和管理CapCutAPI服务
 
-SERVICE_NAME="capcutapi.service"
-PROJECT_DIR="/home/CapCutAPI-1.1.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="$SCRIPT_DIR/venv"
+PYTHON_SCRIPT="$SCRIPT_DIR/capcut_server.py"
+PID_FILE="$SCRIPT_DIR/capcut_server.pid"
+LOG_FILE="$SCRIPT_DIR/logs/capcut_server.log"
+
+# 确保日志目录存在
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -14,196 +18,247 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 打印带颜色的消息
-print_message() {
-    local color=$1
-    local message=$2
-    echo -e "${color}${message}${NC}"
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
 # 检查服务状态
 check_status() {
-    if sudo systemctl is-active --quiet $SERVICE_NAME; then
-        print_message $GREEN "✓ 服务正在运行"
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            print_success "CapCutAPI服务正在运行 (PID: $PID)"
+            return 0
+        else
+            print_warning "PID文件存在但进程不存在，清理PID文件"
+            rm -f "$PID_FILE"
+        fi
+    fi
+    print_error "CapCutAPI服务未运行"
+    return 1
+}
+
+# 启动服务 - nohup方式（推荐）
+start_nohup() {
+    print_status "使用nohup方式启动CapCutAPI服务..."
+    
+    if check_status > /dev/null 2>&1; then
+        print_warning "服务已在运行，无需重复启动"
+        return 1
+    fi
+    
+    cd "$SCRIPT_DIR"
+    source "$VENV_PATH/bin/activate"
+    
+    nohup python3 "$PYTHON_SCRIPT" > "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+    
+    sleep 3
+    
+    if check_status > /dev/null 2>&1; then
+        print_success "服务启动成功！"
+        print_status "日志文件: $LOG_FILE"
+        print_status "PID文件: $PID_FILE"
         return 0
     else
-        print_message $RED "✗ 服务未运行"
+        print_error "服务启动失败"
         return 1
     fi
 }
 
-# 显示服务状态
-show_status() {
-    print_message $BLUE "=== CapCutAPI 服务状态 ==="
-    sudo systemctl status $SERVICE_NAME --no-pager -l
-    echo ""
+# 启动服务 - screen方式
+start_screen() {
+    print_status "使用screen方式启动CapCutAPI服务..."
     
-    # 检查端口
-    if netstat -tlnp | grep -q ":9000 "; then
-        print_message $GREEN "✓ 端口9000正在监听"
-    else
-        print_message $RED "✗ 端口9000未监听"
+    if check_status > /dev/null 2>&1; then
+        print_warning "服务已在运行，无需重复启动"
+        return 1
     fi
     
-    # 检查API响应
-    if curl -s http://localhost:9000/get_intro_animation_types > /dev/null 2>&1; then
-        print_message $GREEN "✓ API服务响应正常"
+    # 检查screen是否已安装
+    if ! command -v screen &> /dev/null; then
+        print_error "screen未安装，请先安装: yum install -y screen"
+        return 1
+    fi
+    
+    cd "$SCRIPT_DIR"
+    source "$VENV_PATH/bin/activate"
+    
+    screen -dmS capcut_api bash -c "python3 $PYTHON_SCRIPT; exec bash"
+    
+    # 获取screen会话中的python进程PID
+    sleep 3
+    PID=$(pgrep -f "python3.*capcut_server.py")
+    if [ -n "$PID" ]; then
+        echo "$PID" > "$PID_FILE"
+        print_success "服务在screen会话中启动成功！"
+        print_status "查看会话: screen -r capcut_api"
+        print_status "分离会话: Ctrl+A, D"
+        return 0
     else
-        print_message $RED "✗ API服务无响应"
+        print_error "screen启动失败"
+        return 1
     fi
 }
 
-# 启动服务
-start_service() {
-    print_message $BLUE "启动CapCutAPI服务..."
-    sudo systemctl start $SERVICE_NAME
+# 启动服务 - systemd方式
+start_systemd() {
+    print_status "创建systemd服务..."
     
-    sleep 2
+    SERVICE_FILE="/etc/systemd/system/capcut-api.service"
     
-    if check_status; then
-        print_message $GREEN "✓ 服务启动成功"
-        print_message $GREEN "✓ 访问地址: http://8.148.70.18:9000"
+    cat > "$SERVICE_FILE" << EOF
+[Unit]
+Description=CapCutAPI Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$SCRIPT_DIR
+Environment=PATH=$VENV_PATH/bin
+ExecStart=$VENV_PATH/bin/python3 $PYTHON_SCRIPT
+Restart=always
+RestartSec=10
+StandardOutput=file:$LOG_FILE
+StandardError=file:$LOG_FILE
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable capcut-api.service
+    systemctl start capcut-api.service
+    
+    if systemctl is-active --quiet capcut-api.service; then
+        print_success "systemd服务启动成功！"
+        print_status "状态查看: systemctl status capcut-api"
+        print_status "日志查看: journalctl -u capcut-api -f"
+        return 0
     else
-        print_message $RED "✗ 服务启动失败"
-        print_message $YELLOW "查看错误日志: sudo journalctl -u $SERVICE_NAME -n 20"
+        print_error "systemd服务启动失败"
+        return 1
     fi
 }
 
 # 停止服务
 stop_service() {
-    print_message $BLUE "停止CapCutAPI服务..."
-    sudo systemctl stop $SERVICE_NAME
+    print_status "停止CapCutAPI服务..."
     
-    sleep 2
-    
-    if ! check_status; then
-        print_message $GREEN "✓ 服务已停止"
-    else
-        print_message $RED "✗ 服务停止失败"
+    # 先尝试systemd方式停止
+    if systemctl is-active --quiet capcut-api.service 2>/dev/null; then
+        systemctl stop capcut-api.service
+        print_success "systemd服务已停止"
     fi
+    
+    # 停止screen会话
+    if screen -list | grep -q "capcut_api"; then
+        screen -S capcut_api -X quit
+        print_success "screen会话已停止"
+    fi
+    
+    # 停止PID文件中的进程
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            kill "$PID"
+            sleep 2
+            if ps -p "$PID" > /dev/null 2>&1; then
+                kill -9 "$PID"
+            fi
+            print_success "进程 $PID 已停止"
+        fi
+        rm -f "$PID_FILE"
+    fi
+    
+    # 强制清理所有相关进程
+    pkill -f "python3.*capcut_server.py" 2>/dev/null && print_success "清理了残留进程"
+    
+    print_success "服务停止完成"
 }
 
 # 重启服务
 restart_service() {
-    print_message $BLUE "重启CapCutAPI服务..."
-    sudo systemctl restart $SERVICE_NAME
-    
-    sleep 3
-    
-    if check_status; then
-        print_message $GREEN "✓ 服务重启成功"
-        print_message $GREEN "✓ 访问地址: http://8.148.70.18:9000"
-    else
-        print_message $RED "✗ 服务重启失败"
-        print_message $YELLOW "查看错误日志: sudo journalctl -u $SERVICE_NAME -n 20"
-    fi
+    print_status "重启CapCutAPI服务..."
+    stop_service
+    sleep 2
+    start_nohup
 }
 
 # 查看日志
-show_logs() {
-    print_message $BLUE "=== 服务日志 ==="
-    echo "选择日志类型:"
-    echo "1) 实时日志 (实时查看)"
-    echo "2) 最近日志 (最近50行)"
-    echo "3) 错误日志 (最近50行)"
-    echo "4) 系统日志 (最近50行)"
-    read -p "请选择 (1-4): " choice
-    
-    case $choice in
-        1)
-            print_message $YELLOW "按 Ctrl+C 退出实时日志"
-            sudo journalctl -u $SERVICE_NAME -f
-            ;;
-        2)
-            sudo journalctl -u $SERVICE_NAME -n 50 --no-pager
-            ;;
-        3)
-            sudo journalctl -u $SERVICE_NAME -n 50 --no-pager | grep -i error
-            ;;
-        4)
-            sudo journalctl -u $SERVICE_NAME -n 50 --no-pager
-            ;;
-        *)
-            print_message $RED "无效选择"
-            ;;
-    esac
-}
-
-# 测试API
-test_api() {
-    print_message $BLUE "=== API测试 ==="
-    cd $PROJECT_DIR
-    if [ -f "test_api.py" ]; then
-        python3 test_api.py
+view_logs() {
+    if [ -f "$LOG_FILE" ]; then
+        print_status "实时查看日志 (Ctrl+C退出):"
+        tail -f "$LOG_FILE"
     else
-        print_message $YELLOW "测试脚本不存在，进行简单测试..."
-        curl -s http://localhost:9000/get_intro_animation_types | head -c 100
-        echo "..."
+        print_error "日志文件不存在: $LOG_FILE"
     fi
 }
 
-# 显示帮助信息
+# 显示帮助
 show_help() {
-    print_message $BLUE "=== CapCutAPI 服务管理脚本 ==="
+    echo "CapCutAPI 服务管理脚本"
     echo ""
-    echo "用法: $0 [命令]"
+    echo "用法: $0 {start|start-screen|start-systemd|stop|restart|status|logs|help}"
     echo ""
-    echo "可用命令:"
-    echo "  start    启动服务"
-    echo "  stop     停止服务"
-    echo "  restart  重启服务"
-    echo "  status   查看服务状态"
-    echo "  logs     查看服务日志"
-    echo "  test     测试API功能"
-    echo "  help     显示此帮助信息"
+    echo "命令说明:"
+    echo "  start         - 使用nohup方式启动服务（推荐）"
+    echo "  start-screen  - 使用screen方式启动服务"
+    echo "  start-systemd - 创建并启动systemd系统服务"
+    echo "  stop          - 停止所有方式启动的服务"
+    echo "  restart       - 重启服务"
+    echo "  status        - 查看服务状态"
+    echo "  logs          - 实时查看服务日志"
+    echo "  help          - 显示此帮助信息"
     echo ""
-    echo "示例:"
-    echo "  $0 start    # 启动服务"
-    echo "  $0 status   # 查看状态"
-    echo "  $0 logs     # 查看日志"
-    echo ""
+    echo "推荐使用方式:"
+    echo "  开发测试: ./service_manager.sh start"
+    echo "  生产环境: ./service_manager.sh start-systemd"
+    echo "  调试模式: ./service_manager.sh start-screen"
 }
 
-# 主函数
-main() {
-    case "${1:-}" in
-        start)
-            start_service
-            ;;
-        stop)
-            stop_service
-            ;;
-        restart)
-            restart_service
-            ;;
-        status)
-            show_status
-            ;;
-        logs)
-            show_logs
-            ;;
-        test)
-            test_api
-            ;;
-        help|--help|-h)
-            show_help
-            ;;
-        "")
-            show_help
-            ;;
-        *)
-            print_message $RED "错误: 未知命令 '$1'"
-            echo ""
-            show_help
-            exit 1
-            ;;
-    esac
-}
-
-# 检查是否以root权限运行
-if [ "$EUID" -ne 0 ]; then
-    print_message $YELLOW "注意: 某些操作可能需要sudo权限"
-fi
-
-# 执行主函数
-main "$@" 
+# 主程序
+case "$1" in
+    start)
+        start_nohup
+        ;;
+    start-screen)
+        start_screen
+        ;;
+    start-systemd)
+        start_systemd
+        ;;
+    stop)
+        stop_service
+        ;;
+    restart)
+        restart_service
+        ;;
+    status)
+        check_status
+        ;;
+    logs)
+        view_logs
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        print_error "无效的命令: $1"
+        show_help
+        exit 1
+        ;;
+esac 

@@ -15,3 +15,8 @@ config.json
 .venv/
 venv/
 tmp/
+# 运行时文件
+*.pid
+*.log
+complete_test_draft/
+logs/capcut_server.log
