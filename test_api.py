@@ -20,7 +20,7 @@ TEST_AUDIO_URL = "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
 TEST_IMAGE_URL = "https://picsum.photos/800/600"
 
 # 草稿配置
-DRAFT_ID = "complete_test_draft"
+DRAFT_ID = "test_draft_" + str(int(time.time()))  # 使用时间戳确保唯一性
 DRAFT_FOLDER = "F:\\jianyin\\cgwz\\JianyingPro Drafts"  # Windows剪映草稿目录
 
 def make_request(endpoint, data=None, method="POST", timeout=30):
@@ -36,6 +36,9 @@ def make_request(endpoint, data=None, method="POST", timeout=30):
             print(f"❌ 不支持的HTTP方法: {method}")
             return None
             
+        print(f"🔍 [{endpoint}] 状态码: {response.status_code}")
+        print(f"🔍 [{endpoint}] 响应内容: {response.text[:200]}...")  # 添加这行
+        
         if response.status_code == 200:
             try:
                 result = response.json()
@@ -106,7 +109,7 @@ def test_add_video():
         "draft_id": DRAFT_ID,
         "video_url": TEST_VIDEO_URL,
         "start": 0,
-        "end": 10,
+        "end": 8,
         "track_name": "main_video"
     }
     
@@ -125,9 +128,9 @@ def test_add_audio():
     data = {
         "draft_id": DRAFT_ID,
         "audio_url": TEST_AUDIO_URL,
-        "start": 0,
-        "end": 8,
-        "target_start": 2,
+        "start": 1,
+        "end": 7,
+        "target_start": 1,
         "volume": 0.8,
         "track_name": "background_audio"
     }
@@ -149,8 +152,8 @@ def test_add_image():
         "image_url": TEST_IMAGE_URL,
         "width": 800,
         "height": 600,
-        "start": 5,
-        "end": 8,
+        "start": 2,
+        "end": 4,
         "track_name": "overlay_image"
     }
     
@@ -169,8 +172,8 @@ def test_add_text():
     data = {
         "draft_id": DRAFT_ID,
         "text": "CapCutAPI 测试标题",
-        "start": 1,
-        "end": 9,
+        "start": 0.5,
+        "end": 5.5,
         "font": "ZY_Courage",
         "font_color": "#ffffff",
         "font_size": 8.0,
@@ -243,7 +246,8 @@ def verify_draft_files():
     """验证草稿文件"""
     print(f"\n=== 9. 验证草稿文件 ===")
     
-    draft_path = os.path.join(DRAFT_FOLDER, DRAFT_ID)
+    # 修改：在Linux服务器上查找
+    draft_path = os.path.join(".", DRAFT_ID)  # 改为当前目录下
     draft_info_path = os.path.join(draft_path, "draft_info.json")
     assets_path = os.path.join(draft_path, "assets")
     

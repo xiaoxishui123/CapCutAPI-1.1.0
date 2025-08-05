@@ -14,15 +14,13 @@ import functools
 from typing import Tuple
 
 
-def generate_draft_url():
-    """生成草稿URL"""
-    try:
-        with open('config.json', 'r', encoding='utf-8') as f:
-            config = json.load(f)
-            draft_domain = config.get('draft_domain', 'http://localhost:9000')
-            return draft_domain
-    except Exception:
-        return 'http://localhost:9000'
+def generate_draft_url(draft_id=None):
+    """生成草稿本地路径"""
+    default_folder = "F:/jianyin/cgwz/JianyingPro Drafts"  # 使用正斜杠
+    
+    if draft_id:
+        return f"{default_folder}/{draft_id}".replace('/', '\\')
+    return default_folder.replace('/', '\\')
 
 
 def is_windows_path(path: str) -> bool:
