@@ -29,6 +29,9 @@ logger = logging.getLogger('flask_video_generator')
 # Define task status enumeration type
 TaskStatus = Literal["initialized", "processing", "completed", "failed", "not_found"]
 
+# OSS模式默认Windows草稿文件夹路径
+DEFAULT_WINDOWS_DRAFT_FOLDER = "F:\\jianyin\\cgwz\\JianyingPro Drafts"
+
 def build_asset_path(draft_folder: str, draft_id: str, asset_type: str, material_name: str) -> str:
     """
     Build asset file path
@@ -104,14 +107,20 @@ def save_draft_background(draft_id, draft_folder, task_id):
         
         download_tasks = []
         
+        # OSS模式：如果没有指定draft_folder，使用默认的Windows路径
+        if not draft_folder:
+            draft_folder = DEFAULT_WINDOWS_DRAFT_FOLDER
+            logger.info(f"OSS mode: Using default Windows draft folder: {draft_folder}")
+        
         audios = script.materials.audios
         if audios:
             for audio in audios:
                 remote_url = audio.remote_url
                 material_name = audio.material_name
-                # Use helper function to build path
-                if draft_folder:
-                    audio.replace_path = build_asset_path(draft_folder, draft_id, "audio", material_name)
+                # 始终使用build_asset_path生成正确的Windows格式路径
+                audio.replace_path = build_asset_path(draft_folder, draft_id, "audio", material_name)
+                logger.debug(f"Audio replace_path: {audio.replace_path}")
+                
                 if not remote_url:
                     logger.warning(f"Audio file {material_name} has no remote_url, skipping download.")
                     continue
@@ -132,9 +141,10 @@ def save_draft_background(draft_id, draft_folder, task_id):
                 material_name = video.material_name
                 
                 if video.material_type == 'photo':
-                    # Use helper function to build path
-                    if draft_folder:
-                        video.replace_path = build_asset_path(draft_folder, draft_id, "image", material_name)
+                    # 始终使用build_asset_path生成正确的Windows格式路径
+                    video.replace_path = build_asset_path(draft_folder, draft_id, "image", material_name)
+                    logger.debug(f"Image replace_path: {video.replace_path}")
+                    
                     if not remote_url:
                         logger.warning(f"Image file {material_name} has no remote_url, skipping download.")
                         continue
@@ -148,9 +158,10 @@ def save_draft_background(draft_id, draft_folder, task_id):
                     })
                 
                 elif video.material_type == 'video':
-                    # Use helper function to build path
-                    if draft_folder:
-                        video.replace_path = build_asset_path(draft_folder, draft_id, "video", material_name)
+                    # 始终使用build_asset_path生成正确的Windows格式路径
+                    video.replace_path = build_asset_path(draft_folder, draft_id, "video", material_name)
+                    logger.debug(f"Video replace_path: {video.replace_path}")
+                    
                     if not remote_url:
                         logger.warning(f"Video file {material_name} has no remote_url, skipping download.")
                         continue
@@ -212,6 +223,7 @@ def save_draft_background(draft_id, draft_folder, task_id):
         update_task_field(task_id, "message", "Saving draft information")
         logger.info(f"Task {task_id} progress 70%: Saving draft information.")
         
+
         script.dump(os.path.join(current_dir, f"{draft_id}/draft_info.json"))
         logger.info(f"Draft information has been saved to {os.path.join(current_dir, draft_id)}/draft_info.json.")
 
@@ -224,8 +236,15 @@ def save_draft_background(draft_id, draft_folder, task_id):
             logger.info(f"Task {task_id} progress 80%: Compressing draft files.")
             
             # Compress the entire draft directory
-            zip_path = zip_draft(draft_id)
-            logger.info(f"Draft directory {os.path.join(current_dir, draft_id)} has been compressed to {zip_path}.")
+            draft_folder_path = os.path.join(current_dir, draft_id)
+            zip_filename = f"{draft_id}.zip"
+            zip_file_path = os.path.join(current_dir, zip_filename)
+            
+            success = zip_draft(draft_folder_path, zip_file_path)
+            if not success:
+                raise Exception("Failed to compress draft folder")
+                
+            logger.info(f"Draft directory {draft_folder_path} has been compressed to {zip_file_path}.")
             
             # Update task status - Start uploading to OSS
             update_task_field(task_id, "progress", 90)
@@ -233,7 +252,7 @@ def save_draft_background(draft_id, draft_folder, task_id):
             logger.info(f"Task {task_id} progress 90%: Uploading to cloud storage.")
             
             # Upload to OSS
-            draft_url = upload_to_oss(zip_path)
+            draft_url = upload_to_oss(zip_file_path)
             logger.info(f"Draft archive has been uploaded to OSS, URL: {draft_url}")
             update_task_field(task_id, "draft_url", draft_url)
 
@@ -270,18 +289,19 @@ def save_draft_impl(draft_id: str, draft_folder: str = None) -> Dict[str, str]:
         create_task(task_id)
         logger.info(f"Task {task_id} has been created.")
         
-        # Changed to synchronous execution
+        # Start a background thread to execute the task
+        thread = threading.Thread(
+            target=save_draft_background,
+            args=(draft_id, draft_folder, task_id)
+        )
+        thread.start()
+        
+        # Return task_id for progress tracking
         return {
             "success": True,
-            "draft_url": save_draft_background(draft_id, draft_folder, task_id)
-            }
-
-        # # Start a background thread to execute the task
-        # thread = threading.Thread(
-        #     target=save_draft_background,
-        #     args=(draft_id, draft_folder, task_id)
-        # )
-        # thread.start()
+            "task_id": task_id,
+            "message": "Draft save task started successfully"
+        }
         
     except Exception as e:
         logger.error(f"Failed to start save draft task {draft_id}: {str(e)}", exc_info=True)
@@ -289,6 +309,7 @@ def save_draft_impl(draft_id: str, draft_folder: str = None) -> Dict[str, str]:
             "success": False,
             "error": str(e)
         }
+
 
 def update_media_metadata(script, task_id=None):
     """
@@ -603,16 +624,21 @@ def download_script(draft_id: str, draft_folder: str = None, script_data: Dict =
         # Collect download tasks
         download_tasks = []
         
+        # 在download_script中也使用默认的Windows路径
+        if not draft_folder:
+            draft_folder = DEFAULT_WINDOWS_DRAFT_FOLDER
+            logger.info(f"download_script OSS mode: Using default Windows draft folder: {draft_folder}")
+        
         # Collect audio download tasks
         audios = script_data.get('materials',{}).get('audios',[])
         if audios:
             for audio in audios:
                 remote_url = audio['remote_url']
                 material_name = audio['name']
-                # Use helper function to build path
-                if draft_folder:
-                    audio['path']=build_asset_path(draft_folder, draft_id, "audio", material_name)
-                    logger.debug(f"Local path for audio {material_name}: {audio['path']}")
+                # 始终使用build_asset_path生成正确的Windows格式路径
+                audio['path']=build_asset_path(draft_folder, draft_id, "audio", material_name)
+                logger.debug(f"Local path for audio {material_name}: {audio['path']}")
+                
                 if not remote_url:
                     logger.warning(f"Audio file {material_name} has no remote_url, skipping download.")
                     continue
@@ -633,9 +659,9 @@ def download_script(draft_id: str, draft_folder: str = None, script_data: Dict =
                 material_name = video['material_name']
                 
                 if video['type'] == 'photo':
-                    # Use helper function to build path
-                    if draft_folder:
-                        video['path'] = build_asset_path(draft_folder, draft_id, "image", material_name)
+                    # 始终使用build_asset_path生成正确的Windows格式路径
+                    video['path'] = build_asset_path(draft_folder, draft_id, "image", material_name)
+                    
                     if not remote_url:
                         logger.warning(f"Image file {material_name} has no remote_url, skipping download.")
                         continue
@@ -649,9 +675,8 @@ def download_script(draft_id: str, draft_folder: str = None, script_data: Dict =
                     })
                 
                 elif video['type'] == 'video':
-                    # Use helper function to build path
-                    if draft_folder:
-                        video['path'] = build_asset_path(draft_folder, draft_id, "video", material_name)
+                    # 始终使用build_asset_path生成正确的Windows格式路径
+                    video['path'] = build_asset_path(draft_folder, draft_id, "video", material_name)
                     if not remote_url:
                         logger.warning(f"Video file {material_name} has no remote_url, skipping download.")
                         continue

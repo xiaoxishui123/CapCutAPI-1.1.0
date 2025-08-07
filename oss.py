@@ -4,16 +4,22 @@ import os
 from settings.local import OSS_CONFIG, MP4_OSS_CONFIG
 
 def upload_to_oss(path):
-    # Create OSS client
-    auth = oss2.Auth(OSS_CONFIG['access_key_id'], OSS_CONFIG['access_key_secret'])
-    bucket = oss2.Bucket(auth, OSS_CONFIG['endpoint'], OSS_CONFIG['bucket_name'])
+    # Create OSS client with v4 authentication and region
+    auth = oss2.AuthV4(OSS_CONFIG['access_key_id'], OSS_CONFIG['access_key_secret'])
+    
+    # Ensure endpoint has proper format
+    endpoint = OSS_CONFIG['endpoint']
+    if not endpoint.startswith('http'):
+        endpoint = 'https://' + endpoint
+    
+    bucket = oss2.Bucket(auth, endpoint, OSS_CONFIG['bucket_name'], region=OSS_CONFIG['region'])
     
     # Upload file
     object_name = os.path.basename(path)
     bucket.put_object_from_file(object_name, path)
     
-    # Generate signed URL (valid for 24 hours)
-    url = bucket.sign_url('GET', object_name, 24 * 60 * 60)
+    # Generate signed URL (valid for 24 hours) with v4 signature
+    url = bucket.sign_url('GET', object_name, 24 * 60 * 60, slash_safe=True)
     
     # Clean up temporary file
     os.remove(path)
@@ -25,23 +31,15 @@ def upload_mp4_to_oss(path):
     # Directly use credentials from the configuration file
     auth = oss2.AuthV4(MP4_OSS_CONFIG['access_key_id'], MP4_OSS_CONFIG['access_key_secret'])
     
-    # Create OSS client with custom domain
-    bucket = oss2.Bucket(
-        auth, 
-        MP4_OSS_CONFIG['endpoint'], 
-        MP4_OSS_CONFIG['bucket_name'], 
-        region=MP4_OSS_CONFIG['region'], 
-        is_cname=True
-    )
+    # Create bucket instance with region
+    bucket = oss2.Bucket(auth, MP4_OSS_CONFIG['endpoint'], MP4_OSS_CONFIG['bucket_name'], region=MP4_OSS_CONFIG['region'])
     
     # Upload file
     object_name = os.path.basename(path)
     bucket.put_object_from_file(object_name, path)
     
-    # Generate pre-signed URL (valid for 24 hours), set slash_safe to True to avoid path escaping
-    url = bucket.sign_url('GET', object_name, 24 * 60 * 60, slash_safe=True)
-    
-    # Clean up temporary file
-    os.remove(path)
+    # Generate custom domain URL
+    custom_domain = MP4_OSS_CONFIG['endpoint']
+    url = f"{custom_domain}/{object_name}"
     
     return url
