@@ -3,16 +3,18 @@ import oss2
 import os
 from settings.local import OSS_CONFIG, MP4_OSS_CONFIG
 
-def upload_to_oss(path):
-    # Create OSS client with v4 authentication and region
+
+def _ensure_bucket():
     auth = oss2.AuthV4(OSS_CONFIG['access_key_id'], OSS_CONFIG['access_key_secret'])
-    
-    # Ensure endpoint has proper format
     endpoint = OSS_CONFIG['endpoint']
     if not endpoint.startswith('http'):
         endpoint = 'https://' + endpoint
+    return oss2.Bucket(auth, endpoint, OSS_CONFIG['bucket_name'], region=OSS_CONFIG['region'])
+
     
-    bucket = oss2.Bucket(auth, endpoint, OSS_CONFIG['bucket_name'], region=OSS_CONFIG['region'])
+def upload_to_oss(path):
+    # Create OSS client with v4 authentication and region
+    bucket = _ensure_bucket()
     
     # Upload file
     object_name = os.path.basename(path)
@@ -25,6 +27,7 @@ def upload_to_oss(path):
     os.remove(path)
     
     return url
+
 
 def upload_mp4_to_oss(path):
     """Special method for uploading MP4 files, using custom domain and v4 signature"""
@@ -43,3 +46,17 @@ def upload_mp4_to_oss(path):
     url = f"{custom_domain}/{object_name}"
     
     return url
+
+
+def get_signed_draft_url_if_exists(draft_id: str, expires_seconds: int = 24*60*60):
+    """Return signed URL for <draft_id>.zip if exists in OSS. Otherwise return ("", False)."""
+    bucket = _ensure_bucket()
+    key = f"{draft_id}.zip"
+    try:
+        if bucket.object_exists(key):
+            url = bucket.sign_url('GET', key, expires_seconds, slash_safe=True)
+            return url, True
+        return "", False
+    except Exception:
+        # Do not raise; let caller handle errors uniformly
+        return "", False

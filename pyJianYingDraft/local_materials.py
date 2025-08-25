@@ -2,7 +2,7 @@ import os
 import uuid
 import subprocess
 import json
-from typing import Optional, Literal
+from typing import Optional
 from typing import Dict, Any
 import imageio.v2 as imageio
 
@@ -65,12 +65,12 @@ class Video_material:
     """素材宽度"""
     crop_settings: Crop_settings
     """素材裁剪设置"""
-    material_type: Literal["video", "photo"]
+    material_type: str
     """素材类型: 视频或图片"""
     replace_path: Optional[str] = None
     """替换路径, 如果设置了这个值, 在导出json时会用这个路径替代原始path"""
 
-    def __init__(self, material_type: Literal["video", "photo"], 
+    def __init__(self, material_type: str, 
                  path: Optional[str] = None,
                  replace_path: Optional[str] = None, 
                  material_name: Optional[str] = None, 

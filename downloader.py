@@ -4,7 +4,8 @@ import time
 import requests
 import shutil
 from requests.exceptions import RequestException, Timeout
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urlunparse
+from settings.local import DOWNLOAD_HEADERS, FILE_SERVER_PUBLIC_HOST, FILE_SERVER_INTERNAL_BASE
 
 def download_video(video_url, draft_name, material_name):
     """
@@ -129,7 +130,7 @@ def download_file(url:str, local_filename, max_retries=3, timeout=180):
         
         print(f"Copy completed in {time.time()-start_time:.2f} seconds")
         print(f"File saved as: {os.path.abspath(local_filename)}")
-        return True
+        return local_filename
     
     # 原有的下载逻辑
     # Extract directory part
@@ -151,14 +152,30 @@ def download_file(url:str, local_filename, max_retries=3, timeout=180):
                 os.makedirs(directory, exist_ok=True)
                 print(f"Created directory: {directory}")
 
-            # Add headers
+            # Build headers dynamically; avoid hardcoded Referer which may cause 403
+            parsed = urlparse(url)
+            # Optional host rewrite to internal base
+            try:
+                if FILE_SERVER_PUBLIC_HOST and FILE_SERVER_INTERNAL_BASE and parsed.netloc == FILE_SERVER_PUBLIC_HOST:
+                    internal = urlparse(FILE_SERVER_INTERNAL_BASE)
+                    parsed = parsed._replace(scheme=internal.scheme or parsed.scheme,
+                                             netloc=internal.netloc or parsed.netloc)
+                    url = urlunparse(parsed)
+            except Exception:
+                pass
+            origin = f"{parsed.scheme}://{parsed.netloc}"
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
-                'Referer': 'https://www.163.com/',  # 网易的Referer
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
                 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
             }
+            # Only set Referer when origin is http(s)
+            if parsed.scheme in ('http', 'https'):
+                headers['Referer'] = origin
 
+            # Merge custom headers from config (take precedence)
+            if isinstance(DOWNLOAD_HEADERS, dict) and DOWNLOAD_HEADERS:
+                headers.update(DOWNLOAD_HEADERS)
             with requests.get(url, stream=True, timeout=timeout, headers=headers) as response:
                 response.raise_for_status()
                 
@@ -184,7 +201,7 @@ def download_file(url:str, local_filename, max_retries=3, timeout=180):
                     pass
                 print(f"Download completed in {time.time()-start_time:.2f} seconds")
                 print(f"File saved as: {os.path.abspath(local_filename)}")
-                return True
+                return local_filename
                 
         except Timeout:
             print(f"Download timed out after {timeout} seconds")

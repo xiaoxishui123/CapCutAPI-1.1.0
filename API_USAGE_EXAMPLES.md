@@ -1,5 +1,7 @@
 # CapCutAPI 使用示例
 
+> 建议先阅读 `CapCutAPI_快速使用指南.md` 了解标准流程与路径规范。以下示例聚焦接口调用。
+
 ## 服务器信息
 
 - **服务器地址**: http://8.148.70.18:9000
@@ -135,18 +137,35 @@ response = requests.post("http://8.148.70.18:9000/add_effect", json={
 print(response.json())
 ```
 
-### 8. 保存草稿
+### 8. 保存草稿与生成下载链接（派生zip）
 
 ```python
 import requests
 
-# 保存草稿
-response = requests.post("http://8.148.70.18:9000/save_draft", json={
-    "draft_id": "my_draft_001",
-    "draft_folder": "/path/to/capcut/drafts"
+# 保存草稿（可选：本地保存时传 draft_folder）
+requests.post("http://8.148.70.18:9000/save_draft", json={
+    "draft_id": "my_draft_001"
 })
 
-print(response.json())
+# 生成下载链接：标准直链（存在则直接返回）
+r = requests.post("http://8.148.70.18:9000/generate_draft_url", json={
+    "draft_id": "my_draft_001"
+}).json()
+print(r)
+
+# 生成定制化下载链接：按客户端改写并缓存派生zip
+r2 = requests.post("http://8.148.70.18:9000/generate_draft_url", json={
+    "draft_id": "my_draft_001",
+    "client_os": "windows",           # 或 linux
+    "draft_folder": "F:/jianyin/cgwz/JianyingPro Drafts"
+}).json()
+print(r2)
+
+# 未上传时一键触发
+requests.post("http://8.148.70.18:9000/generate_draft_url?force_save=true", json={
+    "draft_id": "my_draft_001",
+    "force_save": True
+})
 ```
 
 ## 获取支持的选项

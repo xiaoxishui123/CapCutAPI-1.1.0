@@ -4,7 +4,7 @@
 
 ### 1. 创建草稿
 ```bash
-curl -X POST http://服务器IP:9000/create_draft \
+curl -X POST http://8.148.70.18:9000/create_draft \
   -H "Content-Type: application/json" \
   -d '{
     "draft_id": "项目名称",
@@ -57,7 +57,9 @@ curl -X POST http://服务器IP:9000/add_image \
   }'
 ```
 
-### 3. 保存草稿 ⚠️ **关键步骤**
+### 3. 保存草稿（本地/OSS）
+- 本地保存：传 `draft_folder` 为客户端本地草稿根路径（Windows 使用 `\\\\` 转义，Linux 使用 `/`）。
+- OSS 模式：`config.json` 中 `is_upload_draft=true` 时，后台会压缩上传到 OSS。
 ```bash
 curl -X POST http://服务器IP:9000/save_draft \
   -H "Content-Type: application/json" \
@@ -67,17 +69,32 @@ curl -X POST http://服务器IP:9000/save_draft \
   }'
 ```
 
-### 4. 下载到Windows
+### 4. 生成下载链接（推荐）
+- 若已上传到 OSS：
 ```bash
-# 在服务器上压缩
-tar -czf 项目名称.tar.gz 项目名称/
-
-# 下载到Windows
-scp 用户@服务器:/路径/项目名称.tar.gz ./
-
-# 解压到剪映目录
-# 目标位置：F:\jianyin\cgwz\JianyingPro Drafts\项目名称\
+# 标准直链（存在则直接返回）
+curl -s -H 'Content-Type: application/json' \
+  -d '{"draft_id":"项目名称"}' \
+  http://服务器IP:9000/generate_draft_url
 ```
+- 按客户端定制 zip（改写 draft_info.json 中路径并缓存）：
+```bash
+# 传入 client_os + draft_folder，返回派生 zip 的签名直链
+curl -s -H 'Content-Type: application/json' \
+  -d '{"draft_id":"项目名称","client_os":"windows","draft_folder":"F:/jianyin/cgwz/JianyingPro Drafts"}' \
+  http://服务器IP:9000/generate_draft_url
+```
+- 未上传时一键触发上传：
+```bash
+curl -s -H 'Content-Type: application/json' \
+  -d '{"draft_id":"项目名称","force_save":true}' \
+  'http://服务器IP:9000/generate_draft_url?force_save=true'
+```
+- 浏览器下载页（含 OS 选择、自定义根路径 base 参数）：
+```
+http://服务器IP:9000/draft/downloader?draft_id=项目名称&os=windows&base=F:/MyDrafts
+```
+
 
 ---
 
@@ -102,8 +119,8 @@ scp 用户@服务器:/路径/项目名称.tar.gz ./
 - `duration`: 自动计算，无需手动设置
 
 ### 路径参数
-- **Linux服务器**: 使用正斜杠 `/`
-- **Windows剪映**: 必须使用`\\\\`转义格式
+- **Linux**: 使用正斜杠 `/`
+- **Windows**: API JSON 中使用 `\\\\` 转义；下载页支持 `os` 与 `base` 参数定制展示与派生 zip
 
 ### 坐标系统
 - **原点**: 画布中心 (0, 0)
@@ -156,4 +173,54 @@ curl -X POST http://服务器:9000/save_draft \
 
 ---
 
-**⚡ 记住**: 保存草稿时必须使用Windows路径格式`F:\\\\jianyin\\\\cgwz\\\\JianyingPro Drafts`！ 
+**⚡ 记住**: Windows 客户端路径在 JSON 中需使用 `\\` 转义；Linux 使用 `/`。生成下载链接时也可传 `client_os` 与 `draft_folder` 来得到对应客户端的派生 zip。
+
+---
+
+## ☁️ 自动镜像到 OSS（推荐，无 403 风险）
+
+当外部文件服务器限制直连（容易 403）时，使用本接口把素材直接上传到后端，由后端写入阿里云 OSS，并返回签名可访问链接。
+
+- 接口：`POST /upload_to_oss`
+- 功能：接收二进制文件或 Base64 数据，写入 OSS，返回签名 URL
+- 参数：
+  - `prefix`：可选，OSS 目录前缀，例如 `capcut/images`
+  - `file`：multipart 表单文件（二选一）
+  - `data_base64`：JSON Base64 文件数据（二选一），可配合 `filename`
+
+### 方式一：表单上传（multipart/form-data）
+```bash
+curl -X POST http://服务器IP:9000/upload_to_oss \
+  -F 'prefix=capcut/images' \
+  -F 'file=@/path/to/your.png'
+```
+返回示例：
+```json
+{"success":true,"object":"capcut/images/xxxx.png","oss_url":"https://<bucket>.oss-<region>.aliyuncs.com/capcut/images/xxxx.png?..."}
+```
+
+### 方式二：JSON（Base64）上传
+```bash
+curl -X POST http://服务器IP:9000/upload_to_oss \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "filename": "image.png",
+    "data_base64": "<BASE64>",
+    "prefix": "capcut/images"
+  }'
+```
+
+### 与工作流集成建议（以 Dify 为例）
+- 若上游产出的是文件（如豆包文生图工具的 `files`）：
+  1) 新增 HTTP 节点 → `POST /upload_to_oss`，以 multipart 方式转发 `file`；
+  2) 读取返回的 `oss_url`，传给 `add_image` 的 `image_url`。
+- 若上游只给了远程 URL 且易触发 403：
+  - 改为先把二进制读到客户端，再走 `upload_to_oss`；或在上游阶段就改为由上游直接传文件给此接口。
+
+### 配置说明
+- `config.json` 中已配置：
+  - `oss_config.region`: 例如 `cn-wuhan-lr`
+  - `oss_config.endpoint`: 例如 `oss-cn-wuhan-lr.aliyuncs.com`（无需手动写协议）
+  - `is_upload_draft` 与草稿上传逻辑互不影响；本接口独立使用。
+
+> 提示：`/mirror_to_oss` 依赖从外部下载原文件，若外部 403 限制严格，推荐直接使用 `/upload_to_oss`，流程更稳定。

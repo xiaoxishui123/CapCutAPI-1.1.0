@@ -11,16 +11,28 @@ import hashlib
 import zipfile
 import time
 import functools
-from typing import Tuple
+from typing import Tuple, Optional
+from settings.local import WINDOWS_DRAFT_FOLDER, LINUX_DRAFT_FOLDER
 
 
-def generate_draft_url(draft_id=None):
-    """生成草稿本地路径"""
-    default_folder = "F:/jianyin/cgwz/JianyingPro Drafts"  # 使用正斜杠
-    
+def generate_draft_url(draft_id: Optional[str] = None, client_os: str = "windows", base: Optional[str] = None):
+    """生成草稿本地路径（用于展示或作为默认值）
+    base: 可选，覆盖默认根路径（用于页面临时显示/快速预览）
+    """
+    folder_base = base if base else (WINDOWS_DRAFT_FOLDER if client_os.lower() == "windows" else LINUX_DRAFT_FOLDER)
+    # 统一使用正斜杠拼接，再按OS转换
     if draft_id:
-        return f"{default_folder}/{draft_id}".replace('/', '\\')
-    return default_folder.replace('/', '\\')
+        path = f"{folder_base}/{draft_id}"
+    else:
+        path = folder_base
+    return normalize_path_by_os(path, client_os)
+
+
+def normalize_path_by_os(path: str, client_os: str) -> str:
+    """根据目标系统转换分隔符"""
+    if client_os.lower() == "windows":
+        return path.replace('/', '\\')
+    return path.replace('\\', '/')
 
 
 def is_windows_path(path: str) -> bool:
@@ -66,13 +78,22 @@ def hex_to_rgb(hex_color: str) -> Tuple[float, float, float]:
 
 
 def zip_draft(draft_folder: str, zip_path: str) -> bool:
-    """将草稿文件夹打包为zip文件"""
+    """将草稿文件夹打包为zip文件，包含空目录（如 assets、assets/image 等）。"""
     try:
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for root, dirs, files in os.walk(draft_folder):
+                # 确保目录项（包括空目录）写入 zip，JianYing 需要 assets 目录结构
+                rel_root = os.path.relpath(root, draft_folder)
+                if rel_root != '.':
+                    dir_arcname = rel_root.replace('\\', '/') + '/'
+                    # 避免重复写入同名目录
+                    if dir_arcname not in zipf.namelist():
+                        zip_info = zipfile.ZipInfo(dir_arcname)
+                        zipf.writestr(zip_info, b'')
+                # 写入文件
                 for file in files:
                     file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, draft_folder)
+                    arcname = os.path.relpath(file_path, draft_folder).replace('\\', '/')
                     zipf.write(file_path, arcname)
         return True
     except Exception as e:

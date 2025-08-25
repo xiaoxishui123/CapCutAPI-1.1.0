@@ -1,0 +1,39 @@
+{
+  "dfd_cat_1755828191_a0dcb14b": [
+    {
+      "type": "video",
+      "url": "https://example.com/video.mp4",
+      "start": 0,
+      "end": 30,
+      "materialType": "video",
+      "material_type": "video",
+      "track_name": "video_main"
+    },
+    {
+      "type": "audio",
+      "url": "https://example.com/audio.mp3",
+      "start": 0,
+      "end": 30,
+      "materialType": "audio",
+      "material_type": "audio",
+      "track_name": "audio_voice"
+    },
+    {
+      "type": "text",
+      "content": "测试标题文本",
+      "start": 0,
+      "end": 5,
+      "materialType": "text",
+      "material_type": "text"
+    },
+    {
+      "type": "audio",
+      "url": "https://example.com/bgm.mp3",
+      "start": 0,
+      "end": 30,
+      "materialType": "audio",
+      "material_type": "audio",
+      "track_name": "audio_bgm"
+    }
+  ]
+}

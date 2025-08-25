@@ -197,55 +197,114 @@ def save_draft_background(draft_id, draft_folder, task_id):
                     task = future_to_task[future]
                     try:
                         local_path = future.result()
-                        downloaded_paths.append(local_path)
-                        
-                        # Update task status - only update completed files count
-                        completed_files += 1
-                        update_task_field(task_id, "completed_files", completed_files)
-                        task_status = get_task_status(task_id)
-                        completed = task_status["completed_files"]
-                        total = len(download_tasks)
-                        update_task_field(task_id, "total_files", total)
-                        # Download part accounts for 60% of the total progress
-                        download_progress = 10 + int((completed / total) * 60)
-                        update_task_field(task_id, "progress", download_progress)
-                        update_task_field(task_id, "message", f"Downloaded {completed}/{total} files")
-                        
-                        logger.info(f"Task {task_id}: Successfully downloaded {task['type']} file, progress {download_progress}.")
+                        if isinstance(local_path, str) and os.path.exists(local_path):
+                            downloaded_paths.append(local_path)
+                            # Update task status - only update completed files count
+                            completed_files += 1
+                            update_task_field(task_id, "completed_files", completed_files)
+                            task_status = get_task_status(task_id)
+                            completed = task_status["completed_files"]
+                            total = len(download_tasks)
+                            update_task_field(task_id, "total_files", total)
+                            # Download part accounts for 60% of the total progress
+                            download_progress = 10 + int((completed / total) * 60)
+                            update_task_field(task_id, "progress", download_progress)
+                            update_task_field(task_id, "message", f"Downloaded {completed}/{total} files")
+                            
+                            logger.info(f"Task {task_id}: Successfully downloaded {task['type']} file to {local_path}, progress {download_progress}.")
+                        else:
+                            logger.error(f"Task {task_id}: Download reported success but file missing: {task['args'][-1]}")
                     except Exception as e:
                         logger.error(f"Task {task_id}: Download {task['type']} file failed: {str(e)}", exc_info=True)
                         # Continue processing other files, don't interrupt the entire process
             
             logger.info(f"Task {task_id}: Concurrent download completed, downloaded {len(downloaded_paths)} files in total.")
+
+        # Log asset counts before zipping
+        try:
+            assets_root = os.path.join(current_dir, f"{draft_id}", "assets")
+            total_assets = 0
+            for sub in ("image", "video", "audio"):
+                p = os.path.join(assets_root, sub)
+                cnt = 0
+                if os.path.isdir(p):
+                    cnt = sum(1 for _ in os.scandir(p) if _.is_file())
+                total_assets += cnt
+                logger.info(f"Task {task_id}: Assets in {sub}: {cnt}")
+            logger.info(f"Task {task_id}: Total assets before zipping: {total_assets}")
+        except Exception as _:
+            logger.warning(f"Task {task_id}: Failed counting assets before zip: {_}")
         
         # Update task status - Start saving draft information
         update_task_field(task_id, "progress", 70)
         update_task_field(task_id, "message", "Saving draft information")
         logger.info(f"Task {task_id} progress 70%: Saving draft information.")
         
+        # Force local consumption in Jianying: clear remote_url so the client won't try to re-download
+        try:
+            if hasattr(script, 'materials'):
+                # Audios
+                if getattr(script.materials, 'audios', None):
+                    for a in script.materials.audios:
+                        # Ensure Jianying uses local assets
+                        try:
+                            if draft_folder:
+                                local_path = build_asset_path(draft_folder, draft_id, "audio", a.material_name)
+                                a.replace_path = local_path
+                                # also set canonical path fields when available
+                                if hasattr(a, 'path'):
+                                    a.path = local_path
+                                if hasattr(a, 'media_path'):
+                                    a.media_path = local_path
+                                if hasattr(a, 'category_name'):
+                                    a.category_name = 'local'
+                        except Exception as _:
+                            pass
+                        a.remote_url = None
+                # Videos / Images
+                if getattr(script.materials, 'videos', None):
+                    for v in script.materials.videos:
+                        try:
+                            asset_type = 'image' if getattr(v, 'material_type', '') == 'photo' else 'video'
+                            if draft_folder:
+                                local_path = build_asset_path(draft_folder, draft_id, asset_type, v.material_name)
+                                v.replace_path = local_path
+                                if hasattr(v, 'path'):
+                                    v.path = local_path
+                                if hasattr(v, 'media_path'):
+                                    v.media_path = local_path
+                                if hasattr(v, 'category_name'):
+                                    v.category_name = 'local'
+                        except Exception as _:
+                            pass
+                        v.remote_url = None
+            logger.info("Cleared remote_url and populated local path/metadata for all materials to force local assets usage in Jianying.")
+        except Exception as e:
+            logger.warning(f"Failed to clear remote_url fields: {e}")
 
         script.dump(os.path.join(current_dir, f"{draft_id}/draft_info.json"))
         logger.info(f"Draft information has been saved to {os.path.join(current_dir, draft_id)}/draft_info.json.")
 
         draft_url = ""
         # Only upload draft information when IS_UPLOAD_DRAFT is True
+        # Always zip draft folder; if IS_UPLOAD_DRAFT=true then upload, otherwise keep local zip for download
+        # Update task status - Start compressing draft
+        update_task_field(task_id, "progress", 80)
+        update_task_field(task_id, "message", "Compressing draft files")
+        logger.info(f"Task {task_id} progress 80%: Compressing draft files.")
+        
+        # Compress the entire draft directory
+        draft_folder_path = os.path.join(current_dir, draft_id)
+        zip_filename = f"{draft_id}.zip"
+        zip_file_path = os.path.join(current_dir, zip_filename)
+        
+        success = zip_draft(draft_folder_path, zip_file_path)
+        if not success:
+            raise Exception("Failed to compress draft folder")
+            
+        logger.info(f"Draft directory {draft_folder_path} has been compressed to {zip_file_path}.")
+        
         if IS_UPLOAD_DRAFT:
-            # Update task status - Start compressing draft
-            update_task_field(task_id, "progress", 80)
-            update_task_field(task_id, "message", "Compressing draft files")
-            logger.info(f"Task {task_id} progress 80%: Compressing draft files.")
-            
-            # Compress the entire draft directory
-            draft_folder_path = os.path.join(current_dir, draft_id)
-            zip_filename = f"{draft_id}.zip"
-            zip_file_path = os.path.join(current_dir, zip_filename)
-            
-            success = zip_draft(draft_folder_path, zip_file_path)
-            if not success:
-                raise Exception("Failed to compress draft folder")
-                
-            logger.info(f"Draft directory {draft_folder_path} has been compressed to {zip_file_path}.")
-            
             # Update task status - Start uploading to OSS
             update_task_field(task_id, "progress", 90)
             update_task_field(task_id, "message", "Uploading to cloud storage")
@@ -255,11 +314,16 @@ def save_draft_background(draft_id, draft_folder, task_id):
             draft_url = upload_to_oss(zip_file_path)
             logger.info(f"Draft archive has been uploaded to OSS, URL: {draft_url}")
             update_task_field(task_id, "draft_url", draft_url)
-
+            
             # Clean up temporary files
             if os.path.exists(os.path.join(current_dir, draft_id)):
                 shutil.rmtree(os.path.join(current_dir, draft_id))
                 logger.info(f"Cleaned up temporary draft folder: {os.path.join(current_dir, draft_id)}")
+        else:
+            # Local mode: expose local zip file absolute path
+            draft_url = zip_file_path
+            update_task_field(task_id, "draft_url", draft_url)
+            logger.info(f"Local mode: zip generated at {draft_url}")
 
     
         # Update task status - Completed
@@ -689,38 +753,47 @@ def download_script(draft_id: str, draft_folder: str = None, script_data: Dict =
                         'material': video
                     })
 
-        # Execute all download tasks concurrently
+        # Execute all download tasks concurrently (download_script path)
         downloaded_paths = []
         completed_files = 0
         if download_tasks:
             logger.info(f"Starting concurrent download of {len(download_tasks)} files...")
-            
-            # Use thread pool for concurrent downloads, maximum concurrency of 16
             with ThreadPoolExecutor(max_workers=16) as executor:
-                # Submit all download tasks
-                future_to_task = {
-                    executor.submit(task['func'], *task['args']): task 
-                    for task in download_tasks
-                }
-                
-                # Wait for all tasks to complete
+                future_to_task = {executor.submit(task['func'], *task['args']): task for task in download_tasks}
                 for future in as_completed(future_to_task):
                     task = future_to_task[future]
                     try:
                         local_path = future.result()
-                        downloaded_paths.append(local_path)
-                        
-                        # Update task status - only update completed files count
-                        completed_files += 1
-                        logger.info(f"Downloaded {completed_files}/{len(download_tasks)} files.")
+                        if isinstance(local_path, str) and os.path.exists(local_path):
+                            downloaded_paths.append(local_path)
+                            completed_files += 1
+                            logger.info(f"Downloaded {completed_files}/{len(download_tasks)} files.")
+                        else:
+                            logger.error(f"Failed to download {task['type']} file {task['args'][0]}: File missing or not found: {task['args'][-1]}")
                     except Exception as e:
                         logger.error(f"Failed to download {task['type']} file {task['args'][0]}: {str(e)}", exc_info=True)
                         logger.error("Download failed.")
-                        # Continue processing other files, don't interrupt the entire process
-            
             logger.info(f"Concurrent download completed, downloaded {len(downloaded_paths)} files in total.")
         
         """Write draft file content to file"""
+        # Ensure remote_url are cleared to force local assets usage in Jianying
+        try:
+            if 'materials' in script_data:
+                if 'audios' in script_data['materials'] and script_data['materials']['audios']:
+                    for a in script_data['materials']['audios']:
+                        a['remote_url'] = None
+                        a['category_name'] = 'local'
+                        if 'media_path' in a:
+                            a['media_path'] = a.get('path', a['media_path'])
+                if 'videos' in script_data['materials'] and script_data['materials']['videos']:
+                    for v in script_data['materials']['videos']:
+                        v['remote_url'] = None
+                        v['category_name'] = 'local'
+                        v['media_path'] = v.get('path', v.get('media_path', ''))
+            logger.info("Cleared remote_url in script_data before writing draft_info.json (download_script path).")
+        except Exception as e:
+            logger.warning(f"Failed to clear remote_url in script_data: {e}")
+
         with open(f"{draft_folder}/{draft_id}/draft_info.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(script_data))
         logger.info(f"Draft has been saved.")

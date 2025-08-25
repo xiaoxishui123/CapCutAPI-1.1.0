@@ -12,6 +12,11 @@ Try It: https://www.capcutapi.top
 
 **部署状态**: ✅ 已部署并运行中
 
+**重要配置更新**:
+- 📁 **草稿保存模式**: 已切换至OSS云存储模式
+- ☁️ **云存储**: 自动上传至阿里云OSS，节省本地存储空间
+- 🔗 **返回格式**: 草稿保存后返回可下载的云端URL
+
 **访问方式**:
 - 🌐 **浏览器访问**: 直接访问 http://8.148.70.18:9000 查看美观的欢迎页面
 - 🔧 **API调用**: 使用 `Accept: application/json` 头获取JSON格式的API信息
@@ -148,6 +153,33 @@ The project supports custom settings through a configuration file. To use the co
 cp config.json.example config.json
 ```
 
+### 草稿保存模式配置
+
+项目支持两种草稿保存模式，通过 `config.json` 中的 `is_upload_draft` 字段控制：
+
+#### OSS云存储模式（当前启用）
+```json
+{
+  "is_upload_draft": true
+}
+```
+**特点**：
+- ✅ 草稿自动压缩为zip格式上传至阿里云OSS
+- ✅ 返回可下载的云端URL
+- ✅ 自动清理本地临时文件，节省存储空间
+- ✅ 适合生产环境和多用户场景
+
+#### 本地保存模式
+```json
+{
+  "is_upload_draft": false
+}
+```
+**特点**：
+- 📁 草稿保存在本地目录中
+- 💾 不会上传到云端
+- 🔧 适合开发测试和单机使用
+
 ### Environment Configuration
 
 #### ffmpeg
@@ -240,3 +272,49 @@ Please refer to the `example.py` file in the project, which contains more usage 
 - **Rich APIs**: Provides comprehensive API interfaces for easy integration into other systems
 - **Flexible Configuration**: Achieve flexible function customization through configuration files
 - **AI Enhancement**: Integrate multiple AI services to improve video production efficiency
+
+## 安全与环境变量配置（推荐）
+
+为避免在`config.json`中硬编码敏感密钥，已支持通过环境变量覆盖以下字段（程序启动时优先使用环境变量）：
+
+- OSS（草稿压缩包上传）
+  - `OSS_BUCKET_NAME`
+  - `OSS_ACCESS_KEY_ID`
+  - `OSS_ACCESS_KEY_SECRET`
+  - `OSS_ENDPOINT`（形如`oss-cn-xxx.aliyuncs.com`或带`https://`的完整域名）
+  - `OSS_REGION`（如：`cn-xxx`）
+
+- MP4 OSS（视频直链域名）
+  - `MP4_OSS_BUCKET_NAME`
+  - `MP4_OSS_ACCESS_KEY_ID`
+  - `MP4_OSS_ACCESS_KEY_SECRET`
+  - `MP4_OSS_ENDPOINT`（建议为自定义加速域名，直接用于拼接直链）
+  - `MP4_OSS_REGION`
+
+使用示例（临时导出，仅对当前会话生效）：
+
+```bash
+export OSS_BUCKET_NAME="your-bucket"
+export OSS_ACCESS_KEY_ID="xxx"
+export OSS_ACCESS_KEY_SECRET="yyy"
+export OSS_ENDPOINT="oss-cn-xxx.aliyuncs.com"
+export OSS_REGION="cn-xxx"
+
+export MP4_OSS_BUCKET_NAME="your-mp4-bucket"
+export MP4_OSS_ACCESS_KEY_ID="xxx"
+export MP4_OSS_ACCESS_KEY_SECRET="yyy"
+export MP4_OSS_ENDPOINT="https://your.cdn.domain"
+export MP4_OSS_REGION="cn-xxx"
+```
+
+生产环境建议通过 systemd 配置环境变量（`/etc/systemd/system/capcut-api.service` 中添加 `Environment=` 行）或使用密钥管理服务，并及时轮换已暴露的密钥。
+
+## 指定 Python 版本
+
+本项目建议使用 `/usr/local/bin/python3.9` 运行，以获得更稳定的一致性：
+
+```bash
+/usr/local/bin/python3.9 capcut_server.py
+```
+
+如使用 `service_manager.sh`，可手动修改为优先使用该 Python 路径，或确保虚拟环境基于 Python 3.9 创建并已安装依赖。

@@ -1,0 +1,1218 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>草稿预览 - dfd_cat_1755747284_2d8b8d60</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: #2d2d2d;
+            padding: 15px 20px;
+            border-bottom: 1px solid #404040;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .back-btn {
+            background: #404040;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: #505050;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: calc(100vh - 60px);
+        }
+        
+        .preview-section {
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .content-preview {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .preview-container {
+            background: #2d2d2d;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            min-height: 300px;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border: 2px solid #404040;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .preview-container.active {
+            border-color: #0066ff;
+            box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+        }
+        
+        .preview-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+        
+        .preview-content {
+            display: none;
+            width: 100%;
+        }
+        
+        .preview-content.active {
+            display: block;
+        }
+        
+        .video-preview {
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 16/9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .audio-preview {
+            width: 100%;
+        }
+        
+        .waveform {
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(0, 102, 255, 0.3) 20%, 
+                rgba(0, 102, 255, 0.6) 50%, 
+                rgba(0, 102, 255, 0.3) 80%, 
+                transparent 100%);
+            height: 80px;
+            border-radius: 8px;
+            margin: 20px 0;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0066ff;
+            font-weight: bold;
+        }
+        
+        .text-preview {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            border: 2px solid #0066ff;
+        }
+        
+        .play-controls {
+            width: 100%;
+            max-width: 600px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .play-button {
+            background: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .play-button:hover {
+            background: #0052cc;
+            transform: scale(1.05);
+        }
+        
+        .progress-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #404040;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #0066ff;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        
+        .time-display {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #ccc;
+            font-family: monospace;
+            min-width: 80px;
+        }
+        
+        .timeline {
+            background: #252525;
+            border-top: 1px solid #404040;
+            padding: 20px;
+            min-height: 140px;
+        }
+        
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .timeline-title {
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .timeline-duration {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .tracks-container {
+            position: relative;
+        }
+        
+        .time-ruler {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0 10px;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .track {
+            background: #1a1a1a;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            padding: 8px;
+            position: relative;
+            border: 1px solid #404040;
+            transition: all 0.2s ease;
+        }
+        
+        .track:hover {
+            border-color: #0066ff;
+            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.2);
+        }
+        
+        .track-label {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: #aaa;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .track-content {
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .track-content:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .track-video {
+            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
+        }
+        
+        .track-audio {
+            background: linear-gradient(135deg, #0066ff, #0052cc);
+        }
+        
+        .track-text {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+        }
+        
+        .track-music {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+        }
+        
+        .track-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent 0px,
+                transparent 10px,
+                rgba(255, 255, 255, 0.1) 10px,
+                rgba(255, 255, 255, 0.1) 11px
+            );
+            border-radius: 4px;
+        }
+        
+        .details-panel {
+            background: #2d2d2d;
+            border-left: 1px solid #404040;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-header {
+            background: #353535;
+            padding: 8px 10px;
+            border-bottom: 1px solid #404040;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .details-section {
+            padding: 8px;
+            border-bottom: 1px solid #404040;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .details-table tr {
+            border-bottom: 1px solid #404040;
+        }
+        
+        .details-table td {
+            padding: 8px 0;
+            font-size: 14px;
+        }
+        
+        .details-table td:first-child {
+            color: #aaa;
+            width: 30%;
+        }
+        
+        .details-table td:last-child {
+            color: #fff;
+            font-weight: 500;
+        }
+        
+
+        
+        .download-section {
+            padding: 15px;
+            background: #353535;
+        }
+        
+        .download-info {
+            background: rgba(0, 191, 165, 0.1);
+            border: 1px solid rgba(0, 191, 165, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .download-icon {
+            width: 60px;
+            height: 60px;
+            background: #00bfa5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 24px;
+        }
+        
+        .download-path {
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #ccc;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            background: #0066ff;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            background: #0052cc;
+        }
+        
+        .btn-secondary {
+            background: #404040;
+        }
+        
+        .btn-secondary:hover {
+            background: #505050;
+        }
+        
+        .selected-asset {
+            background: #353535;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .selected-asset h3 {
+            color: #0066ff;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .asset-info {
+            font-size: 12px;
+            color: #ccc;
+            line-height: 1.5;
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .details-panel {
+                border-left: none;
+                border-top: 1px solid #404040;
+                max-height: 40vh;
+            }
+            
+            .content-preview {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn">← 返回</a>
+        <h1>草稿预览 - dfd_cat_1755747284_2d8b8d60</h1>
+        <div style="width: 80px;"></div>
+    </div>
+    
+    <div class="main-container">
+        <div class="preview-section">
+            <div class="content-preview">
+                <div class="preview-container" id="preview-container">
+                    <div class="preview-icon" id="preview-icon">🎬</div>
+                    <h3 id="preview-title">点击下方轨道上的素材可关键帧，在此查看其详细信息</h3>
+                    <p style="color: #888; margin-top: 10px;" id="preview-subtitle">选择素材来预览内容</p>
+                    
+                    <!-- 视频预览 -->
+                    <div class="preview-content" id="video-preview">
+                        <div class="video-preview">🎥</div>
+                        <h3>视频素材预览</h3>
+                        <p style="color: #888;">视频轨道内容</p>
+                    </div>
+                    
+                    <!-- 音频预览 -->
+                    <div class="preview-content" id="audio-preview">
+                        <div class="audio-preview">
+                            <div class="waveform">🎵 音频波形</div>
+                        </div>
+                        <h3>音频素材预览</h3>
+                        <p style="color: #888;">语音合成音频</p>
+                    </div>
+                    
+                    <!-- 文本预览 -->
+                    <div class="preview-content" id="text-preview">
+                        <div class="text-preview" id="text-content">示例文本内容</div>
+                        <h3>文本素材预览</h3>
+                        <p style="color: #888;">文本轨道内容展示</p>
+                    </div>
+                </div>
+                
+                <div class="play-controls">
+                    <button class="play-button" id="play-btn" onclick="togglePlay()">
+                        ▶️
+                    </button>
+                    <div class="progress-container">
+                        <div class="progress-bar" onclick="seekTo(event)">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="time-display">
+                            <span id="current-time">0:00</span>
+                            <span style="color: #666;">/</span>
+                            <span id="total-time">0:30</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="timeline">
+                <div class="timeline-header">
+                    <div class="timeline-title">时间轴</div>
+                    <div class="timeline-duration">总时长: 0:30</div>
+                </div>
+                
+                <div class="tracks-container">
+                    <div class="time-ruler">
+                        <span>0:00</span>
+                        <span>0:05</span>
+                        <span>0:10</span>
+                        <span>0:15</span>
+                        <span>0:20</span>
+                        <span>0:25</span>
+                        <span>0:30</span>
+                    </div>
+                    
+                    <div class="track">
+                        <div class="track-label">主视频轨道</div>
+                        <div class="track-content track-video" onclick="selectAsset('video', '主视频轨道', '视频素材内容')" data-type="video">
+                            🎥 主视频
+                        </div>
+                    </div>
+                    
+                    <div class="track">
+                        <div class="track-label">语音旁白</div>
+                        <div class="track-content track-audio" onclick="selectAsset('audio', '语音旁白', '豆包语音合成音频')" data-type="audio" style="width: 93%;">
+                            🎤 语音旁白
+                        </div>
+                    </div>
+                    
+                    <div class="track">
+                        <div class="track-label">标题文本</div>
+                        <div class="track-content track-text" onclick="selectAsset('text', '标题文本', 'AI生成的标题内容')" data-type="text" style="width: 17%;">
+                            AI
+                        </div>
+                    </div>
+                    
+                    <div class="track">
+                        <div class="track-label">背景音乐</div>
+                        <div class="track-content track-music" onclick="selectAsset('audio', '背景音乐', '背景音乐轨道')" data-type="music">
+                            ♪ 背景音乐
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="details-panel">
+            <div class="panel-header">详细信息</div>
+            <div class="panel-content">
+                <div class="details-section">
+                    <div class="selected-asset" id="selected-asset" style="display: none;">
+                        <h3>已选择素材</h3>
+                        <div class="asset-info" id="asset-info">
+                            暂无选择
+                        </div>
+                    </div>
+                    
+                    <table class="details-table">
+                        <!-- 素材信息 -->
+                        
+                        <tr class="material-rows" style="background-color: #2a2a2a;">
+                            <td>Type:</td>
+                            <td>video</td>
+                        </tr>
+                        <tr class="material-rows" style="background-color: #2a2a2a;">
+                            <td>Video URL:</td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="https://example.com/test-video.mp4">https://example.com/test-video.mp4</td>
+                        </tr>
+                        <tr class="material-rows" style="background-color: #2a2a2a;">
+                            <td>Start Time:</td>
+                            <td>0s</td>
+                        </tr>
+                        <tr class="material-rows" style="background-color: #2a2a2a;">
+                            <td>End Time:</td>
+                            <td>20s</td>
+                        </tr>
+                        <tr class="material-rows" style="background-color: #2a2a2a;">
+                            <td>Playback Duration:</td>
+                            <td>20.00s</td>
+                        </tr>
+                        <tr class="material-rows"><td colspan="2" style="height: 10px; border: none;"></td></tr>
+            
+                        <tr>
+                            <td>草稿ID:</td>
+                            <td>dfd_cat_1755747284_2d8b8d60</td>
+                        </tr>
+                        <tr>
+                            <td>画面尺寸:</td>
+                            <td>1080 × 1920</td>
+                        </tr>
+                        <tr>
+                            <td>总时长:</td>
+                            <td>0:30</td>
+                        </tr>
+                        <tr>
+                            <td>轨道数量:</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td>文件大小:</td>
+                            <td>9.3 KB</td>
+                        </tr>
+                        <tr>
+                            <td>状态:</td>
+                            <td>云端已保存</td>
+                        </tr>
+                        <tr>
+                            <td>存储位置:</td>
+                            <td>OSS云存储</td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+            
+            <div class="download-section">
+                <div class="panel-header" style="background: transparent; padding: 0 0 15px 0; text-align: left;">下载草稿</div>
+                
+                <div class="download-info">
+                    <div class="download-icon">📁</div>
+                    <p>草稿保存10分钟，请尽快下载</p>
+                </div>
+                
+                <!-- 系统选择 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">系统类型:</label>
+                    <select id="osSelect" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px;">
+                        <option value="windows">Windows</option>
+                        <option value="linux">Linux</option>
+                    </select>
+                </div>
+                
+                <!-- 自定义路径 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">自定义根路径 (可选):</label>
+                    <input id="baseInput" type="text" placeholder="如: F:/MyDrafts" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px; box-sizing: border-box;" />
+                </div>
+                
+                <!-- 本地路径显示 -->
+                <div class="download-path" id="localPath">
+                    获取本地路径中...
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button id="saveUploadBtn" class="btn" style="width: 100%; margin-bottom: 10px;">
+                        ☁️ 一键保存并上传到OSS
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyLocalPath()" style="width: 100%;">
+                        📋 复制本地路径
+                    </button>
+                </div>
+                
+                <!-- 状态显示 -->
+                <div id="downloadStatus" style="font-size: 11px; color: #888; margin-top: 10px; text-align: center;">
+                    准备就绪
+                </div>
+                
+                <!-- 日志区域 -->
+                <div id="downloadLog" style="background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; padding: 8px; margin-top: 10px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #ccc; display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let isPlaying = false;
+        let currentTime = 0;
+        const maxTime = 30;
+        let playInterval;
+        let currentAsset = null;
+        
+        // 显示不同类型的内容
+        function showContent(type, name, description) {
+            document.querySelectorAll('.preview-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.getElementById('preview-icon').textContent = type === 'video' ? '🎥' : type === 'audio' ? '🎵' : '📝';
+            document.getElementById('preview-title').textContent = name;
+            document.getElementById('preview-subtitle').textContent = description;
+            
+            if (type === 'video') {
+                document.getElementById('video-preview').classList.add('active');
+            } else if (type === 'audio') {
+                document.getElementById('audio-preview').classList.add('active');
+            } else {
+                document.getElementById('text-preview').classList.add('active');
+            }
+            
+            const timeline = `
+                <div class="timeline-track" style="background: linear-gradient(90deg, ${type === 'video' ? '#ff6b6b' : type === 'audio' ? '#4ecdc4' : '#45b7d1'} 0%, ${type === 'video' ? '#ee5a52' : type === 'audio' ? '#26d0ce' : '#2196f3'} 100%);">
+                    <span class="track-label">${name}</span>
+                </div>
+            `;
+                    </div>
+                </div>
+            </div>
+            
+            <div class="download-section">
+                <div class="panel-header" style="background: transparent; padding: 0 0 15px 0; text-align: left;">下载草稿</div>
+                
+                <div class="download-info">
+                    <div class="download-icon">📁</div>
+                    <p>草稿保存10分钟，请尽快下载</p>
+                </div>
+                
+                <!-- 系统选择 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">系统类型:</label>
+                    <select id="osSelect" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px;">
+                        <option value="windows">Windows</option>
+                        <option value="linux">Linux</option>
+                    </select>
+                </div>
+                
+                <!-- 自定义路径 -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">自定义根路径 (可选):</label>
+                    <input id="baseInput" type="text" placeholder="如: F:/MyDrafts" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px; box-sizing: border-box;" />
+                </div>
+                
+                <!-- 本地路径显示 -->
+                <div class="download-path" id="localPath">
+                    获取本地路径中...
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button id="saveUploadBtn" class="btn" style="width: 100%; margin-bottom: 10px;">
+                        ☁️ 一键保存并上传到OSS
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyLocalPath()" style="width: 100%;">
+                        📋 复制本地路径
+                    </button>
+                </div>
+                
+                <!-- 状态显示 -->
+                <div id="downloadStatus" style="font-size: 11px; color: #888; margin-top: 10px; text-align: center;">
+                    准备就绪
+                </div>
+                
+                <!-- 日志区域 -->
+                <div id="downloadLog" style="background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; padding: 8px; margin-top: 10px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #ccc; display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAsset = null;
+        let isPlaying = false;
+        
+        // 素材数据
+        const materials = [{"type": "video", "url": "https://example.com/test-video.mp4", "start": 0, "end": 20, "duration": 20, "track_name": "video_main", "added_at": "2025-08-21T11:34:56.171992"}, {"type": "text", "content": "测试标题", "start": 0, "end": 10, "duration": 10, "track_name": "text_main", "font": "文轩体", "font_size": 8.0, "added_at": "2025-08-21T11:35:07.078517"}];
+        
+        // 根据轨道类型映射到实际素材数据
+        function getMaterialByType(trackType) {
+            console.log('查找素材类型:', trackType, '可用素材:', materials);
+            
+            // 根据轨道类型查找对应的素材
+            for (let material of materials) {
+                if (trackType === 'video' && material.type === 'video') {
+                    console.log('找到视频素材:', material);
+                    return material;
+                }
+                if (trackType === 'audio' && material.type === 'audio') {
+                    // 优先匹配第一个音频素材
+                    console.log('找到音频素材:', material);
+                    return material;
+                }
+                if (trackType === 'text' && material.type === 'text') {
+                    console.log('找到文本素材:', material);
+                    return material;
+                }
+                if (trackType === 'music' && material.type === 'audio' && material.track_name && 
+                    (material.track_name.includes('bgm') || material.track_name.includes('music'))) {
+                    console.log('找到背景音乐素材:', material);
+                    return material;
+                }
+            }
+            
+            // 如果没有找到对应的素材，返回第一个素材作为示例
+            console.log('未找到匹配素材，返回第一个素材');
+            return materials.length > 0 ? materials[0] : null;
+        }
+        
+        // 更新Details表格
+        function updateDetailsTable(material) {
+            console.log('更新Details表格，素材数据:', material);
+            if (!material) {
+                console.log('没有素材数据，退出');
+                return;
+            }
+            
+            // 删除所有现有的素材信息行
+            const materialRows = document.querySelectorAll('.details-table .material-rows');
+            materialRows.forEach(row => row.remove());
+            
+            const detailsTable = document.querySelector('.details-table');
+            const draftIdRow = detailsTable.querySelector('tr');
+            
+            // 创建新的素材信息行
+            const materialType = material.type;
+            const urlLabel = materialType === 'text' ? 'Content' : materialType.charAt(0).toUpperCase() + materialType.slice(1) + ' URL';
+            const urlContent = material.url || material.content || '-';
+            const startTime = material.start || '-';
+            const endTime = material.end || '-';
+            const duration = (typeof startTime === 'number' && typeof endTime === 'number') ? 
+                (endTime - startTime).toFixed(2) + 's' : '-';
+            
+            const materialRowsHTML = `
+                <tr class="material-rows" style="background-color: #2a2a2a;">
+                    <td>Type:</td>
+                    <td>${materialType}</td>
+                </tr>
+                <tr class="material-rows" style="background-color: #2a2a2a;">
+                    <td>${urlLabel}:</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${urlContent}">${urlContent}</td>
+                </tr>
+                <tr class="material-rows" style="background-color: #2a2a2a;">
+                    <td>Start Time:</td>
+                    <td>${startTime}s</td>
+                </tr>
+                <tr class="material-rows" style="background-color: #2a2a2a;">
+                    <td>End Time:</td>
+                    <td>${endTime}s</td>
+                </tr>
+                <tr class="material-rows" style="background-color: #2a2a2a;">
+                    <td>Playback Duration:</td>
+                    <td>${duration}</td>
+                </tr>
+                <tr class="material-rows"><td colspan="2" style="height: 10px; border: none;"></td></tr>
+            `;
+            
+            draftIdRow.insertAdjacentHTML('beforebegin', materialRowsHTML);
+        }
+        
+        function selectAsset(type, name, description) {
+            console.log('selectAsset被调用，参数:', {type, name, description});
+            
+            // 移除之前的选择状态
+            document.querySelectorAll('.track-content').forEach(el => {
+                el.style.boxShadow = '';
+                el.style.transform = '';
+            });
+            
+            // 查找对应的素材数据并更新Details表格
+            const material = getMaterialByType(type);
+            console.log('获取到的素材:', material);
+            if (material) {
+                updateDetailsTable(material);
+            } else {
+                console.log('没有找到对应的素材数据');
+            }
+            
+            // 添加选择状态
+            event.target.style.boxShadow = '0 0 15px rgba(0, 102, 255, 0.6)';
+            event.target.style.transform = 'translateY(-2px)';
+            
+            // 更新预览区域
+            const previewContainer = document.getElementById('preview-container');
+            const previewIcon = document.getElementById('preview-icon');
+            const previewTitle = document.getElementById('preview-title');
+            const previewSubtitle = document.getElementById('preview-subtitle');
+            
+            // 隐藏所有预览内容
+            document.querySelectorAll('.preview-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 激活预览容器
+            previewContainer.classList.add('active');
+            
+            // 根据素材类型显示对应预览
+            switch(type) {
+                case 'video':
+                    previewIcon.textContent = '🎥';
+                    previewTitle.textContent = '视频素材预览';
+                    previewSubtitle.textContent = '主视频轨道内容';
+                    document.getElementById('video-preview').classList.add('active');
+                    break;
+                case 'audio':
+                case 'music':
+                    previewIcon.textContent = '🎵';
+                    previewTitle.textContent = '音频素材预览';
+                    previewSubtitle.textContent = type === 'music' ? '背景音乐轨道' : '语音旁白轨道';
+                    document.getElementById('audio-preview').classList.add('active');
+                    break;
+                case 'text':
+                    previewIcon.textContent = '📝';
+                    previewTitle.textContent = '文本素材预览';
+                    previewSubtitle.textContent = '标题文本内容';
+                    document.getElementById('text-content').textContent = name;
+                    document.getElementById('text-preview').classList.add('active');
+                    break;
+            }
+            
+            // 更新选择的素材信息
+            const selectedAsset = document.getElementById('selected-asset');
+            const assetInfo = document.getElementById('asset-info');
+            selectedAsset.style.display = 'block';
+            assetInfo.innerHTML = `
+                <strong>类型:</strong> ${type}<br>
+                <strong>名称:</strong> ${name}<br>
+                <strong>描述:</strong> ${description}<br>
+                <strong>时长:</strong> ${type === 'text' ? '0:05' : (type === 'audio' ? '0:28' : '0:30')}
+            `;
+            
+            currentAsset = { type, name, description };
+        }
+        
+
+        
+        function togglePlay() {
+            const playBtn = document.getElementById('play-btn');
+            isPlaying = !isPlaying;
+            
+            if (isPlaying) {
+                playBtn.textContent = '⏸️';
+                simulatePlayback();
+            } else {
+                playBtn.textContent = '▶️';
+            }
+        }
+        
+        function simulatePlayback() {
+            if (!isPlaying) return;
+            
+            const currentTimeEl = document.getElementById('current-time');
+            const progressFill = document.getElementById('progress-fill');
+            let seconds = 0;
+            const totalDuration = 30;
+            
+            const interval = setInterval(() => {
+                if (!isPlaying) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                seconds++;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                currentTimeEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                
+                // 更新进度条
+                const progress = (seconds / totalDuration) * 100;
+                progressFill.style.width = `${progress}%`;
+                
+                if (seconds >= totalDuration) {
+                    clearInterval(interval);
+                    togglePlay();
+                    currentTimeEl.textContent = '0:00';
+                    progressFill.style.width = '0%';
+                }
+            }, 1000);
+        }
+        
+        function seekTo(event) {
+            const progressBar = event.currentTarget;
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const width = rect.width;
+            const percentage = clickX / width;
+            
+            const totalDuration = 30;
+            const targetTime = Math.floor(percentage * totalDuration);
+            
+            // 更新时间显示
+            const mins = Math.floor(targetTime / 60);
+            const secs = targetTime % 60;
+            document.getElementById('current-time').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            
+            // 更新进度条
+            const progressFill = document.getElementById('progress-fill');
+            progressFill.style.width = `${percentage * 100}%`;
+            
+            // 如果正在播放，重新开始播放
+            if (isPlaying) {
+                isPlaying = false;
+                togglePlay();
+                setTimeout(() => togglePlay(), 100);
+            }
+        }
+        
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('链接已复制到剪贴板');
+            }).catch(() => {
+                alert('复制失败，请手动复制：' + url);
+            });
+        }
+        
+        function copyLocalPath() {
+            const localPath = document.getElementById('localPath').textContent;
+            navigator.clipboard.writeText(localPath).then(() => {
+                alert('本地路径已复制到剪贴板');
+            }).catch(() => {
+                alert('复制失败，请手动复制：' + localPath);
+            });
+        }
+        
+        // 下载相关函数
+        function updateLocalPath() {
+            const osSelect = document.getElementById('osSelect');
+            const baseInput = document.getElementById('baseInput');
+            const localPathEl = document.getElementById('localPath');
+            
+            const draftId = 'dfd_cat_1755747284_2d8b8d60';
+            const clientOs = osSelect.value;
+            const customBase = baseInput.value;
+            
+            // 构造本地路径
+            let localPath = '';
+            if (clientOs === 'windows') {
+                const base = customBase || 'F:\\jianyin\\cgwz\\JianyingPro Drafts';
+                localPath = `${base}\\${draftId}`;
+            } else {
+                const base = customBase || '/data/drafts';
+                localPath = `${base}/${draftId}`;
+            }
+            
+            localPathEl.textContent = localPath;
+        }
+        
+        function downloadLog(msg) {
+            const logEl = document.getElementById('downloadLog');
+            const time = new Date().toLocaleTimeString();
+            logEl.textContent += `[${time}] ${msg}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+            logEl.style.display = 'block';
+        }
+        
+        async function postJSON(url, body) {
+            const res = await fetch(url, { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(body) 
+            });
+            return await res.json();
+        }
+        
+        async function pollDownloadStatus(taskId) {
+            const statusEl = document.getElementById('downloadStatus');
+            while (true) {
+                const status = await postJSON('/query_draft_status', { task_id: taskId });
+                if (status && status.status) {
+                    statusEl.textContent = `任务状态: ${status.status}，进度: ${status.progress||0}%`;
+                    downloadLog(`status=${status.status}, progress=${status.progress}`);
+                    
+                    if (status.status === 'completed') break;
+                    if (status.status === 'failed') {
+                        throw new Error(status.message || '任务失败');
+                    }
+                }
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        }
+        
+        async function finalizeDownloadRedirect() {
+            const osSelect = document.getElementById('osSelect');
+            const baseInput = document.getElementById('baseInput');
+            const draftId = 'dfd_cat_1755747284_2d8b8d60';
+            
+            const result = await postJSON('/generate_draft_url', { 
+                draft_id: draftId, 
+                client_os: osSelect.value, 
+                draft_folder: baseInput.value || undefined 
+            });
+            
+            if (result && result.success && result.output && result.output.draft_url) {
+                downloadLog('跳转到 OSS 下载链接');
+                window.open(result.output.draft_url, '_blank');
+            } else {
+                throw new Error('未获取到下载链接');
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('草稿预览页面已加载');
+            
+            // 初始化下载功能
+            const osSelect = document.getElementById('osSelect');
+            const baseInput = document.getElementById('baseInput');
+            const saveUploadBtn = document.getElementById('saveUploadBtn');
+            
+            // 初始更新路径
+            updateLocalPath();
+            
+            // 监听变化
+            osSelect.addEventListener('change', updateLocalPath);
+            baseInput.addEventListener('input', updateLocalPath);
+            
+            // 保存上传按钮事件
+            saveUploadBtn.addEventListener('click', async function() {
+                const statusEl = document.getElementById('downloadStatus');
+                const draftId = 'dfd_cat_1755747284_2d8b8d60';
+                
+                saveUploadBtn.disabled = true;
+                statusEl.textContent = '正在检测云端文件...';
+                downloadLog('开始保存并上传到OSS');
+                
+                try {
+                    // 首先检查是否已存在
+                    downloadLog('检测是否已存在 OSS 直链');
+                    const checkResult = await postJSON('/generate_draft_url', { 
+                        draft_id: draftId, 
+                        client_os: osSelect.value, 
+                        draft_folder: baseInput.value || undefined 
+                    });
+                    
+                    if (checkResult && checkResult.success && checkResult.output) {
+                        if (checkResult.output.storage === 'oss' && checkResult.output.draft_url) {
+                            downloadLog('发现已存在的OSS链接，直接跳转');
+                            window.open(checkResult.output.draft_url, '_blank');
+                            return;
+                        }
+                    }
+                    
+                    // 触发保存上传
+                    downloadLog('未发现直链，开始保存并上传');
+                    statusEl.textContent = '正在提交保存任务...';
+                    
+                    const saveResult = await postJSON('/generate_draft_url?force_save=true', { 
+                        draft_id: draftId, 
+                        client_os: osSelect.value, 
+                        draft_folder: baseInput.value || undefined 
+                    });
+                    
+                    if (saveResult && saveResult.success && saveResult.output) {
+                        if (saveResult.output.storage === 'oss' && saveResult.output.draft_url) {
+                            downloadLog('保存完成，直接跳转');
+                            window.open(saveResult.output.draft_url, '_blank');
+                            return;
+                        }
+                        
+                        if (saveResult.output.status === 'processing' && saveResult.output.task_id) {
+                            downloadLog('任务已提交，等待完成...');
+                            await pollDownloadStatus(saveResult.output.task_id);
+                            await finalizeDownloadRedirect();
+                            return;
+                        }
+                    }
+                    
+                    throw new Error('保存上传流程异常');
+                    
+                } catch (error) {
+                    downloadLog('操作失败: ' + error.message);
+                    statusEl.textContent = '操作失败: ' + error.message;
+                    alert('操作失败: ' + error.message);
+                } finally {
+                    saveUploadBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -34,18 +34,36 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# 检查服务状态
+# 检查服务状态 - 改进版本
 check_status() {
+    # 首先检查systemd服务状态
+    if systemctl is-active --quiet capcutapi.service 2>/dev/null; then
+        PID=$(systemctl show -p MainPID --value capcutapi.service 2>/dev/null)
+        if [ -n "$PID" ] && [ "$PID" != "0" ]; then
+            print_success "CapCutAPI服务正在运行 (systemd服务, PID: $PID)"
+            return 0
+        fi
+    fi
+    
+    # 检查PID文件中的进程
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
         if ps -p "$PID" > /dev/null 2>&1; then
-            print_success "CapCutAPI服务正在运行 (PID: $PID)"
+            print_success "CapCutAPI服务正在运行 (PID文件, PID: $PID)"
             return 0
         else
             print_warning "PID文件存在但进程不存在，清理PID文件"
             rm -f "$PID_FILE"
         fi
     fi
+    
+    # 检查是否有相关进程在运行
+    RUNNING_PID=$(pgrep -f "python.*capcut_server.py" | head -1)
+    if [ -n "$RUNNING_PID" ]; then
+        print_success "发现CapCutAPI进程在运行 (PID: $RUNNING_PID)"
+        return 0
+    fi
+    
     print_error "CapCutAPI服务未运行"
     return 1
 }
@@ -60,6 +78,14 @@ start_nohup() {
     fi
     
     cd "$SCRIPT_DIR"
+    
+    # 检查虚拟环境是否存在
+    if [ ! -f "$VENV_PATH/bin/activate" ]; then
+        print_error "虚拟环境不存在: $VENV_PATH"
+        print_status "请先创建虚拟环境或使用 systemctl restart capcutapi.service"
+        return 1
+    fi
+    
     source "$VENV_PATH/bin/activate"
     
     nohup python3 "$PYTHON_SCRIPT" > "$LOG_FILE" 2>&1 &
@@ -90,10 +116,18 @@ start_screen() {
     # 检查screen是否已安装
     if ! command -v screen &> /dev/null; then
         print_error "screen未安装，请先安装: yum install -y screen"
+        print_status "或者使用: ./service_manager.sh start"
         return 1
     fi
     
     cd "$SCRIPT_DIR"
+    
+    # 检查虚拟环境是否存在
+    if [ ! -f "$VENV_PATH/bin/activate" ]; then
+        print_error "虚拟环境不存在: $VENV_PATH"
+        return 1
+    fi
+    
     source "$VENV_PATH/bin/activate"
     
     screen -dmS capcut_api bash -c "python3 $PYTHON_SCRIPT; exec bash"
@@ -117,7 +151,7 @@ start_screen() {
 start_systemd() {
     print_status "创建systemd服务..."
     
-    SERVICE_FILE="/etc/systemd/system/capcut-api.service"
+    SERVICE_FILE="/etc/systemd/system/capcutapi.service"
     
     cat > "$SERVICE_FILE" << EOF
 [Unit]
@@ -140,13 +174,13 @@ WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    systemctl enable capcut-api.service
-    systemctl start capcut-api.service
+    systemctl enable capcutapi.service
+    systemctl start capcutapi.service
     
-    if systemctl is-active --quiet capcut-api.service; then
+    if systemctl is-active --quiet capcutapi.service; then
         print_success "systemd服务启动成功！"
-        print_status "状态查看: systemctl status capcut-api"
-        print_status "日志查看: journalctl -u capcut-api -f"
+        print_status "状态查看: systemctl status capcutapi.service"
+        print_status "日志查看: journalctl -u capcutapi.service -f"
         return 0
     else
         print_error "systemd服务启动失败"
@@ -154,18 +188,18 @@ EOF
     fi
 }
 
-# 停止服务
+# 停止服务 - 改进版本
 stop_service() {
     print_status "停止CapCutAPI服务..."
     
     # 先尝试systemd方式停止
-    if systemctl is-active --quiet capcut-api.service 2>/dev/null; then
-        systemctl stop capcut-api.service
+    if systemctl is-active --quiet capcutapi.service 2>/dev/null; then
+        systemctl stop capcutapi.service
         print_success "systemd服务已停止"
     fi
     
     # 停止screen会话
-    if screen -list | grep -q "capcut_api"; then
+    if command -v screen &> /dev/null && screen -list | grep -q "capcut_api"; then
         screen -S capcut_api -X quit
         print_success "screen会话已停止"
     fi
@@ -185,17 +219,32 @@ stop_service() {
     fi
     
     # 强制清理所有相关进程
-    pkill -f "python3.*capcut_server.py" 2>/dev/null && print_success "清理了残留进程"
+    pkill -f "python.*capcut_server.py" 2>/dev/null && print_success "清理了残留进程"
     
     print_success "服务停止完成"
 }
 
-# 重启服务
+# 重启服务 - 改进版本
 restart_service() {
     print_status "重启CapCutAPI服务..."
-    stop_service
-    sleep 2
-    start_nohup
+    
+    # 检查当前运行方式
+    if systemctl is-active --quiet capcutapi.service 2>/dev/null; then
+        print_status "检测到systemd服务，使用systemd重启..."
+        systemctl restart capcutapi.service
+        if systemctl is-active --quiet capcutapi.service; then
+            print_success "systemd服务重启成功！"
+            return 0
+        else
+            print_error "systemd服务重启失败"
+            return 1
+        fi
+    else
+        print_status "使用脚本方式重启..."
+        stop_service
+        sleep 2
+        start_nohup
+    fi
 }
 
 # 查看日志
@@ -205,6 +254,7 @@ view_logs() {
         tail -f "$LOG_FILE"
     else
         print_error "日志文件不存在: $LOG_FILE"
+        print_status "尝试查看systemd日志: journalctl -u capcutapi.service -f"
     fi
 }
 
@@ -219,7 +269,7 @@ show_help() {
     echo "  start-screen  - 使用screen方式启动服务"
     echo "  start-systemd - 创建并启动systemd系统服务"
     echo "  stop          - 停止所有方式启动的服务"
-    echo "  restart       - 重启服务"
+    echo "  restart       - 重启服务（智能检测当前运行方式）"
     echo "  status        - 查看服务状态"
     echo "  logs          - 实时查看服务日志"
     echo "  help          - 显示此帮助信息"
@@ -228,6 +278,7 @@ show_help() {
     echo "  开发测试: ./service_manager.sh start"
     echo "  生产环境: ./service_manager.sh start-systemd"
     echo "  调试模式: ./service_manager.sh start-screen"
+    echo "  重启服务: ./service_manager.sh restart (自动检测)"
 }
 
 # 主程序
@@ -257,8 +308,7 @@ case "$1" in
         show_help
         ;;
     *)
-        print_error "无效的命令: $1"
-        show_help
+        echo "用法: $0 {start|start-screen|start-systemd|stop|restart|status|logs|help}"
         exit 1
         ;;
 esac 
