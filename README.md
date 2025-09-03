@@ -154,6 +154,13 @@ tail -f logs/capcutapi.error.log
 
 [![Song](https://img.youtube.com/vi/rGNLE_slAJ8/hqdefault.jpg)](https://www.youtube.com/watch?v=rGNLE_slAJ8)
 
+## 📖 相关文档
+
+- [需求文档](REQUIREMENTS_DOCUMENT.md) - 完整的项目需求和功能规格
+- [操作手册](OPERATION_MANUAL.md) - 详细的使用指南和操作说明
+- [功能优化总结](FEATURE_OPTIMIZATION_SUMMARY.md) - 详细的功能改进说明
+- [API使用示例](API_USAGE_EXAMPLES.md) - 完整的API调用示例
+
 ## Project Features
 
 This project is a Python-based CapCut processing tool that offers the following core functionalities:

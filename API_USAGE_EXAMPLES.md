@@ -270,6 +270,62 @@ if __name__ == "__main__":
     create_video_project()
 ```
 
+## 新增功能示例
+
+### 1. 草稿列表查询
+
+```python
+# 获取所有草稿列表
+response = requests.get(f"{BASE_URL}/api/drafts/list")
+print(f"草稿列表: {response.json()}")
+```
+
+### 2. 批量下载草稿
+
+```python
+# 批量下载多个草稿
+response = requests.post(f"{BASE_URL}/api/drafts/batch-download", json={
+    "draft_ids": ["draft1", "draft2", "draft3"],
+    "client_os": "windows",
+    "draft_folder": "F:/jianyin/cgwz/JianyingPro Drafts"
+})
+print(f"批量下载结果: {response.json()}")
+```
+
+### 3. 生成定制化下载链接
+
+```python
+# 生成Windows平台的下载链接
+response = requests.post(f"{BASE_URL}/generate_draft_url", json={
+    "draft_id": "my_draft",
+    "client_os": "windows",
+    "draft_folder": "F:/jianyin/cgwz/JianyingPro Drafts"
+})
+print(f"下载链接: {response.json()}")
+```
+
+### 4. 草稿缓存调试
+
+```python
+# 查看草稿缓存信息
+response = requests.get(f"{BASE_URL}/debug/cache/my_draft")
+print(f"缓存信息: {response.json()}")
+```
+
+## Web界面访问
+
+### 1. 主页
+访问地址：http://8.148.70.18:9000
+
+### 2. 草稿管理仪表板
+访问地址：http://8.148.70.18:9000/api/drafts/dashboard
+
+### 3. 草稿预览
+访问地址：http://8.148.70.18:9000/draft/preview/[草稿ID]
+
+### 4. 草稿下载
+访问地址：http://8.148.70.18:9000/draft/downloader?draft_id=[草稿ID]
+
 ## 错误处理
 
 ```python
@@ -370,4 +426,4 @@ chmod +x deploy.sh
 
 # 检查文件权限
 ls -la *.sh
-``` 
+```
