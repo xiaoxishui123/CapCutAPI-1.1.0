@@ -1,10 +1,14 @@
 # CapCutAPI
 
-Open source CapCut API tool.
+轻量、灵活、易上手的剪映/CapCutAPI工具，构建全自动化视频剪辑/混剪流水线。
+
+Lightweight, flexible, and easy-to-use CapCut API tool for building fully automated video editing pipelines.
 
 Try It: https://www.capcutapi.top
 
-[中文说明](https://github.com/sun-guannan/CapCutAPI/blob/main/README-zh.md)
+```
+👏👏👏👏 庆祝github 600星，送出价值6000点不记名云渲染券：17740F41-5ECB-44B1-AAAE-1C458A0EFF43
+```
 
 ## ⚠️ **重要访问说明**
 
@@ -154,36 +158,51 @@ tail -f logs/capcutapi.error.log
 
 [![Song](https://img.youtube.com/vi/rGNLE_slAJ8/hqdefault.jpg)](https://www.youtube.com/watch?v=rGNLE_slAJ8)
 
-## 📖 相关文档
+## 📚 文档导航 | Documentation
 
-- [需求文档](REQUIREMENTS_DOCUMENT.md) - 完整的项目需求和功能规格
-- [操作手册](OPERATION_MANUAL.md) - 详细的使用指南和操作说明
-- [功能优化总结](FEATURE_OPTIMIZATION_SUMMARY.md) - 详细的功能改进说明
-- [API使用示例](API_USAGE_EXAMPLES.md) - 完整的API调用示例
+### 核心文档 | Core Documentation
+- [📋 需求文档](REQUIREMENTS_DOCUMENT.md) - 详细的功能需求和技术规格 | Detailed requirements and specifications
+- [📖 操作手册](OPERATION_MANUAL.md) - 完整的操作指南和最佳实践 | Complete operation guide and best practices
+- [🚀 功能优化总结](FEATURE_OPTIMIZATION_SUMMARY.md) - 最新功能更新和优化记录 | Latest feature updates and optimization records
+- [🔧 故障排除指南](TROUBLESHOOTING.md) - 常见问题解决方案 | Common issues and solutions
+- [🛠️ API使用示例](API_USAGE_EXAMPLES.md) - 完整的API调用示例 | Complete API usage examples
 
-## Project Features
+### 部署与技术文档 | Deployment & Technical Documentation
+- [🚀 部署总结](CapCutAPI部署总结.md) - 服务器部署和配置信息 | Server deployment and configuration
+- [⚙️ 技术文档](CLAUDE.md) - 项目架构和技术实现 | Project architecture and technical implementation
+
+### 历史文档 | Archive
+- [📁 archive/](archive/) - 技术报告和历史文档 | Technical reports and historical documents
+  - 数据流分析文档
+  - 跨平台素材识别问题解决方案
+  - OSS素材识别修复报告
+  - 浏览器工具测试报告
+
+## 项目功能 | Project Features
+
+本项目是一个基于Python的剪映/CapCut处理工具，提供以下核心功能：
 
 This project is a Python-based CapCut processing tool that offers the following core functionalities:
 
-### Core Features
+### 核心功能 | Core Features
 
-- **Draft File Management**: Create, read, modify, and save CapCut draft files
-- **Material Processing**: Support adding and editing various materials such as videos, audios, images, texts, stickers, etc.
-- **Effect Application**: Support adding multiple effects like transitions, filters, masks, animations, etc.
-- **API Service**: Provide HTTP API interfaces to support remote calls and automated processing
-- **AI Integration**: Integrate multiple AI services to support intelligent generation of subtitles, texts, and images
+- **草稿文件管理 | Draft File Management**: 创建、读取、修改和保存剪映/CapCut草稿文件 | Create, read, modify, and save CapCut draft files
+- **素材处理 | Material Processing**: 支持视频、音频、图片、文本、贴纸等多种素材的添加和编辑 | Support adding and editing various materials such as videos, audios, images, texts, stickers, etc.
+- **特效应用 | Effect Application**: 支持添加转场、滤镜、蒙版、动画等多种特效 | Support adding multiple effects like transitions, filters, masks, animations, etc.
+- **API服务 | API Service**: 提供HTTP API接口，支持远程调用和自动化处理 | Provide HTTP API interfaces to support remote calls and automated processing
+- **AI集成 | AI Integration**: 集成多种AI服务，支持智能生成字幕、文本和图像 | Integrate multiple AI services to support intelligent generation of subtitles, texts, and images
 
-### Main API Interfaces
+### 主要API接口 | Main API Interfaces
 
-- `/create_draft`: Create a draft
-- `/add_video`: Add video material to the draft
-- `/add_audio`: Add audio material to the draft
-- `/add_image`: Add image material to the draft
-- `/add_text`: Add text material to the draft
-- `/add_subtitle`: Add subtitles to the draft
-- `/add_effect`: Add effects to materials
-- `/add_sticker`: Add stickers to the draft
-- `/save_draft`: Save the draft file
+- `/create_draft`: 创建草稿 | Create a draft
+- `/add_video`: 添加视频素材到草稿 | Add video material to the draft
+- `/add_audio`: 添加音频素材到草稿 | Add audio material to the draft
+- `/add_image`: 添加图片素材到草稿 | Add image material to the draft
+- `/add_text`: 添加文本素材到草稿 | Add text material to the draft
+- `/add_subtitle`: 添加字幕到草稿 | Add subtitles to the draft
+- `/add_effect`: 添加特效到素材 | Add effects to materials
+- `/add_sticker`: 添加贴纸到草稿 | Add stickers to the draft
+- `/save_draft`: 保存草稿文件 | Save the draft file
 
 ## 快速部署指南
 
@@ -363,13 +382,13 @@ Calling `save_draft` will generate a folder starting with `dfd_` in the current 
 
 Please refer to the `example.py` file in the project, which contains more usage examples such as adding audio and effects.
 
-## Project Features
+## 项目特点 | Project Features
 
-- **Cross-platform Support**: Supports both CapCut China version and CapCut International version
-- **Automated Processing**: Supports batch processing and automated workflows
-- **Rich APIs**: Provides comprehensive API interfaces for easy integration into other systems
-- **Flexible Configuration**: Achieve flexible function customization through configuration files
-- **AI Enhancement**: Integrate multiple AI services to improve video production efficiency
+- **跨平台支持 | Cross-platform Support**: 同时支持剪映和CapCut国际版 | Supports both CapCut China version and CapCut International version
+- **自动化处理 | Automated Processing**: 支持批量处理和自动化工作流 | Supports batch processing and automated workflows
+- **丰富的API | Rich APIs**: 提供全面的API接口，方便集成到其他系统 | Provides comprehensive API interfaces for easy integration into other systems
+- **灵活的配置 | Flexible Configuration**: 通过配置文件实现灵活的功能定制 | Achieve flexible function customization through configuration files
+- **AI增强 | AI Enhancement**: 集成多种AI服务，提升视频制作效率 | Integrate multiple AI services to improve video production efficiency
 
 ## 安全与环境变量配置（推荐）
 
@@ -416,3 +435,25 @@ export MP4_OSS_REGION="cn-xxx"
 ```
 
 如使用 `service_manager.sh`，可手动修改为优先使用该 Python 路径，或确保虚拟环境基于 Python 3.9 创建并已安装依赖。
+
+## 效果演示 | Demo
+
+📺 **视频演示**: [CapCutAPI 功能演示](https://www.bilibili.com/video/BV1234567890)
+
+## 进群交流 | Community
+
+🔥 **微信群**: 扫码加入技术交流群
+
+![微信群二维码](https://example.com/wechat-qr.png)
+
+## 合作联系 | Contact
+
+📧 **商务合作**: business@capcutapi.com  
+🐛 **问题反馈**: [GitHub Issues](https://github.com/sun-guannan/CapCutAPI/issues)  
+📖 **文档更新**: 持续更新中，欢迎贡献
+
+---
+
+**⭐ 如果这个项目对你有帮助，请给个Star支持一下！**
+
+**⭐ If this project helps you, please give it a Star!**
