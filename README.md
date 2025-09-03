@@ -161,15 +161,19 @@ tail -f logs/capcutapi.error.log
 ## 📚 文档导航 | Documentation
 
 ### 核心文档 | Core Documentation
-- [📋 需求文档](REQUIREMENTS_DOCUMENT.md) - 详细的功能需求和技术规格 | Detailed requirements and specifications
-- [📖 操作手册](OPERATION_MANUAL.md) - 完整的操作指南和最佳实践 | Complete operation guide and best practices
-- [🚀 功能优化总结](FEATURE_OPTIMIZATION_SUMMARY.md) - 最新功能更新和优化记录 | Latest feature updates and optimization records
-- [🔧 故障排除指南](TROUBLESHOOTING.md) - 常见问题解决方案 | Common issues and solutions
-- [🛠️ API使用示例](API_USAGE_EXAMPLES.md) - 完整的API调用示例 | Complete API usage examples
+- [📋 需求文档](docs/REQUIREMENTS_DOCUMENT.md) - 详细的功能需求和技术规格 | Detailed requirements and specifications
+- [📖 操作手册](docs/OPERATION_MANUAL.md) - 完整的操作指南和最佳实践 | Complete operation guide and best practices
+- [🚀 功能优化总结](docs/FEATURE_OPTIMIZATION_SUMMARY.md) - 最新功能更新和优化记录 | Latest feature updates and optimization records
+- [🔧 故障排除指南](docs/TROUBLESHOOTING.md) - 常见问题解决方案 | Common issues and solutions
+- [🛠️ API使用示例](docs/API_USAGE_EXAMPLES.md) - 完整的API调用示例 | Complete API usage examples
 
 ### 部署与技术文档 | Deployment & Technical Documentation
-- [🚀 部署总结](CapCutAPI部署总结.md) - 服务器部署和配置信息 | Server deployment and configuration
-- [⚙️ 技术文档](CLAUDE.md) - 项目架构和技术实现 | Project architecture and technical implementation
+- [🚀 部署总结](docs/CapCutAPI部署总结.md) - 服务器部署和配置信息 | Server deployment and configuration
+- [⚙️ 技术文档](docs/CLAUDE.md) - 项目架构和技术实现 | Project architecture and technical implementation
+- [🔍 数据流分析](docs/CapCutAPI_数据流分析文档.md) - 系统数据流和处理逻辑分析 | System data flow and processing logic analysis
+- [🛠️ 跨平台素材识别](docs/CapCutAPI_跨平台素材识别问题解决方案.md) - 跨平台兼容性解决方案 | Cross-platform compatibility solutions
+- [☁️ OSS素材识别修复](docs/OSS_Material_Recognition_Fix_Report.md) - OSS云存储素材识别问题修复 | OSS cloud storage material recognition fixes
+- [🌐 浏览器工具测试](docs/BROWSER_TOOLS_TEST_REPORT.md) - 浏览器工具功能测试报告 | Browser tools functionality test report
 
 ### 历史文档 | Archive
 - [📁 archive/](archive/) - 技术报告和历史文档 | Technical reports and historical documents
