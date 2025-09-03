@@ -3355,12 +3355,21 @@ def enhanced_draft_preview(draft_id):
 def render_template_with_official_style(draft_id, materials, total_duration):
     """使用现有模板渲染预览页面，但应用官方风格"""
     try:
-        # 使用现有的官方风格模板
-        return render_template('preview_official.html', 
+        # 获取草稿信息
+        draft_info = get_draft_info(draft_id)
+        if not draft_info:
+            draft_info = {
+                'create_time': '未知',
+                'update_time': '未知'
+            }
+        
+        # 使用现有的preview.html模板
+        return render_template('preview.html', 
                              draft_id=draft_id,
                              materials=materials,
                              total_duration=total_duration,
-                             timeline_html=generate_timeline_html_for_template(materials, total_duration))
+                             timeline_html=generate_timeline_html_for_template(materials, total_duration),
+                             draft_info=draft_info)
     except Exception as e:
         print(f"模板渲染失败: {e}")
         # 如果模板不存在，返回简单的HTML
@@ -3392,34 +3401,241 @@ def render_template_with_official_style(draft_id, materials, total_duration):
         """
 
 def generate_timeline_html_for_template(materials, total_duration):
-    """生成适用于模板的时间轴HTML"""
+    """生成适用于模板的多轨道时间轴HTML"""
     if not materials:
-        return '<div class="empty-timeline">暂无素材数据</div>'
+        return generate_empty_multitrack_html()
     
-    # 简化的时间轴生成
-    timeline_items = []
-    for i, material in enumerate(materials):
+    # 按轨道类型分组素材
+    tracks = group_materials_by_track_type(materials)
+    
+    # 生成多轨道HTML
+    return generate_multitrack_html(tracks, total_duration)
+
+def group_materials_by_track_type(materials):
+    """
+    按轨道类型分组素材
+    
+    Args:
+        materials: 素材列表
+    
+    Returns:
+        dict: 按轨道类型分组的素材字典
+    """
+    # 定义轨道类型优先级和显示名称
+    track_types = {
+        'video': {'name': '视频轨道', 'priority': 1, 'color': '#4CAF50'},
+        'audio': {'name': '音频轨道', 'priority': 2, 'color': '#2196F3'},
+        'text': {'name': '文本轨道', 'priority': 3, 'color': '#FF9800'},
+        'image': {'name': '图片轨道', 'priority': 4, 'color': '#9C27B0'},
+        'effect': {'name': '特效轨道', 'priority': 5, 'color': '#F44336'},
+        'sticker': {'name': '贴纸轨道', 'priority': 6, 'color': '#795548'}
+    }
+    
+    tracks = {}
+    
+    for material in materials:
         material_type = material.get('type', 'unknown')
-        start = float(material.get('start', 0) or 0)
-        duration = float(material.get('duration', 30) or 30)
         
-        # 计算位置和宽度（百分比）
+        # 将未知类型归类到视频轨道
+        if material_type not in track_types:
+            material_type = 'video'
+        
+        if material_type not in tracks:
+            tracks[material_type] = {
+                'materials': [],
+                'info': track_types[material_type]
+            }
+        
+        tracks[material_type]['materials'].append(material)
+    
+    # 按优先级排序轨道
+    sorted_tracks = dict(sorted(tracks.items(), key=lambda x: x[1]['info']['priority']))
+    
+    return sorted_tracks
+
+def generate_multitrack_html(tracks, total_duration):
+    """
+    生成多轨道HTML
+    
+    Args:
+        tracks: 按类型分组的轨道字典
+        total_duration: 总时长
+    
+    Returns:
+        str: 多轨道HTML字符串
+    """
+    if not tracks:
+        return generate_empty_multitrack_html()
+    
+    tracks_html = ''
+    
+    for track_type, track_data in tracks.items():
+        track_info = track_data['info']
+        materials = track_data['materials']
+        
+        # 生成轨道内的素材HTML
+        items_html = generate_track_items_html(materials, total_duration, track_info['color'])
+        
+        # 生成单个轨道HTML
+        tracks_html += f'''
+        <div class="timeline-track" data-track-type="{track_type}">
+            <div class="track-label" style="background-color: {track_info['color']}">
+                <span class="track-name">{track_info['name']}</span>
+                <span class="track-count">({len(materials)})</span>
+            </div>
+            <div class="track-items">
+                {items_html}
+            </div>
+        </div>
+        '''
+    
+    return f'''
+    <div class="multitrack-timeline">
+        <div class="timeline-header">
+            <div class="timeline-ruler">{generate_time_ruler_html(total_duration)}</div>
+        </div>
+        <div class="timeline-tracks">
+            {tracks_html}
+        </div>
+    </div>
+    '''
+
+def generate_track_items_html(materials, total_duration, track_color):
+    """
+    生成轨道内素材的HTML
+    
+    Args:
+        materials: 素材列表
+        total_duration: 总时长
+        track_color: 轨道颜色
+    
+    Returns:
+        str: 素材HTML字符串
+    """
+    items_html = ''
+    
+    for i, material in enumerate(materials):
+        start_time = float(material.get('start', 0) or 0)
+        duration = float(material.get('duration', 30) or 30)
+        material_type = material.get('type', 'unknown')
+        material_url = material.get('url', '')
+        material_name = material.get('name', f'{material_type}素材')
+        
+        # 计算位置和宽度百分比
         if total_duration > 0:
-            left_percent = (start / total_duration) * 100
+            left_percent = (start_time / total_duration) * 100
             width_percent = (duration / total_duration) * 100
         else:
             left_percent = i * 20
             width_percent = 15
         
-        timeline_items.append(f"""
+        # 确保最小宽度
+        min_width = 2  # 最小宽度2%
+        if width_percent < min_width:
+            width_percent = min_width
+        
+        items_html += f'''
         <div class="timeline-block track-item {material_type}" 
-             style="left: {left_percent}%; width: {width_percent}%; top: {i * 35}px;"
-             onclick="showMaterialDetails({i})">
+             style="left: {left_percent:.2f}%; width: {width_percent:.2f}%; background-color: {track_color};"
+             data-start="{start_time}" 
+             data-duration="{duration}" 
+             data-type="{material_type}"
+             data-url="{material_url}"
+             data-name="{material_name}"
+             onclick="showMaterialDetails({i})"
+             title="{material_name} ({start_time:.1f}s - {start_time + duration:.1f}s)">
             <span class="material-text">{material_type.upper()[:8]}</span>
+            <div class="item-duration">{duration:.1f}s</div>
         </div>
-        """)
+        '''
     
-    return ''.join(timeline_items)
+    return items_html
+
+def generate_time_ruler_html(total_duration):
+    """
+    生成时间标尺HTML
+    
+    Args:
+        total_duration: 总时长
+    
+    Returns:
+        str: 时间标尺HTML字符串
+    """
+    if total_duration <= 0:
+        return '<div class="ruler-mark">0:00</div>'
+    
+    ruler_html = ''
+    
+    # 计算时间间隔
+    if total_duration <= 10:
+        interval = 1  # 1秒间隔
+    elif total_duration <= 60:
+        interval = 5  # 5秒间隔
+    elif total_duration <= 300:
+        interval = 15  # 15秒间隔
+    else:
+        interval = 30  # 30秒间隔
+    
+    # 生成时间标记
+    current_time = 0
+    while current_time <= total_duration:
+        position_percent = (current_time / total_duration * 100) if total_duration > 0 else 0
+        
+        # 格式化时间显示
+        minutes = int(current_time // 60)
+        seconds = int(current_time % 60)
+        time_text = f"{minutes}:{seconds:02d}"
+        
+        ruler_html += f'''
+        <div class="ruler-mark" style="left: {position_percent:.2f}%;">
+            <div class="ruler-line"></div>
+            <div class="ruler-text">{time_text}</div>
+        </div>
+        '''
+        
+        current_time += interval
+    
+    return ruler_html
+
+def generate_empty_multitrack_html():
+    """
+    生成空的多轨道HTML
+    
+    Returns:
+        str: 空轨道HTML字符串
+    """
+    empty_tracks = [
+        {'type': 'video', 'name': '视频轨道', 'color': '#4CAF50'},
+        {'type': 'audio', 'name': '音频轨道', 'color': '#2196F3'},
+        {'type': 'text', 'name': '文本轨道', 'color': '#FF9800'}
+    ]
+    
+    tracks_html = ''
+    for track in empty_tracks:
+        tracks_html += f'''
+        <div class="timeline-track empty-track" data-track-type="{track['type']}">
+            <div class="track-label" style="background-color: {track['color']}">
+                <span class="track-name">{track['name']}</span>
+                <span class="track-count">(0)</span>
+            </div>
+            <div class="track-items">
+                <div class="empty-track-placeholder">拖拽素材到此轨道</div>
+            </div>
+        </div>
+        '''
+    
+    return f'''
+    <div class="multitrack-timeline">
+        <div class="timeline-header">
+            <div class="timeline-ruler">
+                <div class="ruler-mark">0:00</div>
+            </div>
+        </div>
+        <div class="timeline-tracks">
+            {tracks_html}
+        </div>
+    </div>
+    '''
 
 
 @app.route('/draft/downloader', methods=['GET'])

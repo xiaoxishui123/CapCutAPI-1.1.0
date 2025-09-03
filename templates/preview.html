@@ -154,7 +154,7 @@
         }
         
         .timeline-section {
-            height: 200px;
+            height: 300px;
             padding: 20px;
             background: #fafafa;
         }
@@ -185,61 +185,255 @@
             padding: 15px;
             height: calc(100% - 50px);
             overflow-y: auto;
+            overflow-x: auto;
+        }
+        
+        /* 多轨道Timeline样式 */
+        .multitrack-timeline {
+            width: 100%;
+            min-width: 800px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        .timeline-header {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        
+        .timeline-ruler {
+            position: relative;
+            height: 30px;
+            background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 4px;
+            margin-left: 120px;
+        }
+        
+        .ruler-mark {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ruler-line {
+            width: 1px;
+            height: 15px;
+            background: #666;
+            margin-bottom: 2px;
+        }
+        
+        .ruler-text {
+            font-size: 10px;
+            color: #666;
+            font-weight: 500;
         }
         
         .timeline-tracks {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 2px;
         }
         
         .timeline-track {
-            background: #f8f9fa;
-            border-radius: 4px;
-            padding: 8px;
-            min-height: 30px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            min-height: 50px;
+            border-bottom: 1px solid #f0f0f0;
+            position: relative;
+        }
+        
+        .timeline-track:last-child {
+            border-bottom: none;
         }
         
         .track-label {
+            width: 120px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             font-size: 12px;
-            font-weight: 500;
-            color: #666;
-            min-width: 60px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .track-items {
-            display: flex;
-            gap: 4px;
+        .track-name {
             flex: 1;
         }
         
-        .track-item {
-            background: #667eea;
+        .track-count {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
+        .track-items {
+            flex: 1;
+            position: relative;
+            height: 40px;
+            background: #fafbfc;
+            border-radius: 4px;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .timeline-block {
+            position: absolute;
+            height: 32px;
+            top: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
             color: white;
-            padding: 4px 8px;
-            border-radius: 3px;
             font-size: 11px;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            border: 2px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+        }
+        
+        .timeline-block:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.4);
+        }
+        
+        .timeline-block.selected {
+            border-color: #fff;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5);
+        }
+        
+        .material-text {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        
+        .item-duration {
+            font-size: 9px;
+            opacity: 0.9;
+            margin-left: 4px;
             white-space: nowrap;
         }
         
+        /* 空轨道样式 */
+        .empty-track .track-items {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .empty-track-placeholder {
+            color: #6c757d;
+            font-size: 12px;
+            font-style: italic;
+        }
+        
+        /* 轨道类型特定样式 */
+        .timeline-track[data-track-type="video"] .track-label {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .timeline-track[data-track-type="audio"] .track-label {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+        }
+        
+        .timeline-track[data-track-type="text"] .track-label {
+            background: linear-gradient(135deg, #FF9800, #F57C00);
+        }
+        
+        .timeline-track[data-track-type="image"] .track-label {
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+        }
+        
+        .timeline-track[data-track-type="effect"] .track-label {
+            background: linear-gradient(135deg, #F44336, #D32F2F);
+        }
+        
+        .timeline-track[data-track-type="sticker"] .track-label {
+            background: linear-gradient(135deg, #795548, #5D4037);
+        }
+        
+        /* 素材类型颜色 */
         .track-item.video {
-            background: #28a745;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
         }
         
         .track-item.audio {
-            background: #ffc107;
-            color: #333;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
         }
         
         .track-item.text {
-            background: #17a2b8;
+            background: linear-gradient(135deg, #FF9800, #F57C00);
         }
         
         .track-item.image {
-            background: #fd7e14;
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+        }
+        
+        .track-item.effect {
+            background: linear-gradient(135deg, #F44336, #D32F2F);
+        }
+        
+        .track-item.sticker {
+            background: linear-gradient(135deg, #795548, #5D4037);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .multitrack-timeline {
+                min-width: 600px;
+            }
+            
+            .track-label {
+                width: 100px;
+                font-size: 11px;
+            }
+            
+            .timeline-ruler {
+                margin-left: 108px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .timeline-section {
+                height: 250px;
+            }
+            
+            .multitrack-timeline {
+                min-width: 500px;
+            }
+            
+            .track-label {
+                width: 80px;
+                font-size: 10px;
+                padding: 6px 8px;
+            }
+            
+            .timeline-ruler {
+                margin-left: 88px;
+            }
+            
+            .timeline-block {
+                height: 28px;
+                font-size: 10px;
+                padding: 0 6px;
+            }
         }
         
         .right-panel {
@@ -432,10 +626,10 @@
             <div class="timeline-section">
                 <div class="section-title">⏱️ 时间轴</div>
                 <div class="timeline-controls">
-                    <button class="timeline-btn">▶️ 播放</button>
-                    <button class="timeline-btn">⏸️ 暂停</button>
-                    <button class="timeline-btn">⏹️ 停止</button>
-                    <button class="timeline-btn">🔄 重置</button>
+                    <button class="timeline-btn" onclick="playTimeline()">▶️ 播放</button>
+                    <button class="timeline-btn" onclick="pauseTimeline()">⏸️ 暂停</button>
+                    <button class="timeline-btn" onclick="stopTimeline()">⏹️ 停止</button>
+                    <button class="timeline-btn" onclick="resetTimeline()">🔄 重置</button>
                 </div>
                 <div class="timeline-content">
                     <div class="timeline-tracks">
@@ -500,6 +694,11 @@
         // 全局变量
         let downloadTaskId = null;
         let selectedMaterial = null;
+        let selectedTimelineBlock = null;
+        let isPlaying = false;
+        let currentTime = 0;
+        let totalDuration = 0;
+        let playbackInterval = null;
         
         // 素材选择功能
         function selectMaterial(materialId, materialDataStr) {
@@ -520,6 +719,177 @@
             } catch (e) {
                 console.error('解析素材数据失败:', e);
             }
+        }
+        
+        // 时间轴块选择功能
+        function selectTimelineBlock(blockElement, materialData) {
+            // 移除之前的选中状态
+            document.querySelectorAll('.timeline-block').forEach(block => {
+                block.classList.remove('selected');
+            });
+            
+            // 添加新的选中状态
+            blockElement.classList.add('selected');
+            selectedTimelineBlock = blockElement;
+            
+            // 更新详情面板
+            if (materialData) {
+                try {
+                    const material = typeof materialData === 'string' ? JSON.parse(materialData) : materialData;
+                    updateMaterialDetails(material);
+                } catch (e) {
+                    console.error('解析时间轴素材数据失败:', e);
+                }
+            }
+        }
+        
+        // 时间轴播放控制
+        function playTimeline() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            updatePlayButton();
+            
+            // 计算总时长
+            calculateTotalDuration();
+            
+            // 开始播放动画
+            playbackInterval = setInterval(() => {
+                currentTime += 0.1; // 每100ms增加0.1秒
+                
+                if (currentTime >= totalDuration) {
+                    stopTimeline();
+                    return;
+                }
+                
+                updatePlaybackPosition();
+            }, 100);
+        }
+        
+        function pauseTimeline() {
+            isPlaying = false;
+            updatePlayButton();
+            
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+        }
+        
+        function stopTimeline() {
+            isPlaying = false;
+            currentTime = 0;
+            updatePlayButton();
+            updatePlaybackPosition();
+            
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+        }
+        
+        function resetTimeline() {
+            stopTimeline();
+            currentTime = 0;
+            updatePlaybackPosition();
+        }
+        
+        // 更新播放按钮状态
+        function updatePlayButton() {
+            const playBtn = document.querySelector('.timeline-btn[onclick*="play"]');
+            if (playBtn) {
+                playBtn.textContent = isPlaying ? '⏸️ 暂停' : '▶️ 播放';
+                playBtn.setAttribute('onclick', isPlaying ? 'pauseTimeline()' : 'playTimeline()');
+            }
+        }
+        
+        // 计算总时长
+        function calculateTotalDuration() {
+            const timelineBlocks = document.querySelectorAll('.timeline-block');
+            let maxEndTime = 0;
+            
+            timelineBlocks.forEach(block => {
+                const left = parseFloat(block.style.left) || 0;
+                const width = parseFloat(block.style.width) || 0;
+                const endTime = (left + width) / 100 * 10; // 假设10秒为100%
+                maxEndTime = Math.max(maxEndTime, endTime);
+            });
+            
+            totalDuration = Math.max(maxEndTime, 10); // 最少10秒
+        }
+        
+        // 更新播放位置指示器
+        function updatePlaybackPosition() {
+            const progressPercent = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
+            
+            // 更新或创建播放位置指示器
+            let playhead = document.querySelector('.timeline-playhead');
+            if (!playhead) {
+                playhead = document.createElement('div');
+                playhead.className = 'timeline-playhead';
+                playhead.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    width: 2px;
+                    background: #ff4444;
+                    z-index: 1000;
+                    pointer-events: none;
+                    transition: left 0.1s ease;
+                `;
+                
+                const timelineContent = document.querySelector('.timeline-content');
+                if (timelineContent) {
+                    timelineContent.style.position = 'relative';
+                    timelineContent.appendChild(playhead);
+                }
+            }
+            
+            playhead.style.left = `${120 + progressPercent * (timelineContent.offsetWidth - 120) / 100}px`;
+        }
+        
+        // 时间轴拖拽功能
+        function initTimelineDragDrop() {
+            const timelineBlocks = document.querySelectorAll('.timeline-block');
+            
+            timelineBlocks.forEach(block => {
+                block.draggable = true;
+                
+                block.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', block.dataset.materialId || '');
+                    block.style.opacity = '0.5';
+                });
+                
+                block.addEventListener('dragend', (e) => {
+                    block.style.opacity = '1';
+                });
+            });
+            
+            // 轨道拖放区域
+            const trackItems = document.querySelectorAll('.track-items');
+            trackItems.forEach(trackItem => {
+                trackItem.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    trackItem.style.background = '#e3f2fd';
+                });
+                
+                trackItem.addEventListener('dragleave', (e) => {
+                    trackItem.style.background = '';
+                });
+                
+                trackItem.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    trackItem.style.background = '';
+                    
+                    const materialId = e.dataTransfer.getData('text/plain');
+                    const rect = trackItem.getBoundingClientRect();
+                    const dropX = e.clientX - rect.left;
+                    const dropPercent = (dropX / rect.width) * 100;
+                    
+                    console.log(`素材 ${materialId} 拖放到位置: ${dropPercent.toFixed(1)}%`);
+                    // 这里可以添加实际的拖放处理逻辑
+                });
+            });
         }
         
         // 更新素材详情面板
@@ -646,7 +1016,35 @@
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('草稿预览页面已加载');
-        });
+            
+            // 初始化多轨道Timeline交互功能
+            initTimelineDragDrop();
+            
+            // 为时间轴块添加点击事件
+            document.querySelectorAll('.timeline-block').forEach(block => {
+                block.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const materialData = this.dataset.materialData;
+                    selectTimelineBlock(this, materialData);
+                });
+            });
+            
+            // 点击空白区域取消选择
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.timeline-block') && !e.target.closest('.material-item')) {
+                    // 取消所有选择
+                    document.querySelectorAll('.timeline-block, .material-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    selectedMaterial = null;
+                    selectedTimelineBlock = null;
+                    updateMaterialDetails(null);
+                }
+            });
+            
+            // 初始化播放位置指示器
+             updatePlaybackPosition();
+         });
     </script>
 </body>
 </html>
