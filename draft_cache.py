@@ -85,7 +85,9 @@ def get_draft(draft_id: str) -> Optional[draft.Script_file]:
         from database import get_draft_from_db
         result = get_draft_from_db(draft_id)
         if result:
-            script_data, width, height = result
+            script_data = result['script_data']
+            width = result['width']
+            height = result['height']
             script = deserialize_script(script_data)
             if script:
                 # 加载到缓存中（不再次同步到数据库）

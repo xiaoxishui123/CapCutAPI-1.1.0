@@ -30,7 +30,7 @@ from urllib.parse import quote
 
 # ===== 第三方库导入 =====
 import requests
-from flask import Flask, request, jsonify, Response, render_template
+from flask import Flask, request, jsonify, Response, render_template, redirect
 
 # ===== pyJianYingDraft 相关导入 =====
 import pyJianYingDraft as draft
@@ -2445,24 +2445,91 @@ def list_drafts():
     """获取所有可用草稿列表 - 新增功能"""
     try:
         from datetime import datetime
+        import os
         
         db_drafts = get_all_drafts()
         
         drafts_list = []
         for draft in db_drafts:
+            # 获取草稿的详细信息
+            materials = get_draft_materials(draft['id'])
+            material_count = len(materials) if materials else 0
+            
+            # 计算文件大小(估算)
+            total_size = material_count * 1024 * 1024  # 每个素材估算1MB
+            
+            # 处理时间格式 - 使用正确的字段名
+            try:
+                if draft.get('modified_time') and draft['modified_time'] != '未知':
+                    # 尝试解析时间字符串
+                    from datetime import datetime
+                    if isinstance(draft['modified_time'], str):
+                        # 如果是字符串格式，转换为时间戳
+                        dt = datetime.strptime(draft['modified_time'], '%Y-%m-%d %H:%M:%S')
+                        timestamp = int(dt.timestamp())
+                    else:
+                        timestamp = int(draft['modified_time'])
+                else:
+                    timestamp = int(datetime.now().timestamp())
+            except:
+                timestamp = int(datetime.now().timestamp())
+            
+            # 创建时间处理
+            try:
+                if draft.get('created_time') and draft['created_time'] != '未知':
+                    if isinstance(draft['created_time'], str):
+                        dt = datetime.strptime(draft['created_time'], '%Y-%m-%d %H:%M:%S')
+                        create_timestamp = int(dt.timestamp())
+                    else:
+                        create_timestamp = int(draft['created_time'])
+                else:
+                    create_timestamp = timestamp
+            except:
+                create_timestamp = timestamp
+                
+            # 状态映射函数 - 正确处理所有草稿状态
+            def map_draft_status(db_status):
+                """
+                将数据库中的草稿状态映射为前端显示状态
+                
+                Args:
+                    db_status (str): 数据库中的状态值
+                    
+                Returns:
+                    str: 前端显示的状态值
+                """
+                status_mapping = {
+                    'initialized': 'draft',      # 已初始化 -> 草稿
+                    'draft': 'draft',            # 草稿 -> 草稿
+                    'processing': 'processing',   # 处理中 -> 处理中
+                    'rendering': 'processing',    # 渲染中 -> 处理中
+                    'uploading': 'processing',    # 上传中 -> 处理中
+                    'saved': 'active',           # 已保存 -> 活跃
+                    'completed': 'active',       # 已完成 -> 活跃
+                    'published': 'active',       # 已发布 -> 活跃
+                    'error': 'error',            # 错误 -> 错误
+                    'failed': 'error',           # 失败 -> 错误
+                    'cancelled': 'draft',        # 已取消 -> 草稿
+                    'paused': 'processing'       # 已暂停 -> 处理中
+                }
+                return status_mapping.get(db_status, 'draft')  # 默认返回draft
+            
             drafts_list.append({
-                "draft_id": draft['id'],
-                "source": "database",
-                "materials_count": draft['materials_count'],
-                "status": draft['status'],
-                "last_modified": draft['modified_time']
+                "id": draft['id'],
+                "name": f"草稿_{draft['id'][:8]}",  # 缩短显示
+                "status": map_draft_status(draft.get('status')),
+                "material_count": material_count,
+                "create_time": create_timestamp,
+                "update_time": timestamp,
+                "total_size": total_size,
+                "source": "database"
             })
 
         return jsonify({
             "success": True,
             "drafts": drafts_list,
             "total": len(drafts_list),
-            "error": ""
+            "message": "获取成功"
         })
         
     except Exception as e:
@@ -2472,6 +2539,189 @@ def list_drafts():
             "total": 0,
             "error": f"获取草稿列表失败: {str(e)}"
         })
+
+# 新增缺失的API端点
+@app.route('/api/draft/preview/<draft_id>', methods=['GET'])
+def preview_draft_api(draft_id):
+    """草稿预览API - 重定向到预览页面"""
+    return redirect(f'/draft/preview/{draft_id}', code=302)
+
+@app.route('/api/drafts/edit/<draft_id>', methods=['GET'])
+def edit_draft_api(draft_id):
+    """编辑草稿API - 重定向到预览页面"""
+    return redirect(f'/draft/preview/{draft_id}', code=302)
+
+@app.route('/api/drafts/delete/<draft_id>', methods=['DELETE'])
+def delete_draft_api(draft_id):
+    """删除草稿API"""
+    try:
+        print(f"开始删除草稿: {draft_id}")
+        
+        # 检查草稿是否存在
+        from database import get_draft_by_id
+        draft_info = get_draft_by_id(draft_id)
+        print(f"草稿信息: {draft_info}")
+        
+        # 从数据库删除草稿和相关素材
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM materials WHERE draft_id = ?", (draft_id,))
+        c.execute("DELETE FROM drafts WHERE id = ?", (draft_id,))
+        conn.commit()
+        conn.close()
+        
+        # 从缓存中删除
+        if draft_id in draft_materials_cache:
+            del draft_materials_cache[draft_id]
+        
+        # 删除本地文件夹（如果存在）
+        import shutil
+        draft_path = f"drafts/{draft_id}"
+        if os.path.exists(draft_path):
+            shutil.rmtree(draft_path)
+        
+        print(f"草稿删除成功: {draft_id}")
+        return jsonify({
+            'success': True,
+            'message': '草稿删除成功',
+            'draft_id': draft_id
+        })
+        
+    except Exception as e:
+        print(f"删除草稿失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'删除草稿失败: {str(e)}'
+        }), 500
+
+@app.route('/api/drafts/download/<draft_id>', methods=['GET'])
+def download_draft_file(draft_id):
+    """下载草稿文件 - 修复版本"""
+    try:
+        # 检查草稿是否存在
+        materials = get_draft_materials(draft_id)
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': f'草稿 {draft_id} 不存在'
+            }), 404
+        
+        # 生成下载链接
+        try:
+            # 直接调用本地的generate_draft_url_api函数
+            from flask import request as flask_request
+            
+            # 模拟请求数据
+            mock_data = {
+                'draft_id': draft_id,
+                'force_save': True,
+                'client_os': flask_request.args.get('client_os', 'windows')
+            }
+            
+            # 创建模拟请求上下文
+            with app.test_request_context('/generate_draft_url', 
+                                        method='POST', 
+                                        json=mock_data):
+                response = generate_draft_url_api()
+                
+                if hasattr(response, 'get_json'):
+                    result = response.get_json()
+                    if result and result.get('success'):
+                        draft_url = result.get('output', {}).get('draft_url')
+                        if draft_url:
+                            return jsonify({
+                                'success': True,
+                                'download_url': draft_url,
+                                'draft_id': draft_id,
+                                'source': result.get('output', {}).get('source', 'unknown')
+                            })
+                
+        except Exception as url_error:
+            print(f"生成下载链接失败: {url_error}")
+        
+        # 降级处理：返回草稿信息和手动导入指引
+        return jsonify({
+            'success': True,
+            'message': '草稿存在，请手动导入',
+            'draft_id': draft_id,
+            'materials_count': len(materials),
+            'instructions': {
+                'message': f'请在剪映中手动导入草稿ID: {draft_id}',
+                'steps': [
+                    '1. 打开剪映应用',
+                    '2. 进入草稿管理',
+                    f'3. 查找草稿ID: {draft_id}',
+                    '4. 或从本地文件夹导入'
+                ]
+            }
+        })
+        
+    except Exception as e:
+        print(f"下载草稿失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'下载失败: {str(e)}'
+        }), 500
+
+@app.route('/api/drafts/batch-download', methods=['POST'])
+def batch_download_drafts():
+    """批量下载草稿"""
+    try:
+        data = request.get_json()
+        draft_ids = data.get('draft_ids', [])
+        client_os = data.get('client_os', 'unknown')
+        draft_folder = data.get('draft_folder', '')
+        
+        if not draft_ids:
+            return jsonify({
+                'success': False,
+                'error': '请提供草稿ID列表'
+            }), 400
+        
+        results = []
+        for draft_id in draft_ids:
+            try:
+                # 检查草稿是否存在
+                materials = get_draft_materials(draft_id)
+                if materials:
+                    results.append({
+                        'draft_id': draft_id,
+                        'status': 'queued',
+                        'message': '已加入下载队列'
+                    })
+                else:
+                    results.append({
+                        'draft_id': draft_id,
+                        'status': 'error',
+                        'message': '草稿不存在'
+                    })
+            except Exception as e:
+                results.append({
+                    'draft_id': draft_id,
+                    'status': 'error',
+                    'message': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'message': f'已处理 {len(draft_ids)} 个草稿',
+            'results': results,
+            'download_info': {
+                'client_os': client_os,
+                'draft_folder': draft_folder,
+                'total_count': len(draft_ids)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'批量下载失败: {str(e)}'
+        }), 500
 
 from database import update_draft_status
 
@@ -2634,6 +2884,108 @@ def draft_download_api():
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+# 添加缺失的 generate_draft_url 路由
+@app.route('/generate_draft_url', methods=['POST'])
+def generate_draft_url_api():
+    """生成草稿下载URL的API接口"""
+    try:
+        data = request.get_json()
+        draft_id = data.get('draft_id')
+        client_os = data.get('client_os', 'windows')
+        draft_folder = data.get('draft_folder', '')
+        force_save = data.get('force_save', False)
+        
+        if not draft_id:
+            return jsonify({
+                'success': False,
+                'error': '缺少草稿ID参数'
+            }), 400
+        
+        # 检查草稿是否存在
+        materials = get_draft_materials(draft_id)
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': f'草稿 {draft_id} 不存在'
+            }), 404
+        
+        # 如果需要强制保存，先保存草稿
+        if force_save:
+            try:
+                # 调用保存草稿功能
+                save_result = save_draft_impl(draft_id)
+                if not save_result.get('success', False):
+                    return jsonify({
+                        'success': False,
+                        'error': f'保存草稿失败: {save_result.get("error", "未知错误")}'
+                    }), 500
+            except Exception as save_error:
+                print(f"保存草稿时出错: {save_error}")
+                # 继续尝试生成URL，即使保存失败
+        
+        # 尝试从OSS获取已签名的URL
+        try:
+            signed_url = get_signed_draft_url_if_exists(draft_id)
+            if signed_url:
+                return jsonify({
+                    'success': True,
+                    'output': {
+                        'draft_url': signed_url,
+                        'source': 'oss'
+                    },
+                    'message': '从OSS获取下载链接成功'
+                })
+        except Exception as oss_error:
+            print(f"从OSS获取URL失败: {oss_error}")
+        
+        # 尝试获取自定义签名URL
+        try:
+            custom_url = get_customized_signed_url(draft_id)
+            if custom_url:
+                return jsonify({
+                    'success': True,
+                    'output': {
+                        'draft_url': custom_url,
+                        'source': 'custom'
+                    },
+                    'message': '获取自定义下载链接成功'
+                })
+        except Exception as custom_error:
+            print(f"获取自定义URL失败: {custom_error}")
+        
+        # 生成本地路径作为备选方案
+        try:
+            local_path = utilgenerate_draft_url(draft_id, client_os, draft_folder)
+            return jsonify({
+                'success': True,
+                'output': {
+                    'draft_url': local_path,
+                    'source': 'local_path'
+                },
+                'message': f'请在剪映中导入路径: {local_path}',
+                'instructions': {
+                    'step1': '打开剪映应用',
+                    'step2': f'在草稿目录中查找: {draft_id}',
+                    'step3': '或手动导入草稿文件夹',
+                    'local_path': local_path
+                }
+            })
+        except Exception as path_error:
+            print(f"生成本地路径失败: {path_error}")
+            return jsonify({
+                'success': False,
+                'error': f'生成草稿路径失败: {str(path_error)}'
+            }), 500
+        
+    except Exception as e:
+        print(f"generate_draft_url API错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'生成草稿URL时发生错误: {str(e)}'
         }), 500
 
 # 草稿预览辅助函数
@@ -3003,109 +3355,93 @@ def enhanced_draft_preview(draft_id):
 def render_template_with_official_style(draft_id, materials, total_duration):
     """使用现有模板渲染预览页面，但应用官方风格"""
     try:
-        # 获取草稿信息
-        draft_info = get_draft_info(draft_id)
-        
-        # 生成时间轴HTML
-        timeline_html = generate_timeline_html_for_template(materials, total_duration)
-        
-        # 使用Jinja2模板渲染
+        # 使用现有的官方风格模板
         return render_template('preview_official.html', 
                              draft_id=draft_id,
                              materials=materials,
-                             draft_info=draft_info,
                              total_duration=total_duration,
-                             timeline_html=timeline_html)
-        
+                             timeline_html=generate_timeline_html_for_template(materials, total_duration))
     except Exception as e:
         print(f"模板渲染失败: {e}")
-        # 如果模板渲染失败，返回简单的HTML页面
+        # 如果模板不存在，返回简单的HTML
         return f"""
         <html>
         <head>
             <title>草稿预览 - {draft_id}</title>
             <style>
-                body {{ font-family: Arial; margin: 40px; background: #1a1a1a; color: #fff; }}
-                .container {{ max-width: 800px; margin: 0 auto; }}
-                .material {{ background: #2d2d2d; padding: 15px; margin: 10px 0; border-radius: 8px; }}
+                body {{ font-family: Arial, sans-serif; margin: 40px; background: #1a1a1a; color: #fff; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
+                .header {{ text-align: center; margin-bottom: 30px; }}
+                .materials {{ background: #2d2d2d; padding: 20px; border-radius: 8px; }}
+                .material {{ padding: 10px; border-bottom: 1px solid #404040; }}
             </style>
         </head>
         <body>
             <div class="container">
-                <h1>🎥 草稿预览 - {draft_id}</h1>
-                <p>素材数量: {len(materials)}</p>
-                <p>总时长: {total_duration:.1f}s</p>
-                <div>
-                    {''.join([f'<div class="material">{m.get("type", "unknown")}: {m.get("name", "Unknown")}</div>' for m in materials])}
+                <div class="header">
+                    <h1>草稿预览 - {draft_id}</h1>
+                    <p>总时长: {total_duration:.2f}秒</p>
                 </div>
-                <p><a href="javascript:history.back()" style="color:#4a9eff;">返回上一页</a></p>
+                <div class="materials">
+                    <h2>素材列表 ({len(materials)} 个)</h2>
+                    {''.join([f'<div class="material">{m.get("type", "unknown").upper()}: {m.get("url", "N/A")}</div>' for m in materials])}
+                </div>
             </div>
         </body>
         </html>
         """
 
 def generate_timeline_html_for_template(materials, total_duration):
-    """为模板生成时间轴HTML - 增强功能版"""
+    """生成适用于模板的时间轴HTML"""
     if not materials:
-        return '<div class="empty-timeline">无素材数据</div>'
+        return '<div class="empty-timeline">暂无素材数据</div>'
     
-    # 按轨道分组
-    tracks = {}
+    # 简化的时间轴生成
+    timeline_items = []
     for i, material in enumerate(materials):
-        track_name = material.get('track_name', '默认轨道')
-        if track_name not in tracks:
-            tracks[track_name] = []
-        material['index'] = i  # 添加索引用于JavaScript交互
-        tracks[track_name].append(material)
-    
-    # 生成轨道HTML
-    tracks_html = []
-    for track_name, track_materials in tracks.items():
-        items_html = []
-        for material in track_materials:
-            material_index = material.get('index', 0)
-            material_type = material.get('type', 'unknown')
-            material_name = material.get('name', material.get('url', 'Unknown').split('/')[-1] if material.get('url') else 'Unknown')
-            
-            # 缩短名称显示
-            if len(material_name) > 15:
-                material_name = material_name[:12] + '...'
-            
-            # 安全地计算时间和位置
-            try:
-                start_time = float(material.get('start', 0)) if material.get('start', 0) not in [None, '未知', ''] else 0
-                duration = float(material.get('duration', 5)) if material.get('duration', 5) not in [None, '未知', ''] else 5
-            except (ValueError, TypeError):
-                start_time = 0
-                duration = 5
-            
-            if total_duration > 0:
-                left_percent = (start_time / total_duration) * 100
-                width_percent = max((duration / total_duration) * 100, 5)  # 最小5%宽度
-            else:
-                left_percent = 0
-                width_percent = 20
-            
-            # 生成可点击的素材块
-            items_html.append(f'''
-                <div class="timeline-block" 
-                     style="position: absolute; left: {left_percent}%; width: {width_percent}%; height: 28px; cursor: pointer;"
-                     onclick="showMaterialDetails({material_index})"
-                     title="{material.get('type', 'unknown')}: {material_name} ({duration:.1f}s)">
-                    <span class="track-item {material_type}">{material_name}</span>
-                </div>
-            ''')
+        material_type = material.get('type', 'unknown')
+        start = float(material.get('start', 0) or 0)
+        duration = float(material.get('duration', 30) or 30)
         
-        tracks_html.append(f"""
-            <div class="timeline-track">
-                <span class="track-label">{track_name}</span>
-                <div class="track-items" style="position: relative; height: 30px; width: 100%;">
-                    {''.join(items_html)}
-                </div>
-            </div>
+        # 计算位置和宽度（百分比）
+        if total_duration > 0:
+            left_percent = (start / total_duration) * 100
+            width_percent = (duration / total_duration) * 100
+        else:
+            left_percent = i * 20
+            width_percent = 15
+        
+        timeline_items.append(f"""
+        <div class="timeline-block track-item {material_type}" 
+             style="left: {left_percent}%; width: {width_percent}%; top: {i * 35}px;"
+             onclick="showMaterialDetails({i})">
+            <span class="material-text">{material_type.upper()[:8]}</span>
+        </div>
         """)
     
-    return ''.join(tracks_html)
+    return ''.join(timeline_items)
+
+
+@app.route('/draft/downloader', methods=['GET'])
+def draft_downloader():
+    """草稿下载路由 - 处理/draft/downloader请求"""
+    try:
+        draft_id = request.args.get('draft_id')
+        if not draft_id:
+            return jsonify({
+                'success': False,
+                'error': '缺少draft_id参数'
+            }), 400
+        
+        # 重定向到正确的下载API
+        return redirect(f'/api/drafts/download/{draft_id}')
+        
+    except Exception as e:
+        print(f"草稿下载路由错误: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'下载失败: {str(e)}'
+        }), 500
 
 
 if __name__ == "__main__":

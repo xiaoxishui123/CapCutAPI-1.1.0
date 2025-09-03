@@ -193,6 +193,26 @@
             color: #856404;
         }
         
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-processing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-saved {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
         .draft-info {
             margin-bottom: 15px;
         }
@@ -223,6 +243,16 @@
             padding: 6px 12px;
             font-size: 12px;
             border-radius: 6px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #6c757d !important;
+        }
+        
+        .btn:disabled:hover {
+            background: #6c757d !important;
         }
         
         .empty-state {
@@ -277,6 +307,63 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
+        /* 状态说明区域样式 */
+        .status-legend-section {
+            margin-bottom: 30px;
+        }
+        
+        .status-legend {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .legend-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        
+        .legend-item:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+        
+        .legend-status {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .legend-desc {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 0 15px;
@@ -294,6 +381,17 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
+            }
+            
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .legend-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                text-align: left;
             }
         }
     </style>
@@ -313,9 +411,19 @@
                 <div class="stat-label">总草稿数</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-number" id="processingDrafts">-</div>
+                <div class="stat-label">处理中</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-icon">✅</div>
                 <div class="stat-number" id="activeDrafts">-</div>
                 <div class="stat-label">活跃草稿</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-number" id="errorDrafts">-</div>
+                <div class="stat-label">错误草稿</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">🎬</div>
@@ -326,6 +434,35 @@
                 <div class="stat-icon">💾</div>
                 <div class="stat-number" id="totalSize">-</div>
                 <div class="stat-label">总大小</div>
+            </div>
+        </div>
+        
+        <!-- 状态说明区域 -->
+        <div class="status-legend-section">
+            <div class="status-legend">
+                <h3 class="legend-title">📋 状态说明</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span class="legend-status status-draft">草稿</span>
+                        <span class="legend-desc">初始状态，草稿已创建但未开始处理</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-processing">处理中</span>
+                        <span class="legend-desc">正在处理中，请耐心等待</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-active">活跃</span>
+                        <span class="legend-desc">处理完成，可以下载或编辑</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-saved">已保存</span>
+                        <span class="legend-desc">草稿已保存，可以继续编辑</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-failed">错误</span>
+                        <span class="legend-desc">处理失败，请检查或重新创建</span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -382,14 +519,33 @@
         // 更新统计信息
         function updateStats(drafts) {
             const totalDrafts = drafts.length;
-            const activeDrafts = drafts.filter(d => d.status === 'active').length;
+            // 统计各种状态的草稿数量
+            const statusCounts = {
+                draft: drafts.filter(d => d.status === 'draft').length,
+                processing: drafts.filter(d => d.status === 'processing').length,
+                active: drafts.filter(d => d.status === 'active').length,
+                saved: drafts.filter(d => d.status === 'saved').length,
+                error: drafts.filter(d => d.status === 'error').length
+            };
+            
+            // 活跃草稿包括active和saved状态
+            const activeDrafts = statusCounts.active + statusCounts.saved;
+            // 错误草稿包括error状态
+            const errorDrafts = statusCounts.error;
             const totalMaterials = drafts.reduce((sum, d) => sum + (d.material_count || 0), 0);
             const totalSize = formatFileSize(drafts.reduce((sum, d) => sum + (d.total_size || 0), 0));
             
+            // 更新所有统计卡片
             document.getElementById('totalDrafts').textContent = totalDrafts;
+            document.getElementById('processingDrafts').textContent = statusCounts.processing;
             document.getElementById('activeDrafts').textContent = activeDrafts;
+            document.getElementById('errorDrafts').textContent = errorDrafts;
             document.getElementById('totalMaterials').textContent = totalMaterials;
             document.getElementById('totalSize').textContent = totalSize;
+            
+            // 在控制台输出详细统计信息，便于调试
+            console.log('草稿状态统计:', statusCounts);
+            console.log('活跃草稿:', activeDrafts, '错误草稿:', errorDrafts);
         }
         
         // 渲染草稿列表
@@ -415,8 +571,8 @@
                             <div class="draft-title">${escapeHtml(draft.name || '未命名草稿')}</div>
                             <div class="draft-id">ID: ${draft.id}</div>
                         </div>
-                        <span class="draft-status ${draft.status === 'active' ? 'status-active' : 'status-draft'}">
-                            ${draft.status === 'active' ? '活跃' : '草稿'}
+                        <span class="draft-status ${getStatusClass(draft.status)}">
+                            ${getStatusText(draft.status)}
                         </span>
                     </div>
                     
@@ -440,13 +596,10 @@
                     </div>
                     
                     <div class="draft-actions">
-                        <button class="btn btn-small" onclick="viewDraft('${draft.id}')">
-                            👁️ 查看
+                        <button class="btn btn-small primary" onclick="viewDraft('${draft.id}')">
+                            👁️ 预览
                         </button>
-                        <button class="btn btn-small secondary" onclick="editDraft('${draft.id}')">
-                            ✏️ 编辑
-                        </button>
-                        <button class="btn btn-small secondary" onclick="downloadDraft('${draft.id}')">
+                        <button class="btn btn-small secondary" onclick="downloadDraft('${draft.id}', event)" ${draft.status === 'failed' ? 'disabled title="草稿状态为失败，无法下载"' : ''}>
                             📥 下载
                         </button>
                         <button class="btn btn-small danger" onclick="deleteDraft('${draft.id}')">
@@ -514,31 +667,84 @@
             window.open(`/api/draft/preview/${draftId}`, '_blank');
         }
         
-        // 编辑草稿
-        function editDraft(draftId) {
-            // 这里可以跳转到编辑页面
-            alert('编辑功能开发中...');
-        }
-        
         // 下载草稿
-        async function downloadDraft(draftId) {
+        async function downloadDraft(draftId, event) {
             try {
-                const response = await fetch(`/api/draft/download/${draftId}`);
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `draft_${draftId}.zip`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
+                // 检查草稿状态
+                const draft = allDrafts.find(d => d.id === draftId);
+                if (draft && draft.status === 'failed') {
+                    alert('该草稿状态为失败，无法下载。请检查草稿是否正确生成。');
+                    return;
+                }
+                
+                // 显示下载准备中的提示
+                const downloadBtn = event.target;
+                const originalText = downloadBtn.innerHTML;
+                downloadBtn.innerHTML = '📥 准备中...';
+                downloadBtn.disabled = true;
+                
+                // 使用正确的API端点
+                const response = await fetch(`/api/drafts/download/${draftId}`);
+                const contentType = response.headers.get('content-type');
+                
+                if (response.ok && contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // 如果返回了下载链接，直接跳转
+                        if (data.download_url && data.download_url[0] && data.download_url[0].trim() !== '') {
+                            window.open(data.download_url[0], '_blank');
+                            alert('下载链接已生成，请在新窗口中下载');
+                        } else {
+                            // 否则使用生成草稿URL的接口
+                            const genResponse = await fetch('/generate_draft_url', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    draft_id: draftId,
+                                    force_save: true
+                                })
+                            });
+                            
+                            if (genResponse.ok) {
+                                const genData = await genResponse.json();
+                                if (genData.success && genData.output && genData.output.draft_url) {
+                                    window.open(genData.output.draft_url, '_blank');
+                                } else {
+                                    alert('下载链接生成失败: ' + (genData.error || '未知错误'));
+                                }
+                            } else {
+                                alert('下载链接生成失败，请重试');
+                            }
+                        }
+                    } else {
+                        // 检查是否是因为没有素材导致的错误
+                        const errorMsg = data.error || data.message || '未知错误';
+                        if (errorMsg.includes('不存在') || errorMsg.includes('not found') || errorMsg.includes('没有找到')) {
+                            alert('该草稿暂无可下载的素材，可能是空草稿或素材尚未生成。');
+                        } else {
+                            alert('下载失败: ' + errorMsg);
+                        }
+                    }
+                } else if (response.ok) {
+                    // 如果响应不是JSON格式，可能是重定向或其他内容
+                    alert('下载准备就绪，请检查草稿是否已生成');
                 } else {
-                    alert('下载失败，请重试');
+                    const errorText = await response.text();
+                    if (response.status === 404) {
+                        alert('该草稿不存在或暂无可下载的素材');
+                    } else {
+                        alert('下载失败: ' + response.status + ' ' + response.statusText + '\n' + errorText);
+                    }
                 }
             } catch (error) {
                 alert('下载失败: ' + error.message);
+            } finally {
+                // 恢复按钮状态
+                const downloadBtn = event.target;
+                downloadBtn.innerHTML = '📥 下载';
+                downloadBtn.disabled = false;
             }
         }
         
@@ -549,7 +755,8 @@
             }
             
             try {
-                const response = await fetch(`/api/draft/delete/${draftId}`, {
+                // 使用正确的API端点
+                const response = await fetch(`/api/drafts/delete/${draftId}`, {
                     method: 'DELETE'
                 });
                 
@@ -558,7 +765,7 @@
                     alert('草稿删除成功');
                     refreshDrafts();
                 } else {
-                    alert('删除失败: ' + (data.message || '未知错误'));
+                    alert('删除失败: ' + (data.error || '未知错误'));
                 }
             } catch (error) {
                 alert('删除失败: ' + error.message);
@@ -575,6 +782,45 @@
                     <button class="btn" onclick="refreshDrafts()">🔄 重试</button>
                 </div>
             `;
+        }
+        
+        // 状态映射函数 - 支持所有草稿状态
+        function getStatusClass(status) {
+            switch(status) {
+                case 'active':
+                case 'completed':
+                    return 'status-active';
+                case 'processing':
+                    return 'status-processing';
+                case 'error':
+                case 'failed':
+                    return 'status-failed';
+                case 'saved':
+                    return 'status-saved';
+                case 'draft':
+                default:
+                    return 'status-draft';
+            }
+        }
+        
+        function getStatusText(status) {
+            switch(status) {
+                case 'active':
+                    return '活跃';
+                case 'completed':
+                    return '已完成';
+                case 'processing':
+                    return '处理中';
+                case 'error':
+                    return '错误';
+                case 'failed':
+                    return '失败';
+                case 'saved':
+                    return '已保存';
+                case 'draft':
+                default:
+                    return '草稿';
+            }
         }
         
         // 工具函数

@@ -6,7 +6,7 @@ import shutil
 from util import zip_draft, is_windows_path
 from oss import upload_to_oss
 from typing import Dict, Literal
-from draft_cache import DRAFT_CACHE
+from draft_cache import DRAFT_CACHE, get_draft
 from downloader import download_file
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import imageio.v2 as imageio
@@ -17,6 +17,7 @@ import uuid
 import threading
 import logging
 import time
+import sqlite3
 
 from database import update_draft_status
 from settings import IS_CAPCUT_ENV, IS_UPLOAD_DRAFT
@@ -45,10 +46,9 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
     try:
         update_draft_status(draft_id, 'processing', 0, '开始保存草稿')
         
-        if draft_id not in DRAFT_CACHE:
-            raise Exception(f"Draft {draft_id} does not exist in cache")
-        
-        script = DRAFT_CACHE[draft_id]
+        script = get_draft(draft_id)
+        if script is None:
+            raise Exception(f"Draft {draft_id} does not exist in cache or database")
         logger.info(f"Task {task_id}: Successfully retrieved draft {draft_id} from cache.")
         update_draft_status(draft_id, 'processing', 5, '正在更新媒体元数据')
         update_media_metadata(script, draft_id)
@@ -217,7 +217,7 @@ def update_media_metadata(script, draft_id=None):
                 last_end = seg.end
         track.segments = valid_segments
     
-    script.recalculate_duration()
+    # script.recalculate_duration()  # 该方法在pyJianYingDraft库中不存在，已注释
 
 if __name__ == "__main__":
     # Example usage for testing

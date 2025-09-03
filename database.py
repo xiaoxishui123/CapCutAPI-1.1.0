@@ -188,12 +188,19 @@ def get_draft_by_id(draft_id):
     conn.close()
     
     if result:
+        script_data = None
+        if result[3]:
+            try:
+                script_data = json.loads(result[3])
+            except json.JSONDecodeError:
+                # 如果JSON解析失败，使用原始数据
+                script_data = result[3]
         return {
             'id': result[0],
             'name': f'Draft_{result[0]}',  # 默认名称
             'status': result[1] or 'created',
             'created_at': result[2],
-            'script_data': json.loads(result[3]) if result[3] else None
+            'script_data': script_data
         }
     return None
 
