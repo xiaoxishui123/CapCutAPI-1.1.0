@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CapCutAPI - 视频编辑API服务</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: #667eea;
+            font-weight: 700;
+        }
+        .api-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .endpoint-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .endpoint {
+            background: white;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        .method {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .method.post {
+            color: #007bff;
+        }
+        .description {
+            color: #495057;
+            margin-top: 5px;
+        }
+        .status {
+            background: #d4edda;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .btn.secondary {
+            background: #6c757d;
+        }
+        .btn.secondary:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 CapCutAPI</h1>
+        <p style="font-size: 18px; color: #666; margin-bottom: 30px;">专业的视频编辑API服务</p>
+        
+        <div class="status">
+            <h3>✅ 服务状态</h3>
+            <p>API服务正在运行中，所有功能正常可用</p>
+        </div>
+        
+        <div class="api-info">
+            <h3>📋 API信息</h3>
+            <div class="endpoint">
+                <span class="method">GET</span> /get_intro_animation_types
+                <div class="description">获取入场动画类型列表</div>
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> /get_outro_animation_types
+                <div class="description">获取出场动画类型列表</div>
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> /get_transition_types
+                <div class="description">获取转场类型列表</div>
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> /get_mask_types
+                <div class="description">获取遮罩类型列表</div>
+            </div>
+            <div class="endpoint">
+                <span class="method">GET</span> /get_font_types
+                <div class="description">获取字体类型列表</div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span> /create_draft
+                <div class="description">创建新的草稿项目</div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span> /add_video
+                <div class="description">添加视频素材到草稿</div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span> /add_audio
+                <div class="description">添加音频素材到草稿</div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span> /add_text
+                <div class="description">添加文本元素到草稿</div>
+            </div>
+            <div class="endpoint">
+                <span class="method post">POST</span> /add_subtitle
+                <div class="description">添加字幕到草稿</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <a href="/api/drafts/dashboard" class="btn">📊 草稿管理</a>
+            <a href="#" class="btn secondary" onclick="testAPI()">🧪 测试API</a>
+        </div>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666;">
+            <p>CapCutAPI v1.1.0 - 专业视频编辑API服务</p>
+        </div>
+    </div>
+    
+    <script>
+        function testAPI() {
+            fetch('/get_intro_animation_types')
+                .then(response => response.json())
+                .then(data => {
+                    alert('API测试成功！获取到 ' + data.length + ' 个入场动画类型');
+                })
+                .catch(error => {
+                    alert('API测试失败：' + error.message);
+                });
+        }
+        
+        function createDraft() {
+            fetch('/create_draft', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: '测试草稿',
+                    description: '通过API创建的测试草稿'
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('草稿创建成功！ID: ' + data.draft_id);
+                    } else {
+                        alert('草稿创建失败：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('请求失败：' + error.message);
+                });
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('CapCutAPI 主页已加载');
+        });
+    </script>
+</body>
+</html>

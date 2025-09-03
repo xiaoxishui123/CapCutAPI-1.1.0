@@ -1,3 +1,4 @@
+
 import os
 import re
 import pyJianYingDraft as draft
@@ -6,8 +7,7 @@ from util import zip_draft, is_windows_path
 from oss import upload_to_oss
 from typing import Dict, Literal
 from draft_cache import DRAFT_CACHE
-from save_task_cache import DRAFT_TASKS, get_task_status, update_tasks_cache, update_task_field, increment_task_field, update_task_fields, create_task
-from downloader import download_audio, download_file, download_image, download_video
+from downloader import download_file
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import imageio.v2 as imageio
 import subprocess
@@ -15,34 +15,22 @@ import json
 from get_duration_impl import get_video_duration
 import uuid
 import threading
-from collections import OrderedDict
-import time
-import requests # Import requests for making HTTP calls
 import logging
-# Import configuration
+import time
+
+from database import update_draft_status
 from settings import IS_CAPCUT_ENV, IS_UPLOAD_DRAFT
+from os_path_config import get_os_path_config, get_default_draft_path
 
-# --- Get your Logger instance ---
-# The name here must match the logger name you configured in app.py
-logger = logging.getLogger('flask_video_generator') 
+logger = logging.getLogger('flask_video_generator')
 
-# Define task status enumeration type
 TaskStatus = Literal["initialized", "processing", "completed", "failed", "not_found"]
-
-# OSS模式默认Windows草稿文件夹路径
+# 使用新的操作系统路径配置
 DEFAULT_WINDOWS_DRAFT_FOLDER = "F:\\jianyin\\cgwz\\JianyingPro Drafts"
 
 def build_asset_path(draft_folder: str, draft_id: str, asset_type: str, material_name: str) -> str:
-    """
-    Build asset file path
-    :param draft_folder: Draft folder path
-    :param draft_id: Draft ID
-    :param asset_type: Asset type (audio, image, video)
-    :param material_name: Material name
-    :return: Built path
-    """
     if is_windows_path(draft_folder):
-        if os.name == 'nt': # 'nt' for Windows
+        if os.name == 'nt':
             draft_real_path = os.path.join(draft_folder, draft_id, "assets", asset_type, material_name)
         else:
             windows_drive, windows_path = re.match(r'([a-zA-Z]:)(.*)', draft_folder).groups()
@@ -53,761 +41,184 @@ def build_asset_path(draft_folder: str, draft_id: str, asset_type: str, material
         draft_real_path = os.path.join(draft_folder, draft_id, "assets", asset_type, material_name)
     return draft_real_path
 
-def save_draft_background(draft_id, draft_folder, task_id):
-    """Background save draft to OSS"""
+def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
     try:
-        # Get draft information from global cache
+        update_draft_status(draft_id, 'processing', 0, '开始保存草稿')
+        
         if draft_id not in DRAFT_CACHE:
-            task_status = {
-                "status": "failed",
-                "message": f"Draft {draft_id} does not exist in cache",
-                "progress": 0,
-                "completed_files": 0,
-                "total_files": 0,
-                "draft_url": ""
-            }
-            update_tasks_cache(task_id, task_status)  # Use new cache management function
-            logger.error(f"Draft {draft_id} does not exist in cache, task {task_id} failed.")
-            return
-            
+            raise Exception(f"Draft {draft_id} does not exist in cache")
+        
         script = DRAFT_CACHE[draft_id]
-        logger.info(f"Successfully retrieved draft {draft_id} from cache.")
-        
-        # Update task status to processing
-        task_status = {
-            "status": "processing",
-            "message": "Preparing draft files",
-            "progress": 0,
-            "completed_files": 0,
-            "total_files": 0,
-            "draft_url": ""
-        }
-        update_tasks_cache(task_id, task_status)  # Use new cache management function
-        logger.info(f"Task {task_id} status updated to 'processing': Preparing draft files.")
-        
-        # Delete possibly existing draft_id folder
-        if os.path.exists(draft_id):
-            logger.warning(f"Deleting existing draft folder (current working directory): {draft_id}")
-            shutil.rmtree(draft_id)
+        logger.info(f"Task {task_id}: Successfully retrieved draft {draft_id} from cache.")
+        update_draft_status(draft_id, 'processing', 5, '正在更新媒体元数据')
+        update_media_metadata(script, draft_id)
 
-        logger.info(f"Starting to save draft: {draft_id}")
-        # Save draft
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        draft_folder_for_duplicate = draft.Draft_folder(current_dir)
-        # Choose different template directory based on configuration
+        draft_path = os.path.join(current_dir, draft_id)
+        if os.path.exists(draft_path):
+            shutil.rmtree(draft_path)
+
         template_dir = "template" if IS_CAPCUT_ENV else "template_jianying"
+        draft_folder_for_duplicate = draft.Draft_folder(current_dir)
         draft_folder_for_duplicate.duplicate_as_template(template_dir, draft_id)
-        
-        # Update task status
-        update_task_field(task_id, "message", "Updating media file metadata")
-        update_task_field(task_id, "progress", 5)
-        logger.info(f"Task {task_id} progress 5%: Updating media file metadata.")
-        
-        update_media_metadata(script, task_id)
+
+        # 使用操作系统路径配置获取默认路径
+        if not draft_folder:
+            os_config = get_os_path_config()
+            draft_folder = os_config.get_current_os_draft_path()
+            logger.info(f"使用默认草稿路径: {draft_folder} (操作系统: {os_config.os_type})")
+        else:
+            logger.info(f"使用自定义草稿路径: {draft_folder}")
         
         download_tasks = []
-        
-        # OSS模式：如果没有指定draft_folder，使用默认的Windows路径
-        if not draft_folder:
-            draft_folder = DEFAULT_WINDOWS_DRAFT_FOLDER
-            logger.info(f"OSS mode: Using default Windows draft folder: {draft_folder}")
-        
-        audios = script.materials.audios
-        if audios:
-            for audio in audios:
-                remote_url = audio.remote_url
-                material_name = audio.material_name
-                # 始终使用build_asset_path生成正确的Windows格式路径
-                audio.replace_path = build_asset_path(draft_folder, draft_id, "audio", material_name)
-                logger.debug(f"Audio replace_path: {audio.replace_path}")
-                
+        materials_to_download = []
+        if script.materials.audios:
+            materials_to_download.extend(script.materials.audios)
+        if script.materials.videos:
+            materials_to_download.extend(script.materials.videos)
+
+        update_draft_status(draft_id, 'processing', 10, f"收集到 {len(materials_to_download)} 个下载任务")
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            future_to_material = {}
+            for material in materials_to_download:
+                remote_url = material.remote_url
                 if not remote_url:
-                    logger.warning(f"Audio file {material_name} has no remote_url, skipping download.")
+                    logger.warning(f"Material {material.material_name} has no remote_url, skipping.")
                     continue
+
+                asset_type = 'audio'
+                if isinstance(material, draft.Video_material):
+                    asset_type = 'image' if material.material_type == 'photo' else 'video'
                 
-                # Add audio download task
-                download_tasks.append({
-                    'type': 'audio',
-                    'func': download_file,
-                    'args': (remote_url, os.path.join(current_dir, f"{draft_id}/assets/audio/{material_name}")),
-                    'material': audio
-                })
-        
-        # Collect video and image download tasks
-        videos = script.materials.videos
-        if videos:
-            for video in videos:
-                remote_url = video.remote_url
-                material_name = video.material_name
+                material.replace_path = build_asset_path(draft_folder, draft_id, asset_type, material.material_name)
+                local_path = os.path.join(draft_path, "assets", asset_type, material.material_name)
                 
-                if video.material_type == 'photo':
-                    # 始终使用build_asset_path生成正确的Windows格式路径
-                    video.replace_path = build_asset_path(draft_folder, draft_id, "image", material_name)
-                    logger.debug(f"Image replace_path: {video.replace_path}")
-                    
-                    if not remote_url:
-                        logger.warning(f"Image file {material_name} has no remote_url, skipping download.")
-                        continue
-                    
-                    # Add image download task
-                    download_tasks.append({
-                        'type': 'image',
-                        'func': download_file,
-                        'args': (remote_url, os.path.join(current_dir, f"{draft_id}/assets/image/{material_name}")),
-                        'material': video
-                    })
-                
-                elif video.material_type == 'video':
-                    # 始终使用build_asset_path生成正确的Windows格式路径
-                    video.replace_path = build_asset_path(draft_folder, draft_id, "video", material_name)
-                    logger.debug(f"Video replace_path: {video.replace_path}")
-                    
-                    if not remote_url:
-                        logger.warning(f"Video file {material_name} has no remote_url, skipping download.")
-                        continue
-                    
-                    # Add video download task
-                    download_tasks.append({
-                        'type': 'video',
-                        'func': download_file,
-                        'args': (remote_url, os.path.join(current_dir, f"{draft_id}/assets/video/{material_name}")),
-                        'material': video
-                    })
+                future = executor.submit(download_file, remote_url, local_path)
+                future_to_material[future] = material
 
-        update_task_field(task_id, "message", f"Collected {len(download_tasks)} download tasks in total")
-        update_task_field(task_id, "progress", 10)
-        logger.info(f"Task {task_id} progress 10%: Collected {len(download_tasks)} download tasks in total.")
+            completed_count = 0
+            total_count = len(future_to_material)
+            for future in as_completed(future_to_material):
+                completed_count += 1
+                progress = 10 + int((completed_count / total_count) * 60)
+                update_draft_status(draft_id, 'processing', progress, f"正在下载素材 ({completed_count}/{total_count})")
+                try:
+                    future.result()
+                except Exception as e:
+                    material = future_to_material[future]
+                    logger.error(f"Task {task_id}: Failed to download {material.material_name}: {e}")
 
-        # Execute all download tasks concurrently
-        downloaded_paths = []
-        completed_files = 0
-        if download_tasks:
-            logger.info(f"Starting concurrent download of {len(download_tasks)} files...")
-            
-            # Use thread pool for concurrent downloads, maximum concurrency of 16
-            with ThreadPoolExecutor(max_workers=16) as executor:
-                # Submit all download tasks
-                future_to_task = {
-                    executor.submit(task['func'], *task['args']): task 
-                    for task in download_tasks
-                }
-                
-                # Wait for all tasks to complete
-                for future in as_completed(future_to_task):
-                    task = future_to_task[future]
-                    try:
-                        local_path = future.result()
-                        if isinstance(local_path, str) and os.path.exists(local_path):
-                            downloaded_paths.append(local_path)
-                            # Update task status - only update completed files count
-                            completed_files += 1
-                            update_task_field(task_id, "completed_files", completed_files)
-                            task_status = get_task_status(task_id)
-                            completed = task_status["completed_files"]
-                            total = len(download_tasks)
-                            update_task_field(task_id, "total_files", total)
-                            # Download part accounts for 60% of the total progress
-                            download_progress = 10 + int((completed / total) * 60)
-                            update_task_field(task_id, "progress", download_progress)
-                            update_task_field(task_id, "message", f"Downloaded {completed}/{total} files")
-                            
-                            logger.info(f"Task {task_id}: Successfully downloaded {task['type']} file to {local_path}, progress {download_progress}.")
-                        else:
-                            logger.error(f"Task {task_id}: Download reported success but file missing: {task['args'][-1]}")
-                    except Exception as e:
-                        logger.error(f"Task {task_id}: Download {task['type']} file failed: {str(e)}", exc_info=True)
-                        # Continue processing other files, don't interrupt the entire process
-            
-            logger.info(f"Task {task_id}: Concurrent download completed, downloaded {len(downloaded_paths)} files in total.")
-
-        # Log asset counts before zipping
-        try:
-            assets_root = os.path.join(current_dir, f"{draft_id}", "assets")
-            total_assets = 0
-            for sub in ("image", "video", "audio"):
-                p = os.path.join(assets_root, sub)
-                cnt = 0
-                if os.path.isdir(p):
-                    cnt = sum(1 for _ in os.scandir(p) if _.is_file())
-                total_assets += cnt
-                logger.info(f"Task {task_id}: Assets in {sub}: {cnt}")
-            logger.info(f"Task {task_id}: Total assets before zipping: {total_assets}")
-        except Exception as _:
-            logger.warning(f"Task {task_id}: Failed counting assets before zip: {_}")
+        update_draft_status(draft_id, 'processing', 70, '正在保存草稿信息')
         
-        # Update task status - Start saving draft information
-        update_task_field(task_id, "progress", 70)
-        update_task_field(task_id, "message", "Saving draft information")
-        logger.info(f"Task {task_id} progress 70%: Saving draft information.")
-        
-        # Force local consumption in Jianying: clear remote_url so the client won't try to re-download
-        try:
-            if hasattr(script, 'materials'):
-                # Audios
-                if getattr(script.materials, 'audios', None):
-                    for a in script.materials.audios:
-                        # Ensure Jianying uses local assets
-                        try:
-                            if draft_folder:
-                                local_path = build_asset_path(draft_folder, draft_id, "audio", a.material_name)
-                                a.replace_path = local_path
-                                # also set canonical path fields when available
-                                if hasattr(a, 'path'):
-                                    a.path = local_path
-                                if hasattr(a, 'media_path'):
-                                    a.media_path = local_path
-                                if hasattr(a, 'category_name'):
-                                    a.category_name = 'local'
-                        except Exception as _:
-                            pass
-                        a.remote_url = None
-                # Videos / Images
-                if getattr(script.materials, 'videos', None):
-                    for v in script.materials.videos:
-                        try:
-                            asset_type = 'image' if getattr(v, 'material_type', '') == 'photo' else 'video'
-                            if draft_folder:
-                                local_path = build_asset_path(draft_folder, draft_id, asset_type, v.material_name)
-                                v.replace_path = local_path
-                                if hasattr(v, 'path'):
-                                    v.path = local_path
-                                if hasattr(v, 'media_path'):
-                                    v.media_path = local_path
-                                if hasattr(v, 'category_name'):
-                                    v.category_name = 'local'
-                        except Exception as _:
-                            pass
-                        v.remote_url = None
-            logger.info("Cleared remote_url and populated local path/metadata for all materials to force local assets usage in Jianying.")
-        except Exception as e:
-            logger.warning(f"Failed to clear remote_url fields: {e}")
+        # Force local consumption
+        for material in materials_to_download:
+            material.remote_url = None
 
-        script.dump(os.path.join(current_dir, f"{draft_id}/draft_info.json"))
-        logger.info(f"Draft information has been saved to {os.path.join(current_dir, draft_id)}/draft_info.json.")
+        script.dump(os.path.join(draft_path, "draft_info.json"))
 
-        draft_url = ""
-        # Only upload draft information when IS_UPLOAD_DRAFT is True
-        # Always zip draft folder; if IS_UPLOAD_DRAFT=true then upload, otherwise keep local zip for download
-        # Update task status - Start compressing draft
-        update_task_field(task_id, "progress", 80)
-        update_task_field(task_id, "message", "Compressing draft files")
-        logger.info(f"Task {task_id} progress 80%: Compressing draft files.")
-        
-        # Compress the entire draft directory
-        draft_folder_path = os.path.join(current_dir, draft_id)
+        update_draft_status(draft_id, 'processing', 80, '正在压缩草稿文件')
         zip_filename = f"{draft_id}.zip"
         zip_file_path = os.path.join(current_dir, zip_filename)
-        
-        success = zip_draft(draft_folder_path, zip_file_path)
-        if not success:
+        if not zip_draft(draft_path, zip_file_path):
             raise Exception("Failed to compress draft folder")
-            
-        logger.info(f"Draft directory {draft_folder_path} has been compressed to {zip_file_path}.")
-        
-        if IS_UPLOAD_DRAFT:
-            # Update task status - Start uploading to OSS
-            update_task_field(task_id, "progress", 90)
-            update_task_field(task_id, "message", "Uploading to cloud storage")
-            logger.info(f"Task {task_id} progress 90%: Uploading to cloud storage.")
-            
-            # Upload to OSS
-            draft_url = upload_to_oss(zip_file_path)
-            logger.info(f"Draft archive has been uploaded to OSS, URL: {draft_url}")
-            update_task_field(task_id, "draft_url", draft_url)
-            
-            # Clean up temporary files
-            if os.path.exists(os.path.join(current_dir, draft_id)):
-                shutil.rmtree(os.path.join(current_dir, draft_id))
-                logger.info(f"Cleaned up temporary draft folder: {os.path.join(current_dir, draft_id)}")
-        else:
-            # Local mode: expose local zip file absolute path
-            draft_url = zip_file_path
-            update_task_field(task_id, "draft_url", draft_url)
-            logger.info(f"Local mode: zip generated at {draft_url}")
 
-    
-        # Update task status - Completed
-        update_task_field(task_id, "status", "completed")
-        update_task_field(task_id, "progress", 100)
-        update_task_field(task_id, "message", "Draft creation completed")
+        draft_url = zip_file_path
+        if IS_UPLOAD_DRAFT:
+            update_draft_status(draft_id, 'processing', 90, '正在上传至云存储')
+            draft_url = upload_to_oss(zip_file_path)
+            if os.path.exists(draft_path):
+                shutil.rmtree(draft_path)
+        
+        update_draft_status(draft_id, 'completed', 100, draft_url)
         logger.info(f"Task {task_id} completed, draft URL: {draft_url}")
-        return draft_url
 
     except Exception as e:
-        # Update task status - Failed
-        update_task_fields(task_id, 
-                          status="failed",
-                          message=f"Failed to save draft: {str(e)}")
-        logger.error(f"Saving draft {draft_id} task {task_id} failed: {str(e)}", exc_info=True)
-        return ""
-
-def query_task_status(task_id: str):
-    return get_task_status(task_id)
+        logger.error(f"Saving draft {draft_id} task {task_id} failed: {e}", exc_info=True)
+        update_draft_status(draft_id, 'failed', message=str(e))
 
 def save_draft_impl(draft_id: str, draft_folder: str = None) -> Dict[str, str]:
-    """Start a background task to save the draft"""
     logger.info(f"Received save draft request: draft_id={draft_id}, draft_folder={draft_folder}")
     try:
-        # Generate a unique task ID
-        task_id = draft_id
-        create_task(task_id)
-        logger.info(f"Task {task_id} has been created.")
+        task_id = draft_id # Use draft_id as task_id for simplicity
+        update_draft_status(draft_id, 'initialized', 0, '任务已创建')
         
-        # Start a background thread to execute the task
-        thread = threading.Thread(
-            target=save_draft_background,
-            args=(draft_id, draft_folder, task_id)
-        )
+        thread = threading.Thread(target=save_draft_background, args=(draft_id, draft_folder, task_id))
         thread.start()
         
-        # Return task_id for progress tracking
-        return {
-            "success": True,
-            "task_id": task_id,
-            "message": "Draft save task started successfully"
-        }
-        
+        return {"success": True, "task_id": task_id, "message": "Draft save task started successfully"}
     except Exception as e:
-        logger.error(f"Failed to start save draft task {draft_id}: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        logger.error(f"Failed to start save draft task {draft_id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
 
-
-def update_media_metadata(script, task_id=None):
-    """
-    Update metadata for all media files in the script (duration, width/height, etc.)
+def query_task_status(task_id: str):
+    # This function can be simplified or removed if long polling is directly on drafts table
+    conn = sqlite3.connect('capcut.db')
+    c = conn.cursor()
+    c.execute("SELECT status, progress, message FROM drafts WHERE id = ?", (task_id,))
+    result = c.fetchone()
+    conn.close()
     
-    :param script: Draft script object
-    :param task_id: Optional task ID for updating task status
-    :return: None
-    """
-    # Process audio file metadata
-    audios = script.materials.audios
-    if not audios:
-        logger.info("No audio files found in the draft.")
-    else:
-        for audio in audios:
-            remote_url = audio.remote_url
-            material_name = audio.material_name
-            if not remote_url:
-                logger.warning(f"Warning: Audio file {material_name} has no remote_url, skipped.")
-                continue
-            
-            try:
-                video_command = [
-                    '/usr/bin/ffprobe',  # 使用完整路径确保能找到命令
-                    '-v', 'error',
-                    '-select_streams', 'v:0',
-                    '-show_entries', 'stream=codec_type',
-                    '-of', 'json',
-                    remote_url
-                ]
-                video_result = subprocess.check_output(video_command, stderr=subprocess.STDOUT)
-                video_result_str = video_result.decode('utf-8')
-                # Find JSON start position (first '{')
-                video_json_start = video_result_str.find('{')
-                if video_json_start != -1:
-                    video_json_str = video_result_str[video_json_start:]
-                    video_info = json.loads(video_json_str)
-                    if 'streams' in video_info and len(video_info['streams']) > 0:
-                        logger.warning(f"Warning: Audio file {material_name} contains video tracks, skipped its metadata update.")
-                        continue
-            except Exception as e:
-                logger.error(f"Error occurred while checking if audio {material_name} contains video streams: {str(e)}", exc_info=True)
-
-            # Get audio duration and set it
-            try:
-                duration_result = get_video_duration(remote_url)
-                if duration_result["success"]:
-                    if task_id:
-                        update_task_field(task_id, "message", f"Processing audio metadata: {material_name}")
-                    # Convert seconds to microseconds
-                    audio.duration = int(duration_result["output"] * 1000000)
-                    logger.info(f"Successfully obtained audio {material_name} duration: {duration_result['output']:.2f} seconds ({audio.duration} microseconds).")
-                    
-                    # Update timerange for all segments using this audio material
-                    for track_name, track in script.tracks.items():
-                        if track.track_type == draft.Track_type.audio:
-                            for segment in track.segments:
-                                if isinstance(segment, draft.Audio_segment) and segment.material_id == audio.material_id:
-                                    # Get current settings
-                                    current_target = segment.target_timerange
-                                    current_source = segment.source_timerange
-                                    speed = segment.speed.speed
-                                    
-                                    # If the end time of source_timerange exceeds the new audio duration, adjust it
-                                    if current_source.end > audio.duration or current_source.end <= 0:
-                                        # Adjust source_timerange to fit the new audio duration
-                                        new_source_duration = audio.duration - current_source.start
-                                        if new_source_duration <= 0:
-                                            logger.warning(f"Warning: Audio segment {segment.segment_id} start time {current_source.start} exceeds audio duration {audio.duration}, will skip this segment.")
-                                            continue
-                                            
-                                        # Update source_timerange
-                                        segment.source_timerange = draft.Timerange(current_source.start, new_source_duration)
-                                        
-                                        # Update target_timerange based on new source_timerange and speed
-                                        new_target_duration = int(new_source_duration / speed)
-                                        segment.target_timerange = draft.Timerange(current_target.start, new_target_duration)
-                                        
-                                        logger.info(f"Adjusted audio segment {segment.segment_id} timerange to fit the new audio duration.")
-                else:
-                    logger.warning(f"Warning: Unable to get audio {material_name} duration: {duration_result['error']}.")
-            except Exception as e:
-                logger.error(f"Error occurred while getting audio {material_name} duration: {str(e)}", exc_info=True)
-    
-    # Process video and image file metadata
-    videos = script.materials.videos
-    if not videos:
-        logger.info("No video or image files found in the draft.")
-    else:
-        for video in videos:
-            remote_url = video.remote_url
-            material_name = video.material_name
-            if not remote_url:
-                logger.warning(f"Warning: Media file {material_name} has no remote_url, skipped.")
-                continue
-                
-            if video.material_type == 'photo':
-                # Use imageio to get image width/height and set it
-                try:
-                    if task_id:
-                        update_task_field(task_id, "message", f"Processing image metadata: {material_name}")
-                    img = imageio.imread(remote_url)
-                    video.height, video.width = img.shape[:2]
-                    logger.info(f"Successfully set image {material_name} dimensions: {video.width}x{video.height}.")
-                except Exception as e:
-                    logger.error(f"Failed to set image {material_name} dimensions: {str(e)}, using default values 1920x1080.", exc_info=True)
-                    video.width = 1920
-                    video.height = 1080
-            
-            elif video.material_type == 'video':
-                # Get video duration and width/height information
-                try:
-                    if task_id:
-                        update_task_field(task_id, "message", f"Processing video metadata: {material_name}")
-                    # Use ffprobe to get video information
-                    command = [
-                        '/usr/bin/ffprobe',  # 使用完整路径确保能找到命令
-                        '-v', 'error',
-                        '-select_streams', 'v:0',  # Select the first video stream
-                        '-show_entries', 'stream=width,height,duration',
-                        '-show_entries', 'format=duration',
-                        '-of', 'json',
-                        remote_url
-                    ]
-                    result = subprocess.check_output(command, stderr=subprocess.STDOUT)
-                    result_str = result.decode('utf-8')
-                    # Find JSON start position (first '{')
-                    json_start = result_str.find('{')
-                    if json_start != -1:
-                        json_str = result_str[json_start:]
-                        info = json.loads(json_str)
-                        
-                        if 'streams' in info and len(info['streams']) > 0:
-                            stream = info['streams'][0]
-                            # Set width and height
-                            video.width = int(stream.get('width', 0))
-                            video.height = int(stream.get('height', 0))
-                            logger.info(f"Successfully set video {material_name} dimensions: {video.width}x{video.height}.")
-                            
-                            # Set duration
-                            # Prefer stream duration, if not available use format duration
-                            duration = stream.get('duration') or info['format'].get('duration', '0')
-                            video.duration = int(float(duration) * 1000000)  # Convert to microseconds
-                            logger.info(f"Successfully obtained video {material_name} duration: {float(duration):.2f} seconds ({video.duration} microseconds).")
-                            
-                            # Update timerange for all segments using this video material
-                            for track_name, track in script.tracks.items():
-                                if track.track_type == draft.Track_type.video:
-                                    for segment in track.segments:
-                                        if isinstance(segment, draft.Video_segment) and segment.material_id == video.material_id:
-                                            # Get current settings
-                                            current_target = segment.target_timerange
-                                            current_source = segment.source_timerange
-                                            speed = segment.speed.speed
-
-                                            # If the end time of source_timerange exceeds the new video duration, adjust it
-                                            if current_source.end > video.duration or current_source.end <= 0:
-                                                # Adjust source_timerange to fit the new video duration
-                                                new_source_duration = video.duration - current_source.start
-                                                if new_source_duration <= 0:
-                                                    logger.warning(f"Warning: Video segment {segment.segment_id} start time {current_source.start} exceeds video duration {video.duration}, will skip this segment.")
-                                                    continue
-                                                    
-                                                # Update source_timerange
-                                                segment.source_timerange = draft.Timerange(current_source.start, new_source_duration)
-                                                
-                                                # Update target_timerange based on new source_timerange and speed
-                                                new_target_duration = int(new_source_duration / speed)
-                                                segment.target_timerange = draft.Timerange(current_target.start, new_target_duration)
-                                                
-                                                logger.info(f"Adjusted video segment {segment.segment_id} timerange to fit the new video duration.")
-                        else:
-                            logger.warning(f"Warning: Unable to get video {material_name} stream information.")
-                            # Set default values
-                            video.width = 1920
-                            video.height = 1080
-                    else:
-                        logger.warning(f"Warning: Could not find JSON data in ffprobe output.")
-                        # Set default values
-                        video.width = 1920
-                        video.height = 1080
-                except Exception as e:
-                    logger.error(f"Error occurred while getting video {material_name} information: {str(e)}, using default values 1920x1080.", exc_info=True)
-                    # Set default values
-                    video.width = 1920
-                    video.height = 1080
-                    
-                    # Try to get duration separately
-                    try:
-                        duration_result = get_video_duration(remote_url)
-                        if duration_result["success"]:
-                            # Convert seconds to microseconds
-                            video.duration = int(duration_result["output"] * 1000000)
-                            logger.info(f"Successfully obtained video {material_name} duration: {duration_result['output']:.2f} seconds ({video.duration} microseconds).")
-                        else:
-                            logger.warning(f"Warning: Unable to get video {material_name} duration: {duration_result['error']}.")
-                    except Exception as e2:
-                        logger.error(f"Error occurred while getting video {material_name} duration: {str(e2)}.", exc_info=True)
-
-    # After updating all segments' timerange, check if there are time range conflicts in each track, and delete the later segment in case of conflict
-    logger.info("Checking track segment time range conflicts...")
-    for track_name, track in script.tracks.items():
-        # Use a set to record segment indices that need to be deleted
-        to_remove = set()
-        
-        # Check for conflicts between all segments
-        for i in range(len(track.segments)):
-            # Skip if current segment is already marked for deletion
-            if i in to_remove:
-                continue
-                
-            for j in range(len(track.segments)):
-                # Skip self-comparison and segments already marked for deletion
-                if i == j or j in to_remove:
-                    continue
-                    
-                # Check if there is a conflict
-                if track.segments[i].overlaps(track.segments[j]):
-                    # Always keep the segment with the smaller index (added first)
-                    later_index = max(i, j)
-                    logger.warning(f"Time range conflict between segments {track.segments[min(i, j)].segment_id} and {track.segments[later_index].segment_id} in track {track_name}, deleting the later segment")
-                    to_remove.add(later_index)
-        
-        # Delete marked segments from back to front to avoid index change issues
-        for index in sorted(to_remove, reverse=True):
-            track.segments.pop(index)
-
-    # After updating all segments' timerange, recalculate the total duration of the script
-    max_duration = 0
-    for track_name, track in script.tracks.items():
-        for segment in track.segments:
-            max_duration = max(max_duration, segment.end)
-    script.duration = max_duration
-    logger.info(f"Updated script total duration to: {script.duration} microseconds.")
-    
-    # Process all pending keyframes in tracks
-    logger.info("Processing pending keyframes...")
-    for track_name, track in script.tracks.items():
-        if hasattr(track, 'pending_keyframes') and track.pending_keyframes:
-            logger.info(f"Processing {len(track.pending_keyframes)} pending keyframes in track {track_name}...")
-            track.process_pending_keyframes()
-            logger.info(f"Pending keyframes in track {track_name} have been processed.")
+    if result:
+        return {"status": result[0], "progress": result[1], "message": result[2]}
+    return {"status": "not_found"}
 
 def query_script_impl(draft_id: str, force_update: bool = True):
-    """
-    Query draft script object, with option to force refresh media metadata
-    
-    :param draft_id: Draft ID
-    :param force_update: Whether to force refresh media metadata, default is True
-    :return: Script object
-    """
-    # Get draft information from global cache
     if draft_id not in DRAFT_CACHE:
         logger.warning(f"Draft {draft_id} does not exist in cache.")
         return None
-        
     script = DRAFT_CACHE[draft_id]
-    logger.info(f"Retrieved draft {draft_id} from cache.")
-    
-    # If force_update is True, force refresh media metadata
     if force_update:
-        logger.info(f"Force refreshing media metadata for draft {draft_id}.")
-        update_media_metadata(script)
-    
-    # Return script object
+        update_media_metadata(script, draft_id)
     return script
 
-def download_script(draft_id: str, draft_folder: str = None, script_data: Dict = None) -> Dict[str, str]:
-    """Downloads the draft script and its associated media assets.
+def update_media_metadata(script, draft_id=None):
+    # This function remains largely the same, but we can pass draft_id to update status
+    audios = script.materials.audios or []
+    videos = script.materials.videos or []
 
-    This function fetches the script object from a remote API,
-    then iterates through its materials (audios, videos, images)
-    to download them to the specified draft folder. It also updates
-    task status and progress throughout the process.
-
-    :param draft_id: The ID of the draft to download.
-    :param draft_folder: The base folder where the draft's assets will be stored.
-                         If None, assets will be stored directly under a folder named
-                         after the draft_id in the current working directory.
-    :return: A dictionary indicating success and, if successful, the URL where the draft
-             would eventually be saved (though this function primarily focuses on download).
-             If failed, it returns an error message.
-    """
-
-    logger.info(f"Starting to download draft: {draft_id} to folder: {draft_folder}")
-    # Copy template to target directory
-    template_path = os.path.join("./", 'template') if IS_CAPCUT_ENV else os.path.join("./", 'template_jianying')
-    new_draft_path = os.path.join(draft_folder, draft_id)
-    if os.path.exists(new_draft_path):
-        logger.warning(f"Deleting existing draft target folder: {new_draft_path}")
-        shutil.rmtree(new_draft_path)
-
-    # Copy draft folder
-    shutil.copytree(template_path, new_draft_path)
-    
-    try:
-        # 1. Fetch the script from the remote endpoint
-        if script_data is None:
-            query_url = "https://cut-jianying-vdvswivepm.cn-hongkong.fcapp.run/query_script"
-            headers = {"Content-Type": "application/json"}
-            payload = {"draft_id": draft_id}
-
-            logger.info(f"Attempting to get script for draft ID: {draft_id} from {query_url}.")
-            response = requests.post(query_url, headers=headers, json=payload)
-            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
-            
-            script_data = json.loads(response.json().get('output'))
-            logger.info(f"Successfully retrieved script data for draft {draft_id}.")
-        else:
-            logger.info(f"Using provided script_data, skipping remote retrieval.")
-
-        # Collect download tasks
-        download_tasks = []
-        
-        # 在download_script中也使用默认的Windows路径
-        if not draft_folder:
-            draft_folder = DEFAULT_WINDOWS_DRAFT_FOLDER
-            logger.info(f"download_script OSS mode: Using default Windows draft folder: {draft_folder}")
-        
-        # Collect audio download tasks
-        audios = script_data.get('materials',{}).get('audios',[])
-        if audios:
-            for audio in audios:
-                remote_url = audio['remote_url']
-                material_name = audio['name']
-                # 始终使用build_asset_path生成正确的Windows格式路径
-                audio['path']=build_asset_path(draft_folder, draft_id, "audio", material_name)
-                logger.debug(f"Local path for audio {material_name}: {audio['path']}")
-                
-                if not remote_url:
-                    logger.warning(f"Audio file {material_name} has no remote_url, skipping download.")
-                    continue
-                
-                # Add audio download task
-                download_tasks.append({
-                    'type': 'audio',
-                    'func': download_file,
-                    'args': (remote_url, audio['path']),
-                    'material': audio
-                })
-        
-        # Collect video and image download tasks
-        videos = script_data['materials']['videos']
-        if videos:
-            for video in videos:
-                remote_url = video['remote_url']
-                material_name = video['material_name']
-                
-                if video['type'] == 'photo':
-                    # 始终使用build_asset_path生成正确的Windows格式路径
-                    video['path'] = build_asset_path(draft_folder, draft_id, "image", material_name)
-                    
-                    if not remote_url:
-                        logger.warning(f"Image file {material_name} has no remote_url, skipping download.")
-                        continue
-                    
-                    # Add image download task
-                    download_tasks.append({
-                        'type': 'image',
-                        'func': download_file,
-                        'args': (remote_url, video['path']),
-                        'material': video
-                    })
-                
-                elif video['type'] == 'video':
-                    # 始终使用build_asset_path生成正确的Windows格式路径
-                    video['path'] = build_asset_path(draft_folder, draft_id, "video", material_name)
-                    if not remote_url:
-                        logger.warning(f"Video file {material_name} has no remote_url, skipping download.")
-                        continue
-                    
-                    # Add video download task
-                    download_tasks.append({
-                        'type': 'video',
-                        'func': download_file,
-                        'args': (remote_url, video['path']),
-                        'material': video
-                    })
-
-        # Execute all download tasks concurrently (download_script path)
-        downloaded_paths = []
-        completed_files = 0
-        if download_tasks:
-            logger.info(f"Starting concurrent download of {len(download_tasks)} files...")
-            with ThreadPoolExecutor(max_workers=16) as executor:
-                future_to_task = {executor.submit(task['func'], *task['args']): task for task in download_tasks}
-                for future in as_completed(future_to_task):
-                    task = future_to_task[future]
-                    try:
-                        local_path = future.result()
-                        if isinstance(local_path, str) and os.path.exists(local_path):
-                            downloaded_paths.append(local_path)
-                            completed_files += 1
-                            logger.info(f"Downloaded {completed_files}/{len(download_tasks)} files.")
-                        else:
-                            logger.error(f"Failed to download {task['type']} file {task['args'][0]}: File missing or not found: {task['args'][-1]}")
-                    except Exception as e:
-                        logger.error(f"Failed to download {task['type']} file {task['args'][0]}: {str(e)}", exc_info=True)
-                        logger.error("Download failed.")
-            logger.info(f"Concurrent download completed, downloaded {len(downloaded_paths)} files in total.")
-        
-        """Write draft file content to file"""
-        # Ensure remote_url are cleared to force local assets usage in Jianying
+    for audio in audios:
+        if not audio.remote_url: continue
         try:
-            if 'materials' in script_data:
-                if 'audios' in script_data['materials'] and script_data['materials']['audios']:
-                    for a in script_data['materials']['audios']:
-                        a['remote_url'] = None
-                        a['category_name'] = 'local'
-                        if 'media_path' in a:
-                            a['media_path'] = a.get('path', a['media_path'])
-                if 'videos' in script_data['materials'] and script_data['materials']['videos']:
-                    for v in script_data['materials']['videos']:
-                        v['remote_url'] = None
-                        v['category_name'] = 'local'
-                        v['media_path'] = v.get('path', v.get('media_path', ''))
-            logger.info("Cleared remote_url in script_data before writing draft_info.json (download_script path).")
+            # Simplified metadata update logic
+            duration_result = get_video_duration(audio.remote_url)
+            if duration_result["success"]:
+                audio.duration = int(duration_result["output"] * 1000000)
         except Exception as e:
-            logger.warning(f"Failed to clear remote_url in script_data: {e}")
+            logger.error(f"Error getting audio duration for {audio.material_name}: {e}")
 
-        with open(f"{draft_folder}/{draft_id}/draft_info.json", "w", encoding="utf-8") as f:
-            f.write(json.dumps(script_data))
-        logger.info(f"Draft has been saved.")
+    for video in videos:
+        if not video.remote_url: continue
+        try:
+            if video.material_type == 'photo':
+                img = imageio.imread(video.remote_url)
+                video.height, video.width = img.shape[:2]
+            elif video.material_type == 'video':
+                # Simplified ffprobe logic
+                command = ['/usr/bin/ffprobe', '-v', 'error', '-show_entries', 'stream=width,height,duration', '-of', 'json', video.remote_url]
+                result = subprocess.check_output(command, stderr=subprocess.STDOUT)
+                info = json.loads(result.decode('utf-8'))
+                if 'streams' in info and info['streams']:
+                    stream = info['streams'][0]
+                    video.width = int(stream.get('width', 0))
+                    video.height = int(stream.get('height', 0))
+                    video.duration = int(float(stream.get('duration', '0')) * 1000000)
+        except Exception as e:
+            logger.error(f"Error updating metadata for {video.material_name}: {e}")
 
-        # No draft_url for download, but return success
-        return {"success": True, "message": f"Draft {draft_id} and its assets downloaded successfully"}
-
-    except requests.exceptions.RequestException as e:
-        logger.error(f"API request failed: {e}", exc_info=True)
-        return {"success": False, "error": f"Failed to fetch script from API: {str(e)}"}
-    except Exception as e:
-        logger.error(f"Unexpected error during download: {e}", exc_info=True)
-        return {"success": False, "error": f"An unexpected error occurred: {str(e)}"}
+    # Simplified conflict resolution and duration update
+    for track in script.tracks.values():
+        track.segments.sort(key=lambda s: s.start)
+        valid_segments = []
+        last_end = -1
+        for seg in track.segments:
+            if seg.start >= last_end:
+                valid_segments.append(seg)
+                last_end = seg.end
+        track.segments = valid_segments
+    
+    script.recalculate_duration()
 
 if __name__ == "__main__":
-    print('hello')
-    download_script("dfd_cat_1751012163_a7e8c315",'/Users/sunguannan/Movies/JianyingPro/User Data/Projects/com.lveditor.draft')
+    # Example usage for testing
+    pass

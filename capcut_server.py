@@ -1,6 +1,38 @@
-import requests
-from flask import Flask, request, jsonify, Response
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+CapCutAPI Server - 剪映草稿生成和管理API服务
+
+功能描述:
+- 提供剪映草稿创建、编辑和管理API
+- 支持视频、音频、文本、图片等多种素材添加
+- 在线预览草稿功能
+- 云端存储和下载管理
+- 多平台兼容（Windows、Linux、macOS）
+
+版本: v1.1.0
+作者: CapCutAPI Team
+创建时间: 2024-01-01
+最后更新: 2025-01-03
+"""
+
+# ===== 标准库导入 =====
+import os
+import json
+import time
+import uuid
+import codecs
+import random
+import sqlite3
+import html
 from datetime import datetime
+from urllib.parse import quote
+
+# ===== 第三方库导入 =====
+import requests
+from flask import Flask, request, jsonify, Response, render_template
+
+# ===== pyJianYingDraft 相关导入 =====
 import pyJianYingDraft as draft
 from pyJianYingDraft.metadata.animation_meta import Intro_type, Outro_type, Group_animation_type
 from pyJianYingDraft.metadata.capcut_animation_meta import CapCut_Intro_type, CapCut_Outro_type, CapCut_Group_animation_type
@@ -19,6 +51,9 @@ import random
 import uuid
 import json
 import codecs
+import time
+import sqlite3
+import html
 from add_audio_track import add_audio_track
 from add_video_track import add_video_track
 from add_text_impl import add_text_impl
@@ -26,6 +61,7 @@ from add_subtitle_impl import add_subtitle_impl
 from add_image_impl import add_image_impl
 from add_video_keyframe_impl import add_video_keyframe_impl
 from save_draft_impl import save_draft_impl, query_task_status, query_script_impl
+from os_path_config import get_os_path_config
 from add_effect_impl import add_effect_impl
 from add_sticker_impl import add_sticker_impl
 from create_draft import create_draft, get_or_create_draft
@@ -49,180 +85,135 @@ def _ensure_bucket_v4():
         endpoint = 'https://' + endpoint
     return _oss2.Bucket(auth, endpoint, _OSS_CONFIG['bucket_name'], region=_OSS_CONFIG['region'])
 
-app = Flask(__name__)
+from database import init_db
 
-# 全局草稿素材信息缓存
+app = Flask(__name__, template_folder='templates')
+
+init_db()
+
+# ===== 全局变量和配置 =====
 draft_materials_cache = {}
 
+# ===== 工具函数 =====
+
+def create_standard_response(success=False, output="", error=""):
+    """创建标准API响应格式"""
+    return {
+        "success": success,
+        "output": output,
+        "error": error
+    }
+
+def handle_api_error(error_message, exception=None):
+    """统一错误处理"""
+    if exception:
+        print(f"API错误: {error_message}, 异常: {str(exception)}")
+    return jsonify(create_standard_response(success=False, error=error_message))
+
+def get_material_type_by_extension(file_ext):
+    """根据文件扩展名确定素材类型"""
+    file_ext = file_ext.lower()
+    if file_ext in ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm']:
+        return 'video'
+    elif file_ext in ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a']:
+        return 'audio'
+    elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']:
+        return 'image'
+    elif file_ext in ['txt', 'srt', 'vtt', 'ass']:
+        return 'text'
+    return 'unknown'
+
+def validate_required_params(params, required_fields):
+    """验证必需参数"""
+    missing = [field for field in required_fields if not params.get(field)]
+    if missing:
+        return f"缺少必需参数: {', '.join(missing)}"
+    return None
+
 def add_material_to_cache(draft_id, material_info):
-    """添加素材信息到缓存"""
-    if draft_id not in draft_materials_cache:
-        draft_materials_cache[draft_id] = []
-    draft_materials_cache[draft_id].append(material_info)
+    """添加素材信息到缓存和数据库"""
+    try:
+        material_id = str(uuid.uuid4())
+        add_material_to_db(draft_id, material_id, material_info)
+        
+        # 更新内存缓存
+        if draft_id not in draft_materials_cache:
+            draft_materials_cache[draft_id] = []
+        material_info['id'] = material_id
+        draft_materials_cache[draft_id].append(material_info)
+    except Exception as e:
+        print(f'持久化素材到数据库失败: {e}')
+
+from database import get_draft_materials as get_draft_materials_from_db, add_material_to_db, get_all_drafts
 
 def get_draft_materials(draft_id):
-    """获取草稿的素材列表"""
-    # 先从缓存中获取
-    cached_materials = draft_materials_cache.get(draft_id, [])
-    if cached_materials:
-        return cached_materials
+    """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统"""
+    # 首先检查内存缓存
+    if draft_id in draft_materials_cache:
+        return draft_materials_cache[draft_id]
     
-    # 如果缓存中没有，尝试从测试文件加载
-    try:
-        import os
-        import json
-        
-        # 首先尝试从测试文件加载
-        test_file = "test_materials.json"
-        if os.path.exists(test_file):
-            with open(test_file, 'r', encoding='utf-8') as f:
-                test_data = json.load(f)
-                if draft_id in test_data:
-                    print(f"从测试文件加载草稿 {draft_id} 的素材数据")
-                    draft_materials_cache[draft_id] = test_data[draft_id]
-                    return test_data[draft_id]
-        
-        # 检查草稿目录是否存在
-        draft_dir = f"/home/CapCutAPI-1.1.0/{draft_id}"
-        if os.path.exists(draft_dir):
-            # 构造默认的素材信息
-            materials = []
-            
-            # 查找视频文件
-            for file in os.listdir(draft_dir):
-                if file.endswith(('.mp4', '.mov', '.avi')):
-                    materials.append({
-                        'type': 'video',
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 30,
-                        'materialType': 'video',
-                        'material_type': 'video'
-                    })
-                elif file.endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                    materials.append({
-                        'type': 'image', 
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 5,
-                        'materialType': 'image',
-                        'material_type': 'image'
-                    })
-                elif file.endswith(('.mp3', '.wav', '.aac')):
-                    materials.append({
-                        'type': 'audio',
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 30,
-                        'materialType': 'audio',
-                        'material_type': 'audio'
-                    })
-            
-            # 如果没有足够的素材，为预览页面添加演示素材
-            has_video = any(m['type'] == 'video' for m in materials)
-            has_audio = any(m['type'] == 'audio' for m in materials) 
-            has_text = any(m['type'] == 'text' for m in materials)
-            
-            # 添加主视频轨道素材
-            if not has_video:
-                materials.append({
-                    'type': 'video',
-                    'url': 'https://example.com/main_video.mp4',
-                    'start': 0,
-                    'end': 30,
-                    'materialType': 'video',
-                    'material_type': 'video',
-                    'track_name': 'video_main'
-                })
-            
-            # 添加语音旁白素材
-            if not has_audio:
-                materials.append({
-                    'type': 'audio',
-                    'url': 'https://example.com/voice_narration.mp3',
-                    'start': 0,
-                    'end': 30,
-                    'materialType': 'audio',
-                    'material_type': 'audio',
-                    'track_name': 'audio_main'
-                })
-                
-            # 添加背景音乐素材
-            materials.append({
-                'type': 'audio',
-                'url': 'https://example.com/background_music.mp3',
-                'start': 0,
-                'end': 30,
-                'materialType': 'audio', 
-                'material_type': 'audio',
-                'track_name': 'bgm_main'
-            })
-            
-            # 添加文本素材
-            if not has_text:
-                materials.append({
-                    'type': 'text',
-                    'content': 'AI生成的标题内容',
-                    'start': 0,
-                    'end': 5,
-                    'materialType': 'text',
-                    'material_type': 'text',
-                    'track_name': 'text_main'
-                })
-            
-            # 如果还是没有任何素材，添加默认文本
-            if not materials:
-                materials.append({
-                    'type': 'text',
-                    'content': f'草稿 {draft_id}',
-                    'start': 0,
-                    'end': 5,
-                    'materialType': 'text',
-                    'material_type': 'text'
-                })
-            
-            # 更新缓存
-            draft_materials_cache[draft_id] = materials
-            return materials
-            
-    except Exception as e:
-        print(f"读取草稿 {draft_id} 失败: {e}")
+    # 如果缓存中没有，从数据库获取
+    db_materials = get_draft_materials_from_db(draft_id)
+    if db_materials:
+        draft_materials_cache[draft_id] = db_materials
+        return db_materials
     
-    # 如果都失败了，返回空列表
-    return []
+    # 如果数据库中也没有，扫描草稿目录中的实际文件
+    return _scan_draft_directory(draft_id)
 
-@app.route('/', methods=['GET'])
-def index():
-    """根路径处理器，显示API服务信息"""
-    # 检查请求头，如果是API调用则返回JSON
-    if request.headers.get('Accept') == 'application/json':
-        return jsonify({
-            "success": True,
-            "message": "CapCutAPI 服务运行正常",
-            "version": "1.1.0",
-            "server": "http://8.148.70.18:9000",
-            "available_endpoints": [
-                "GET / - 服务信息",
-                "GET /get_intro_animation_types - 获取入场动画类型",
-                "GET /get_outro_animation_types - 获取出场动画类型", 
-                "GET /get_transition_types - 获取转场类型",
-                "GET /get_mask_types - 获取遮罩类型",
-                "GET /get_font_types - 获取字体类型",
-                "POST /create_draft - 创建草稿",
-                "POST /add_video - 添加视频",
-                "POST /add_audio - 添加音频",
-                "POST /add_text - 添加文本",
-                "POST /add_subtitle - 添加字幕",
-                "POST /add_image - 添加图片",
-                "POST /add_effect - 添加特效",
-                "POST /add_sticker - 添加贴纸",
-                "POST /save_draft - 保存草稿"
-            ],
-            "documentation": "查看 API_USAGE_EXAMPLES.md 获取详细使用说明"
-        })
+def _scan_draft_directory(draft_id):
+    """扫描草稿目录中的文件"""
+    draft_path = f"drafts/{draft_id}"
+    if not os.path.exists(draft_path):
+        return []
+        
+    materials = []
+    for filename in os.listdir(draft_path):
+        file_path = os.path.join(draft_path, filename)
+        if os.path.isfile(file_path) and filename != 'draft_info.json':
+            material_info = _create_material_info(draft_id, filename, file_path)
+            if material_info:
+                materials.append(material_info)
     
-    # 返回HTML欢迎页面
-    html_content = """
+    # 缓存素材信息
+    if materials:
+        draft_materials_cache[draft_id] = materials
+        _save_materials_to_db(draft_id, materials)
+    
+    return materials
+
+def _create_material_info(draft_id, filename, file_path):
+    """创建素材信息对象"""
+    try:
+        file_ext = filename.lower().split('.')[-1]
+        material_type = get_material_type_by_extension(file_ext)
+        
+        return {
+            'id': f"{draft_id}_{filename}",
+            'name': filename,
+            'type': material_type,
+            'path': file_path,
+            'size': os.path.getsize(file_path),
+            'duration': '未知',
+            'created_at': datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"创建素材信息失败: {e}")
+        return None
+
+def _save_materials_to_db(draft_id, materials):
+    """将素材信息保存到数据库"""
+    for material in materials:
+        try:
+            add_material_to_db(draft_id, material)
+        except Exception as e:
+            print(f"保存素材到数据库失败: {e}")
+
+# ===== HTML模板生成函数 =====
+
+def generate_index_html():
+    """生成首页HTML内容"""
+    return """
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -375,6 +366,8 @@ def index():
         <div>
             <button class="test-button" onclick="testAPI()">测试API</button>
             <button class="test-button" onclick="showJSON()">显示JSON</button>
+            <button class="test-button" onclick="openDashboard()">📊 草稿管理</button>
+            <button class="test-button" onclick="openPreview()">🎬 预览演示</button>
         </div>
         
         <div class="footer">
@@ -388,7 +381,7 @@ def index():
             fetch('/get_intro_animation_types')
                 .then(response => response.json())
                 .then(data => {
-                    alert('API测试成功！\n获取到 ' + data.output.length + ' 个动画类型');
+                    alert('API测试成功！\\n获取到 ' + data.output.length + ' 个动画类型');
                 })
                 .catch(error => {
                     alert('API测试失败：' + error);
@@ -396,7 +389,11 @@ def index():
         }
         
         function showJSON() {
-            fetch('/')
+            fetch('/', {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     alert(JSON.stringify(data, null, 2));
@@ -405,326 +402,275 @@ def index():
                     alert('获取JSON失败：' + error);
                 });
         }
+        
+        function openDashboard() {
+            window.open('/api/drafts/dashboard', '_blank');
+        }
+        
+        function openPreview() {
+            window.open('/draft/preview/sample_draft', '_blank');
+        }
     </script>
 </body>
 </html>
     """
-    return html_content
+
+# ===== 路由处理函数 =====
+
+@app.route('/', methods=['GET'])
+def index():
+    """根路径处理器，显示API服务信息"""
+    # 检查请求头，如果是API调用则返回JSON
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify(create_standard_response(
+            success=True,
+            output={
+                "message": "CapCutAPI 服务运行正常",
+                "version": "1.1.0",
+                "server": "http://8.148.70.18:9000",
+                "available_endpoints": [
+                    "GET / - 服务信息",
+                    "GET /get_intro_animation_types - 获取入场动画类型",
+                    "GET /get_outro_animation_types - 获取出场动画类型", 
+                    "GET /get_transition_types - 获取转场类型",
+                    "GET /get_mask_types - 获取遮罩类型",
+                    "GET /get_font_types - 获取字体类型",
+                    "POST /create_draft - 创建草稿",
+                    "POST /add_video - 添加视频",
+                    "POST /add_audio - 添加音频",
+                    "POST /add_text - 添加文本",
+                    "POST /add_subtitle - 添加字幕",
+                    "POST /add_image - 添加图片",
+                    "POST /add_effect - 添加特效",
+                    "POST /add_sticker - 添加贴纸",
+                    "POST /save_draft - 保存草稿"
+                ],
+                "documentation": "查看 API_USAGE_EXAMPLES.md 获取详细使用说明"
+            }
+        ))
+    
+    # 返回HTML欢迎页面
+    return generate_index_html()
 
 @app.route('/add_video', methods=['POST'])
 def add_video():
-    data = request.get_json()
-    # Get required parameters
-    draft_folder = data.get('draft_folder')
-    video_url = data.get('video_url')
-    
-    # Guard: reject unresolved placeholders to避免生成坏草稿
-    if isinstance(video_url, str) and ('{{' in video_url or '}}' in video_url):
-        return jsonify({"success": False, "error": "video_url 是占位符，未替换为真实地址。请在调用前先生成实际URL。", "hint": video_url})
-    start = data.get('start', 0)
-    end = data.get('end', 0)
-    width = data.get('width', 1080)
-    height = data.get('height', 1920)
-    draft_id = data.get('draft_id')
-    transform_y = data.get('transform_y', 0)
-    scale_x = data.get('scale_x', 1)
-    scale_y = data.get('scale_y', 1)
-    transform_x = data.get('transform_x', 0)
-    speed = data.get('speed', 1.0)  # New speed parameter
-    target_start = data.get('target_start', 0)  # New target start time parameter
-    track_name = data.get('track_name', "video_main")  # New track name parameter
-    relative_index = data.get('relative_index', 0)  # New relative index parameter
-    duration = data.get('duration')  # New duration parameter
-    transition = data.get('transition')  # New transition type parameter
-    transition_duration = data.get('transition_duration', 0.5)  # New transition duration parameter, default 0.5 seconds
-    volume = data.get('volume', 1.0)  # New volume parameter, default 1.0 
-    
-    # Get mask related parameters
-    mask_type = data.get('mask_type')  # Mask type
-    mask_center_x = data.get('mask_center_x', 0.5)  # Mask center X coordinate
-    mask_center_y = data.get('mask_center_y', 0.5)  # Mask center Y coordinate
-    mask_size = data.get('mask_size', 1.0)  # Mask size, relative to screen height
-    mask_rotation = data.get('mask_rotation', 0.0)  # Mask rotation angle
-    mask_feather = data.get('mask_feather', 0.0)  # Mask feather degree
-    mask_invert = data.get('mask_invert', False)  # Whether to invert mask
-    mask_rect_width = data.get('mask_rect_width')  # Rectangle mask width
-    mask_round_corner = data.get('mask_round_corner')  # Rectangle mask rounded corner
-
-    background_blur = data.get('background_blur')  # Background blur level, optional values: 1 (light), 2 (medium), 3 (strong), 4 (maximum), default None (no background blur)
-
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-
-    # Validate required parameters
-    if not video_url:
-        error_message = "Hi, the required parameters 'video_url' are missing."
-        result["error"] = error_message
-        return jsonify(result)
-
+    """添加视频素材到草稿"""
     try:
-        draft_result = add_video_track(
-            draft_folder=draft_folder,
-            video_url=video_url,
-            width=width,
-            height=height,
-            start=start,
-            end=end,
-            target_start=target_start,
-            draft_id=draft_id,
-            transform_y=transform_y,
-            scale_x=scale_x,
-            scale_y=scale_y,
-            transform_x=transform_x,
-            speed=speed,
-            track_name=track_name,
-            relative_index=relative_index,
-            duration=duration,
-            transition=transition,  # Pass transition type parameter
-            transition_duration=transition_duration,  # Pass transition duration parameter
-            volume=volume,  # Pass volume parameter
-            # Pass mask related parameters
-            mask_type=mask_type,
-            mask_center_x=mask_center_x,
-            mask_center_y=mask_center_y,
-            mask_size=mask_size,
-            mask_rotation=mask_rotation,
-            mask_feather=mask_feather,
-            mask_invert=mask_invert,
-            mask_rect_width=mask_rect_width,
-            mask_round_corner=mask_round_corner,
-            background_blur=background_blur
-        )
+        data = request.get_json()
         
-        result["success"] = True
-        result["output"] = draft_result
+        # 验证必需参数
+        video_url = data.get('video_url')
+        if not video_url:
+            return handle_api_error("缺少必需参数 'video_url'")
+            
+        # 拒绝未解析的占位符
+        if isinstance(video_url, str) and ('{{' in video_url or '}}' in video_url):
+            return handle_api_error(f"video_url 是占位符，未替换为真实地址。请在调用前先生成实际URL。", video_url)
+        
+        # 获取参数
+        params = {
+            'draft_folder': data.get('draft_folder'),
+            'video_url': video_url,
+            'start': data.get('start', 0),
+            'end': data.get('end', 0),
+            'width': data.get('width', 1080),
+            'height': data.get('height', 1920),
+            'draft_id': data.get('draft_id'),
+            'transform_y': data.get('transform_y', 0),
+            'scale_x': data.get('scale_x', 1),
+            'scale_y': data.get('scale_y', 1),
+            'transform_x': data.get('transform_x', 0),
+            'speed': data.get('speed', 1.0),
+            'target_start': data.get('target_start', 0),
+            'track_name': data.get('track_name', "video_main"),
+            'relative_index': data.get('relative_index', 0),
+            'duration': data.get('duration'),
+            'transition': data.get('transition'),
+            'transition_duration': data.get('transition_duration', 0.5),
+            'volume': data.get('volume', 1.0),
+            # 遮罩相关参数
+            'mask_type': data.get('mask_type'),
+            'mask_center_x': data.get('mask_center_x', 0.5),
+            'mask_center_y': data.get('mask_center_y', 0.5),
+            'mask_size': data.get('mask_size', 1.0),
+            'mask_rotation': data.get('mask_rotation', 0.0),
+            'mask_feather': data.get('mask_feather', 0.0),
+            'mask_invert': data.get('mask_invert', False),
+            'mask_rect_width': data.get('mask_rect_width'),
+            'mask_round_corner': data.get('mask_round_corner'),
+            'background_blur': data.get('background_blur')
+        }
+        
+        # 调用业务逻辑
+        draft_result = add_video_track(**params)
         
         # 记录素材信息到缓存
         material_info = {
             "type": "video",
             "url": video_url,
-            "start": start,
-            "end": end,
-            "duration": end - start if end > start else None,
-            "track_name": track_name,
+            "start": params['start'],
+            "end": params['end'],
+            "duration": params['end'] - params['start'] if params['end'] > params['start'] else None,
+            "track_name": params['track_name'],
             "added_at": datetime.now().isoformat()
         }
-        add_material_to_cache(draft_id, material_info)
+        add_material_to_cache(params['draft_id'], material_info)
         
-        return jsonify(result)
-
+        return jsonify(create_standard_response(success=True, output=draft_result))
+        
     except Exception as e:
-        error_message = f"Error occurred while processing video: {str(e)}."
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"处理视频时发生错误: {str(e)}", e)
 
 @app.route('/add_audio', methods=['POST'])
 def add_audio():
-    data = request.get_json()
-    
-    # Get required parameters
-    draft_folder = data.get('draft_folder')
-    audio_url = data.get('audio_url')
-    
-    # Guard: reject unresolved placeholders
-    if isinstance(audio_url, str) and ('{{' in audio_url or '}}' in audio_url):
-        return jsonify({"success": False, "error": "audio_url 是占位符，未替换为真实地址。请在调用前先生成实际URL。", "hint": audio_url})
-    start = data.get('start', 0)
-    end = data.get('end', None)
-    draft_id = data.get('draft_id')
-    volume = data.get('volume', 1.0)  # Default volume 1.0
-    target_start = data.get('target_start', 0)  # New target start time parameter
-    speed = data.get('speed', 1.0)  # New speed parameter
-    track_name = data.get('track_name', 'audio_main')  # New track name parameter
-    duration = data.get('duration', None)  # New duration parameter
-    # Get audio effect parameters separately
-    effect_type = data.get('effect_type', None)  # Audio effect type name
-    effect_params = data.get('effect_params', None)  # Audio effect parameter list
-    width = data.get('width', 1080)
-    height = data.get('height', 1920)
-    
-    # # If there are audio effect parameters, combine them into sound_effects format
-    sound_effects = None
-    if effect_type is not None:
-        sound_effects = [(effect_type, effect_params)]
-
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-
-    # Validate required parameters
-    if not audio_url:
-        error_message = "Hi, the required parameters 'audio_url' are missing."
-        result["error"] = error_message
-        return jsonify(result)
-
+    """添加音频素材到草稿"""
     try:
-        # Call the modified add_audio_track method
-        draft_result = add_audio_track(
-            draft_folder=draft_folder,
-            audio_url=audio_url,
-            start=start,
-            end=end,
-            target_start=target_start,
-            draft_id=draft_id,
-            volume=volume,
-            track_name=track_name,
-            speed=speed,
-            sound_effects=sound_effects,  # Add audio effect parameters
-            width=width,
-            height=height,
-            duration=duration  # Add duration parameter
-        )
+        data = request.get_json()
         
-        result["success"] = True
-        result["output"] = draft_result
+        # 验证必需参数
+        audio_url = data.get('audio_url')
+        if not audio_url:
+            return handle_api_error("缺少必需参数 'audio_url'")
+        
+        # 拒绝未解析的占位符
+        if isinstance(audio_url, str) and ('{{' in audio_url or '}}' in audio_url):
+            return handle_api_error(f"audio_url 是占位符，未替换为真实地址。请在调用前先生成实际URL。", audio_url)
+        
+        # 获取参数
+        params = {
+            'draft_folder': data.get('draft_folder'),
+            'audio_url': audio_url,
+            'start': data.get('start', 0),
+            'end': data.get('end', None),
+            'target_start': data.get('target_start', 0),
+            'draft_id': data.get('draft_id'),
+            'volume': data.get('volume', 1.0),
+            'track_name': data.get('track_name', 'audio_main'),
+            'speed': data.get('speed', 1.0),
+            'width': data.get('width', 1080),
+            'height': data.get('height', 1920),
+            'duration': data.get('duration', None)
+        }
+        
+        # 处理音频效果参数
+        sound_effects = None
+        effect_type = data.get('effect_type')
+        if effect_type:
+            effect_params = data.get('effect_params')
+            sound_effects = [(effect_type, effect_params)]
+            params['sound_effects'] = sound_effects
+        
+        # 调用业务逻辑
+        draft_result = add_audio_track(**params)
         
         # 记录素材信息到缓存
         material_info = {
             "type": "audio",
             "url": audio_url,
-            "start": start,
-            "end": end,
-            "duration": end - start if end and end > start else None,
-            "track_name": track_name,
-            "volume": volume,
+            "start": params['start'],
+            "end": params['end'],
+            "duration": (params['end'] - params['start']) if params['end'] and params['end'] > params['start'] else None,
+            "track_name": params['track_name'],
+            "volume": params['volume'],
             "added_at": datetime.now().isoformat()
         }
-        add_material_to_cache(draft_id, material_info)
+        add_material_to_cache(params['draft_id'], material_info)
         
-        return jsonify(result)
-
+        return jsonify(create_standard_response(success=True, output=draft_result))
+        
     except Exception as e:
-        error_message = f"Error occurred while processing audio: {str(e)}."
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"处理音频时发生错误: {str(e)}", e)
 
 @app.route('/create_draft', methods=['POST'])
 def create_draft_service():
-    data = request.get_json()
-    
-    # Get parameters
-    draft_id = data.get('draft_id')  # User specified draft ID
-    width = data.get('width', 1080)
-    height = data.get('height', 1920)
-    
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-    
+    """创建新的草稿项目"""
     try:
-        # Create new draft with user specified ID or generate one
+        data = request.get_json()
+        
+        # 获取参数
+        draft_id = data.get('draft_id')  # 用户指定的草稿ID
+        width = data.get('width', 1080)
+        height = data.get('height', 1920)
+        
+        # 创建新草稿
         draft_id, script = get_or_create_draft(draft_id=draft_id, width=width, height=height)
         
-        result["success"] = True
-        result["output"] = {
-            "draft_id": draft_id,
-            "draft_url": utilgenerate_draft_url(draft_id)
-        }
-        result["error"] = ""
-        return jsonify(result)
+        # 初始化草稿缓存，确保预览功能能够识别草稿存在
+        if draft_id not in draft_materials_cache:
+            draft_materials_cache[draft_id] = []
+            # 添加基本草稿信息到缓存
+            basic_info = {
+                "type": "draft_info",
+                "name": data.get('name', '未命名草稿'),
+                "width": width,
+                "height": height,
+                "created_at": datetime.now().isoformat(),
+                "status": "created"
+            }
+            draft_materials_cache[draft_id].append(basic_info)
+        
+        return jsonify(create_standard_response(
+            success=True,
+            output={
+                "draft_id": draft_id,
+                "draft_url": utilgenerate_draft_url(draft_id)
+            }
+        ))
         
     except Exception as e:
-        error_message = f"Error occurred while creating draft: {str(e)}."
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"创建草稿时发生错误: {str(e)}", e)
         
 @app.route('/add_subtitle', methods=['POST'])
 def add_subtitle():
-    data = request.get_json()
-    
-    # Get required parameters
-    srt = data.get('srt')  # Subtitle content or URL
-    draft_id = data.get('draft_id')
-    time_offset = data.get('time_offset', 0.0)  # Default 0 seconds
-    
-    # Font style parameters
-    font = data.get('font', None)
-    font_size = data.get('font_size', 5.0)  # Default size 5.0
-    bold = data.get('bold', False)  # Default not bold
-    italic = data.get('italic', False)  # Default not italic
-    underline = data.get('underline', False)  # Default no underline
-    font_color = data.get('font_color', '#FFFFFF')  # Default white
-    vertical = data.get('vertical', False)  # New: whether to display vertically, default False
-    alpha = data.get('alpha', 1)  # New: transparency, default 1
-    # Border parameters
-    border_alpha = data.get('border_alpha', 1.0)
-    border_color = data.get('border_color', '#000000')
-    border_width = data.get('border_width', 0.0)
-    
-    # Background parameters
-    background_color = data.get('background_color', '#000000')
-    background_style = data.get('background_style', 0)
-    background_alpha = data.get('background_alpha', 0.0)
-        
-    # Image adjustment parameters
-    transform_x = data.get('transform_x', 0.0)  # Default 0
-    transform_y = data.get('transform_y', -0.8)  # Default -0.8
-    scale_x = data.get('scale_x', 1.0)  # Default 1.0
-    scale_y = data.get('scale_y', 1.0)  # Default 1.0
-    rotation = data.get('rotation', 0.0)  # Default 0.0
-    track_name = data.get('track_name', 'subtitle')  # Default track name is 'subtitle'
-    width = data.get('width', 1080)
-    height = data.get('height', 1920)
-
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-
-    # Validate required parameters
-    if not srt:
-        error_message = "Hi, the required parameters 'srt' are missing."
-        result["error"] = error_message
-        return jsonify(result)
-
+    """添加字幕到草稿"""
     try:
-        # Call add_subtitle_impl method
-        draft_result = add_subtitle_impl(
-            srt_path=srt,
-            draft_id=draft_id,
-            track_name=track_name,
-            time_offset=time_offset,
-            # Font style parameters
-            font = font,
-            font_size=font_size,
-            bold=bold,
-            italic=italic,
-            underline=underline,
-            font_color=font_color,
-            vertical=vertical,  # New: pass vertical parameter
-            alpha=alpha,  # New: pass alpha parameter
-            border_alpha=border_alpha,
-            border_color=border_color,
-            border_width=border_width,
-            background_color=background_color,
-            background_style=background_style,
-            background_alpha=background_alpha,
-            # Image adjustment parameters
-            transform_x=transform_x,
-            transform_y=transform_y,
-            scale_x=scale_x,
-            scale_y=scale_y,
-            rotation=rotation,
-            width=width,
-            height=height
-        )
+        data = request.get_json()
         
-        result["success"] = True
-        result["output"] = draft_result
-        return jsonify(result)
-
+        # 验证必需参数
+        srt = data.get('srt')
+        if not srt:
+            return handle_api_error("缺少必需参数 'srt'")
+        
+        # 获取参数
+        params = {
+            'srt_path': srt,
+            'draft_id': data.get('draft_id'),
+            'track_name': data.get('track_name', 'subtitle'),
+            'time_offset': data.get('time_offset', 0.0),
+            # 字体样式参数
+            'font': data.get('font'),
+            'font_size': data.get('font_size', 5.0),
+            'bold': data.get('bold', False),
+            'italic': data.get('italic', False),
+            'underline': data.get('underline', False),
+            'font_color': data.get('font_color', '#FFFFFF'),
+            'vertical': data.get('vertical', False),
+            'alpha': data.get('alpha', 1),
+            # 边框参数
+            'border_alpha': data.get('border_alpha', 1.0),
+            'border_color': data.get('border_color', '#000000'),
+            'border_width': data.get('border_width', 0.0),
+            # 背景参数
+            'background_color': data.get('background_color', '#000000'),
+            'background_style': data.get('background_style', 0),
+            'background_alpha': data.get('background_alpha', 0.0),
+            # 位置调整参数
+            'transform_x': data.get('transform_x', 0.0),
+            'transform_y': data.get('transform_y', -0.8),
+            'scale_x': data.get('scale_x', 1.0),
+            'scale_y': data.get('scale_y', 1.0),
+            'rotation': data.get('rotation', 0.0),
+            'width': data.get('width', 1080),
+            'height': data.get('height', 1920)
+        }
+        
+        # 调用业务逻辑
+        draft_result = add_subtitle_impl(**params)
+        
+        return jsonify(create_standard_response(success=True, output=draft_result))
+        
     except Exception as e:
-        error_message = f"Error occurred while processing subtitle: {str(e)}."
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"处理字幕时发生错误: {str(e)}", e)
 
 @app.route('/add_text', methods=['POST'])
 def add_text():
@@ -1129,114 +1075,77 @@ def add_effect():
 
 @app.route('/query_script', methods=['POST'])
 def query_script():
-    data = request.get_json()
-
-    # Get required parameters
-    draft_id = data.get('draft_id')
-    force_update = data.get('force_update', True)
-    
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-
-    # Validate required parameters
-    if not draft_id:
-        error_message = "Hi, the required parameter 'draft_id' is missing. Please add it and try again."
-        result["error"] = error_message
-        return jsonify(result)
-
+    """查询草稿脚本内容"""
     try:
-        # Call query_script_impl method
+        data = request.get_json()
+        
+        # 验证必需参数
+        draft_id = data.get('draft_id')
+        if not draft_id:
+            return handle_api_error("缺少必需参数 'draft_id'")
+        
+        force_update = data.get('force_update', True)
+        
+        # 调用查询实现方法
         script = query_script_impl(draft_id=draft_id, force_update=force_update)
         
         if script is None:
-            error_message = f"Draft {draft_id} does not exist in cache."
-            result["error"] = error_message
-            return jsonify(result)
+            return handle_api_error(f"草稿 {draft_id} 在缓存中不存在")
         
-        # Convert script object to JSON serializable dictionary
+        # 将脚本对象转换为JSON可序列化字典
         script_str = script.dumps()
         
-        result["success"] = True
-        result["output"] = script_str
-        return jsonify(result)
-
+        return jsonify(create_standard_response(success=True, output=script_str))
+        
     except Exception as e:
-        error_message = f"Error occurred while querying script: {str(e)}. "
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"查询脚本时发生错误: {str(e)}", e)
 
 @app.route('/save_draft', methods=['POST'])
 def save_draft():
-    data = request.get_json()
-    
-    # Get required parameters
-    draft_id = (data.get('draft_id') or '').strip()
-    draft_folder = data.get('draft_folder')  # Draft folder parameter
-    
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-    
-    # Validate required parameters
-    if not draft_id:
-        error_message = "Hi, the required parameter 'draft_id' is missing. Please add it and try again."
-        result["error"] = error_message
-        return jsonify(result)
-    
+    """保存草稿到文件系统"""
     try:
-        # Call save_draft_impl method, start background task
+        data = request.get_json()
+        
+        # 验证必需参数
+        draft_id = (data.get('draft_id') or '').strip()
+        if not draft_id:
+            return handle_api_error("缺少必需参数 'draft_id'")
+        
+        # 获取草稿文件夹参数
+        draft_folder = data.get('draft_folder')
+        
+        # 调用保存实现方法，启动后台任务
         draft_result = save_draft_impl(draft_id, draft_folder)
         
-        # Return the result from save_draft_impl directly
+        # 直接返回 save_draft_impl 的结果
         return jsonify(draft_result)
         
     except Exception as e:
-        error_message = f"Error occurred while saving draft: {str(e)}. "
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"保存草稿时发生错误: {str(e)}", e)
 
-# Add new query status interface
 @app.route('/query_draft_status', methods=['POST'])
 def query_draft_status():
-    data = request.get_json()
-    
-    # Get required parameters
-    task_id = data.get('task_id')
-    
-    result = {
-        "success": False,
-        "output": "",
-        "error": ""
-    }
-    
-    # Validate required parameters
-    if not task_id:
-        error_message = "Hi, the required parameter 'task_id' is missing. Please add it and try again."
-        result["error"] = error_message
-        return jsonify(result)
-    
+    """查询草稿任务状态"""
     try:
-        # Get task status
+        data = request.get_json()
+        
+        # 验证必需参数
+        task_id = data.get('task_id')
+        if not task_id:
+            return handle_api_error("缺少必需参数 'task_id'")
+        
+        # 获取任务状态
         task_status = query_task_status(task_id)
         
         if task_status["status"] == "not_found":
-            error_message = f"Task with ID {task_id} not found. Please check if the task ID is correct."
-            result["error"] = error_message
-            return jsonify(result)
+            return handle_api_error(f"未找到ID为 {task_id} 的任务。请检查任务ID是否正确")
         
-        # Return task status directly with success flag
+        # 直接返回任务状态并添加成功标识
         task_status["success"] = True
         return jsonify(task_status)
         
     except Exception as e:
-        error_message = f"Error occurred while querying task status: {str(e)}."
-        result["error"] = error_message
-        return jsonify(result)
+        return handle_api_error(f"查询任务状态时发生错误: {str(e)}", e)
 
 @app.route('/mirror_to_oss', methods=['POST'])
 def mirror_to_oss():
@@ -1356,41 +1265,6 @@ def generate_draft_url():
         result["error"] = error_message
         return jsonify(result)
 
-@app.route('/draft/downloader', methods=['GET'])
-def draft_downloader():
-    """
-    草稿下载页面 - 优化版
-    支持多种下载方式：OSS云下载、本地路径生成、批量下载等
-    """
-    # Support both standard and legacy empty-key query
-    draft_id = request.args.get('draft_id')
-    if not draft_id and '' in request.args:
-        draft_id = request.args.get('')
-    if not draft_id:
-        return Response("Missing 'draft_id' in query string.", status=400)
-    draft_id = str(draft_id).strip()
-    
-    # Detect client os from query, default windows
-    client_os = request.args.get('os', 'windows').lower()
-    # Optional custom base from query for preview
-    custom_base = request.args.get('base', '').strip()
-    if custom_base:
-        base = custom_base.rstrip('\\/')
-    else:
-        base = ''
-    
-    # 获取草稿材料信息用于显示
-    materials = get_draft_materials(draft_id)
-    materials_count = len(materials)
-    
-    # 计算草稿信息
-    total_duration = 30  # 默认30秒
-    if materials:
-        max_end_time = max([m.get('end', 0) for m in materials if m.get('end')])
-        if max_end_time > 0:
-            total_duration = max_end_time
-    
-    local_path = utilgenerate_draft_url(draft_id, client_os=client_os, base=base)
     
     import json as _json
     html_template = """
@@ -1937,13 +1811,13 @@ def draft_downloader():
                         draft_id: draftId, 
                         client_os: osSelect.value, 
                         draft_folder: baseInput.value || undefined 
-                    });
+                    }});
                     
                     if (first && first.success && first.output) {
                         if (first.output.storage === 'oss' && first.output.draft_url) {
                             log('✅ 发现已存在的云端文件，直接跳转');
                             statusEl.innerHTML = '✅ 发现云端文件！即将跳转下载...';
-                            setTimeout(() => {
+                            setTimeout(() => {{
                                 window.open(first.output.draft_url, '_blank');
                             }, 1000);
                             return;
@@ -1957,7 +1831,7 @@ def draft_downloader():
                         draft_id: draftId, 
                         client_os: osSelect.value, 
                         draft_folder: baseInput.value || undefined 
-                    });
+                    }});
                     
                     if (start && start.success && start.output) {
                         if (start.output.storage === 'oss' && start.output.draft_url) {
@@ -1998,7 +1872,7 @@ def draft_downloader():
                         draft_id: draftId, 
                         client_os: osSelect.value, 
                         draft_folder: baseInput.value || undefined 
-                    });
+                    }});
                     if (r && r.success && r.output) {
                         if (r.output.storage === 'oss' && r.output.draft_url) {
                             window.open(r.output.draft_url, '_blank');
@@ -2093,355 +1967,101 @@ def add_sticker():
         result["error"] = error_message
         return jsonify(result)
 
+# ===== 元数据获取API =====
+
 @app.route('/get_intro_animation_types', methods=['GET'])
 def get_intro_animation_types():
-    """Return supported entrance animation type list
-    
-    If IS_CAPCUT_ENV is True, return entrance animation types in CapCut environment
-    Otherwise return entrance animation types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
+    """获取支持的入场动画类型列表"""
     try:
         animation_types = []
         
         if IS_CAPCUT_ENV:
-            # Return entrance animation types in CapCut environment
-            for name, member in CapCut_Intro_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
+            # 返回CapCut环境下的入场动画类型
+            for name in CapCut_Intro_type.__members__:
+                animation_types.append({"name": name})
         else:
-            # Return entrance animation types in JianYing environment
-            for name, member in Intro_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
+            # 返回剪映环境下的入场动画类型
+            for name in Intro_type.__members__:
+                animation_types.append({"name": name})
         
-        result["output"] = animation_types
-        return jsonify(result)
+        return jsonify(create_standard_response(success=True, output=animation_types))
     
     except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting entrance animation types: {str(e)}"
-        return jsonify(result)
-        
+        return handle_api_error(f"获取入场动画类型时发生错误: {str(e)}", e)
+
 @app.route('/get_outro_animation_types', methods=['GET'])
 def get_outro_animation_types():
-    """Return supported exit animation type list
-    
-    If IS_CAPCUT_ENV is True, return exit animation types in CapCut environment
-    Otherwise return exit animation types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
+    """获取支持的出场动画类型列表"""
     try:
         animation_types = []
         
         if IS_CAPCUT_ENV:
-            # Return exit animation types in CapCut environment
-            for name, member in CapCut_Outro_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
+            # 返回CapCut环境下的出场动画类型
+            for name in CapCut_Outro_type.__members__:
+                animation_types.append({"name": name})
         else:
-            # Return exit animation types in JianYing environment
-            for name, member in Outro_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
+            # 返回剪映环境下的出场动画类型
+            for name in Outro_type.__members__:
+                animation_types.append({"name": name})
         
-        result["output"] = animation_types
-        return jsonify(result)
+        return jsonify(create_standard_response(success=True, output=animation_types))
     
     except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting exit animation types: {str(e)}"
-        return jsonify(result)
-
-
-@app.route('/get_combo_animation_types', methods=['GET'])
-def get_combo_animation_types():
-    """Return supported combo animation type list
-    
-    If IS_CAPCUT_ENV is True, return combo animation types in CapCut environment
-    Otherwise return combo animation types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
-    try:
-        animation_types = []
-        
-        if IS_CAPCUT_ENV:
-            # Return combo animation types in CapCut environment
-            for name, member in CapCut_Group_animation_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
-        else:
-            # Return combo animation types in JianYing environment
-            for name, member in Group_animation_type.__members__.items():
-                animation_types.append({
-                    "name": name
-                })
-        
-        result["output"] = animation_types
-        return jsonify(result)
-    
-    except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting combo animation types: {str(e)}"
-        return jsonify(result)
-
+        return handle_api_error(f"获取出场动画类型时发生错误: {str(e)}", e)
 
 @app.route('/get_transition_types', methods=['GET'])
 def get_transition_types():
-    """Return supported transition animation type list
-    
-    If IS_CAPCUT_ENV is True, return transition animation types in CapCut environment
-    Otherwise return transition animation types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
+    """获取支持的转场动画类型列表"""
     try:
         transition_types = []
         
         if IS_CAPCUT_ENV:
-            # Return transition animation types in CapCut environment
-            for name, member in CapCut_Transition_type.__members__.items():
-                transition_types.append({
-                    "name": name
-                })
+            # 返回CapCut环境下的转场动画类型
+            for name in CapCut_Transition_type.__members__:
+                transition_types.append({"name": name})
         else:
-            # Return transition animation types in JianYing environment
-            for name, member in Transition_type.__members__.items():
-                transition_types.append({
-                    "name": name
-                })
+            # 返回剪映环境下的转场动画类型
+            for name in Transition_type.__members__:
+                transition_types.append({"name": name})
         
-        result["output"] = transition_types
-        return jsonify(result)
+        return jsonify(create_standard_response(success=True, output=transition_types))
     
     except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting transition animation types: {str(e)}"
-        return jsonify(result)
+        return handle_api_error(f"获取转场动画类型时发生错误: {str(e)}", e)
 
 
 @app.route('/get_mask_types', methods=['GET'])
 def get_mask_types():
-    """Return supported mask type list
-    
-    If IS_CAPCUT_ENV is True, return mask types in CapCut environment
-    Otherwise return mask types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
+    """获取支持的遮罩类型列表"""
     try:
         mask_types = []
         
         if IS_CAPCUT_ENV:
-            # Return mask types in CapCut environment
-            for name, member in CapCut_Mask_type.__members__.items():
-                mask_types.append({
-                    "name": name
-                })
+            for name in CapCut_Mask_type.__members__:
+                mask_types.append({"name": name})
         else:
-            # Return mask types in JianYing environment
-            for name, member in Mask_type.__members__.items():
-                mask_types.append({
-                    "name": name
-                })
+            for name in Mask_type.__members__:
+                mask_types.append({"name": name})
         
-        result["output"] = mask_types
-        return jsonify(result)
+        return jsonify(create_standard_response(success=True, output=mask_types))
     
     except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting mask types: {str(e)}"
-        return jsonify(result)
-
-
-@app.route('/get_audio_effect_types', methods=['GET'])
-def get_audio_effect_types():
-    """Return supported audio effect type list
-    
-    If IS_CAPCUT_ENV is True, return audio effect types in CapCut environment
-    Otherwise return audio effect types in JianYing environment
-    
-    The returned structure includes name, type and Effect_param information
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
-    try:
-        audio_effect_types = []
-        
-        if IS_CAPCUT_ENV:
-            # Return audio effect types in CapCut environment
-            # 1. Voice filters effect types
-            for name, member in CapCut_Voice_filters_effect_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Voice_filters",
-                    "params": params_info
-                })
-            
-            # 2. Voice characters effect types
-            for name, member in CapCut_Voice_characters_effect_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Voice_characters",
-                    "params": params_info
-                })
-            
-            # 3. Speech to song effect types
-            for name, member in CapCut_Speech_to_song_effect_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Speech_to_song",
-                    "params": params_info
-                })
-        else:
-            # Return audio effect types in JianYing environment
-            # 1. Tone effect types
-            for name, member in Tone_effect_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Tone",
-                    "params": params_info
-                })
-            
-            # 2. Audio scene effect types
-            for name, member in Audio_scene_effect_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Audio_scene",
-                    "params": params_info
-                })
-            
-            # 3. Speech to song effect types
-            for name, member in Speech_to_song_type.__members__.items():
-                params_info = []
-                for param in member.value.params:
-                    params_info.append({
-                        "name": param.name,
-                        "default_value": param.default_value * 100,
-                        "min_value": param.min_value * 100,
-                        "max_value": param.max_value * 100
-                    })
-                
-                audio_effect_types.append({
-                    "name": name,
-                    "type": "Speech_to_song",
-                    "params": params_info
-                })
-        
-        result["output"] = audio_effect_types
-        return jsonify(result)
-    
-    except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting audio effect types: {str(e)}"
-        return jsonify(result)
-
+        return handle_api_error(f"获取遮罩类型时发生错误: {str(e)}", e)
 
 @app.route('/get_font_types', methods=['GET'])
 def get_font_types():
-    """Return supported font type list
-    
-    Return font types in JianYing environment
-    """
-    result = {
-        "success": True,
-        "output": "",
-        "error": ""
-    }
-    
+    """获取支持的字体类型列表"""
     try:
         font_types = []
         
-        # Return font types in JianYing environment
-        for name, member in Font_type.__members__.items():
-            font_types.append({
-                "name": name
-            })
+        # 返回剪映环境下的字体类型
+        for name in Font_type.__members__:
+            font_types.append({"name": name})
         
-        result["output"] = font_types
-        return jsonify(result)
+        return jsonify(create_standard_response(success=True, output=font_types))
     
     except Exception as e:
-        result["success"] = False
-        result["error"] = f"Error occurred while getting font types: {str(e)}"
-        return jsonify(result)
+        return handle_api_error(f"获取字体类型时发生错误: {str(e)}", e)
 
 
 @app.route('/get_text_intro_types', methods=['GET'])
@@ -2678,52 +2298,474 @@ def upload_to_oss_route():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-# 删除重复的第一个预览函数，保留增强版
-
-@app.route('/draft/preview/<draft_id>', methods=['GET'])
-def enhanced_draft_preview(draft_id: str):
-    """增强版草稿详细预览页面 - 全面优化版"""
+# 草稿管理相关路由
+@app.route('/api/drafts/dashboard', methods=['GET'])
+def drafts_dashboard():
+    """草稿管理仪表板页面"""
     try:
-        print(f"开始处理草稿预览请求: {draft_id}")
-        # 获取草稿的素材信息
-        materials = get_draft_materials(draft_id)
-        print(f"获取到素材数量: {len(materials)}")
-        
-        # 智能检查草稿存在性 - 支持本地文件和OSS状态
-        draft_exists = len(materials) > 0
-        file_size = 9500  # 默认值
-        import time
-        created_time = time.time()
-        draft_source = "oss"
-        
-        if not draft_exists:
-            return f"""
-<!DOCTYPE html>
-<html>
-<head><title>草稿不存在</title></head>
-<body style="font-family: Arial; text-align: center; padding: 50px;">
-    <h2>草稿 {draft_id} 不存在</h2>
-    <p>该草稿可能尚未生成完成，或者已被清理。</p>
-    <p><a href="javascript:history.back()">返回上一页</a></p>
-</body>
-</html>
-""", 404
-        
-        # 分析素材统计信息
-        video_count = len([m for m in materials if m.get('type') == 'video'])
-        audio_count = len([m for m in materials if m.get('type') == 'audio'])
-        text_count = len([m for m in materials if m.get('type') == 'text'])
-        image_count = len([m for m in materials if m.get('type') == 'image'])
-        total_duration = max([m.get('end', 0) for m in materials if m.get('end')], default=30)
-        
-        # 将素材数据转换为JavaScript可用的格式
-        materials_json = json.dumps(materials, ensure_ascii=False)
-        
-        # 预计算条件表达式的值
-        draft_status = "已生成" if draft_source == "local" else "云端已保存" if draft_source == "oss" else "已完成"
-        storage_type = "本地文件" if draft_source == "local" else "OSS云存储" if draft_source == "oss" else "未知"
+        from flask import render_template
+        return render_template('dashboard.html')
+    except Exception as e:
+        return f"""
+        <html>
+        <head>
+            <title>仪表板错误</title>
+            <style>body{{font-family:Arial;margin:40px;text-align:center;}}</style>
+        </head>
+        <body>
+            <h1>❌ 仪表板加载失败</h1>
+            <p>错误信息: {str(e)}</p>
+            <p><a href="/">返回首页</a></p>
+        </body>
+        </html>
+        """
 
-        html_content = """
+# 草稿预览路由
+@app.route('/api/drafts/preview/<draft_id>', methods=['GET'])
+def preview_draft(draft_id):
+    """
+    预览特定草稿，显示草稿信息和素材
+    """
+    try:
+        # 获取草稿信息
+        draft_info = get_draft_info(draft_id)
+        if not draft_info:
+            return f"<h1>草稿不存在</h1><p>草稿ID: {draft_id}</p>", 404
+        
+        # 获取草稿素材
+        materials = get_draft_materials(draft_id)
+        
+        # 生成时间轴HTML
+        timeline_html = generate_timeline_html(materials)
+        
+        # 渲染预览页面
+        return render_preview_page(draft_id, draft_info, materials, timeline_html)
+    except Exception as e:
+        return f"""
+        <html>
+        <head>
+            <title>错误</title>
+        </head>
+        <body>
+            <h1>加载草稿时出错</h1>
+            <p>错误信息: {str(e)}</p>
+            <a href="/api/drafts/dashboard">返回仪表板</a>
+        </body>
+        </html>
+        """
+        # 使用简单的字符串替换，避免格式化问题
+        # 生成SSR内容
+        def html_escape(text: str) -> str:
+                        return html.escape(text) if isinstance(text, str) else str(text)
+
+        # Details 首屏渲染：展示第一个素材
+        first = materials[0] if materials else {}
+        startTime = float(first.get('start_time') or first.get('start') or 0)
+        duration = float(first.get('duration') or ((first.get('end') or 0) - (first.get('start') or 0)) or 0)
+        endTime = startTime + duration
+        ssr_rows = [
+            ('Type:', first.get('type') or 'video'),
+            ('Source URL:', first.get('source_url') or first.get('url') or 'N/A'),
+            ('Start Time:', f"{startTime:.2f}s"),
+            ('End Time:', f"{endTime:.2f}s"),
+            ('Duration:', f"{duration:.2f}s"),
+            ('Track Name:', first.get('track_name') or 'N/A'),
+        ]
+        ssr_details_rows = ''.join([
+            f"<tr><td>{html_escape(k)}</td><td>" + (f"<a class='url-link' target='_blank' href='{html_escape(v)}'>{html_escape(v)}</a>" if k=='Source URL:' and v!='N/A' else html_escape(v)) + "</td></tr>"
+            for k, v in ssr_rows
+        ])
+
+        # Timeline 首屏渲染
+        lane_order = {'video':0, 'image':1, 'text':2, 'audio_voice':3, 'audio_bgm':4, 'audio':4}
+        def classify_audio(m):
+            tn = (m.get('track_name') or '')
+            if any(x in tn.lower() for x in ['voice', 'narrat']):
+                return 'audio_voice'
+            if any(x in tn.lower() for x in ['bgm', 'music']):
+                return 'audio_bgm'
+            return 'audio'
+        lane_height, gap = 28, 4
+        tl_width_pct = 100  # SSR 用百分比，前端接管后会重算像素
+        ssr_blocks = []
+        for idx, m in enumerate(materials):
+            mtype = m.get('type') or 'video'
+            if mtype == 'audio':
+                mtype = classify_audio(m)
+            s = float(m.get('start_time') or m.get('start') or 0)
+            d = float(m.get('duration') or ((m.get('end') or 0) - (m.get('start') or 0)) or 0)
+            left_pct = (s / max(total_duration, 1)) * tl_width_pct
+            width_pct = max((d / max(total_duration, 1)) * tl_width_pct, 3)
+            lane_idx = lane_order.get(mtype, 0)
+            top_px = lane_idx * (lane_height + gap)
+            name = m.get('name') or (m.get('source_url') or m.get('url') or '').split('/')[-1] or 'Material'
+            short = (name[:22] + '...') if len(name) > 25 else name
+            icon = '🎥' if m.get('type')=='video' else '🎵' if m.get('type')=='audio' else '📝' if m.get('type')=='text' else '🖼️' if m.get('type')=='image' else '📄'
+            ssr_blocks.append(
+                f"<div class='material-block {m.get('type','video')} lane-height' style='left:{left_pct}%;width:{width_pct}%;top:{top_px}px'><span class='material-icon'>{icon}</span><span style='font-size:11px'>{html_escape(short)}</span><span style='font-size:10px;opacity:.9;margin-left:6px'>{d:.1f}s</span></div>"
+            )
+        lanes_used = 0
+        for m in materials:
+            mt = m.get('type') or 'video'
+            if mt == 'audio':
+                mt = classify_audio(m)
+            lanes_used = max(lanes_used, lane_order.get(mt, 0))
+        ssr_timeline_blocks = ''.join(ssr_blocks)
+        ssr_timeline_height = (lanes_used + 1) * (lane_height + gap)
+        result = html_template.replace('{draft_id}', draft_id) \
+                              .replace('{materials_json}', materials_json) \
+                              .replace('{total_duration}', str(total_duration)) \
+                              .replace('{ssr_details_rows}', ssr_details_rows) \
+                                                             .replace('{ssr_timeline_blocks}', ssr_timeline_blocks) \
+                              .replace('{ssr_timeline_height}', str(ssr_timeline_height))
+        resp = Response(result)
+        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+        return resp
+        
+    except Exception as e:
+        return f"预览页面生成失败: {str(e)}", 500
+        
+@app.route('/debug/cache/<draft_id>', methods=['GET'])
+def debug_cache(draft_id: str):
+    """调试：查看草稿缓存内容"""
+    materials = get_draft_materials(draft_id)
+    return jsonify({
+        "success": True,
+        "draft_id": draft_id,
+        "materials_count": len(materials),
+        "materials": materials,
+        "cache_source": "test_materials.json" if draft_id in draft_materials_cache else "cache"
+    })
+
+@app.route('/api/drafts/list', methods=['GET'])
+def list_drafts():
+    """获取所有可用草稿列表 - 新增功能"""
+    try:
+        from datetime import datetime
+        
+        db_drafts = get_all_drafts()
+        
+        drafts_list = []
+        for draft in db_drafts:
+            drafts_list.append({
+                "draft_id": draft['id'],
+                "source": "database",
+                "materials_count": draft['materials_count'],
+                "status": draft['status'],
+                "last_modified": draft['modified_time']
+            })
+
+        return jsonify({
+            "success": True,
+            "drafts": drafts_list,
+            "total": len(drafts_list),
+            "error": ""
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "drafts": [],
+            "total": 0,
+            "error": f"获取草稿列表失败: {str(e)}"
+        })
+
+from database import update_draft_status
+
+@app.route('/api/draft/long_poll_status', methods=['GET'])
+def long_poll_draft_status():
+    draft_id = request.args.get('draft_id')
+    last_status = request.args.get('last_status')
+    timeout = int(request.args.get('timeout', 30))
+
+    if not draft_id:
+        return jsonify({"success": False, "error": "'draft_id' is required"}), 400
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("SELECT status, progress, message FROM drafts WHERE id = ?", (draft_id,))
+        result = c.fetchone()
+        conn.close()
+        
+        current_status = result[0] if result else None
+
+        if current_status and current_status != last_status:
+            return jsonify({
+                "success": True,
+                "draft_id": draft_id,
+                "status": current_status,
+                "progress": result[1],
+                "message": result[2]
+            })
+        
+        time.sleep(1) # 1秒轮询一次
+
+    return jsonify({"success": True, "status": "timeout", "message": "No status change"})
+
+# 操作系统检测API
+@app.route('/api/os/info', methods=['GET'])
+# 操作系统检测API
+@app.route('/api/os/info', methods=['GET'])
+def get_os_info():
+    """获取操作系统信息和默认路径配置"""
+    try:
+        os_config = get_os_path_config()
+        # 使用get_os_info()方法获取可序列化的字典数据
+        os_info = os_config.get_os_info()
+        return jsonify({
+            'success': True,
+            'data': os_info
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿路径配置API
+@app.route('/api/draft/path/config', methods=['POST'])
+def update_draft_path_config():
+    """更新草稿路径配置"""
+    try:
+        data = request.get_json()
+        custom_path = data.get('custom_path', '')
+        
+        # 这里可以添加路径验证逻辑
+        if custom_path and not os.path.exists(custom_path):
+            return jsonify({
+                'success': False,
+                'error': '指定的路径不存在'
+            }), 400
+            
+        return jsonify({
+            'success': True,
+            'message': '路径配置已更新',
+            'custom_path': custom_path
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿下载进度API
+@app.route('/api/draft/download/progress/<task_id>', methods=['GET'])
+def get_download_progress(task_id):
+    """获取草稿下载进度"""
+    try:
+        # 这里应该从实际的下载任务管理器中获取进度
+        # 目前返回模拟数据
+        progress_data = {
+            'task_id': task_id,
+            'progress': 75,  # 0-100
+            'status': 'downloading',  # downloading, completed, failed
+            'message': '正在下载草稿文件...',
+            'downloaded_size': '15.2MB',
+            'total_size': '20.3MB'
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': progress_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 新增草稿下载API端点
+@app.route('/api/draft/download', methods=['POST'])
+def draft_download_api():
+    """草稿下载API - 处理下载请求"""
+    try:
+        data = request.get_json()
+        draft_id = data.get('draft_id')
+        draft_folder = data.get('draft_folder', '')
+        client_os = data.get('client_os', 'unknown')
+        
+        if not draft_id:
+            return jsonify({
+                'success': False,
+                'error': '缺少草稿ID'
+            }), 400
+        
+        # 检查草稿是否存在
+        materials = get_draft_materials(draft_id)
+        
+        # 生成下载链接或开始下载流程
+        try:
+            # 尝试生成草稿URL
+            import requests
+            response = requests.post(f"http://localhost:{PORT}/generate_draft_url", json={
+                "draft_id": draft_id,
+                "client_os": client_os,
+                "draft_folder": draft_folder
+            })
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('success'):
+                    return jsonify({
+                        'success': True,
+                        'message': '下载链接生成成功',
+                        'download_url': result.get('download_url'),
+                        'draft_folder': draft_folder
+                    })
+                    
+        except Exception as url_error:
+            print(f"生成下载链接失败: {url_error}")
+        
+        # 如果URL生成失败，返回配置信息
+        return jsonify({
+            'success': True,
+            'message': f'请在剪映中手动导入草稿ID: {draft_id}',
+            'draft_id': draft_id,
+            'materials_count': len(materials),
+            'instructions': f'在剪映草稿目录中查找: {draft_id}'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿预览辅助函数
+def get_draft_info(draft_id):
+    """获取草稿基本信息"""
+    try:
+        from database import get_draft_by_id
+        draft_info = get_draft_by_id(draft_id)
+        if draft_info:
+            return draft_info
+        
+        # 如果数据库中没有，返回默认信息
+        return {
+            'id': draft_id,
+            'name': f'草稿_{draft_id}',
+            'status': 'unknown',
+            'create_time': '未知',
+            'update_time': '未知'
+        }
+    except Exception as e:
+        print(f"获取草稿信息失败: {e}")
+        return {
+            'id': draft_id,
+            'name': f'草稿_{draft_id}',
+            'status': 'error',
+            'create_time': '未知',
+            'update_time': '未知'
+        }
+
+# 草稿预览页面 - 完全按照官方文档风格设计
+@app.route('/draft/preview/<draft_id>', methods=['GET'])
+def enhanced_draft_preview(draft_id):
+    """草稿预览页面 - 符合官方文档设计风格"""
+    try:
+        # 获取草稿素材
+        materials = get_draft_materials(draft_id)
+        if not materials:
+            materials = []
+        
+        # 获取草稿基础信息
+        draft_info = get_draft_info(draft_id)
+        
+        # 计算总时长，处理非数字值
+        total_duration = 0
+        for m in materials:
+            duration = m.get('duration', 0)
+            if isinstance(duration, (int, float)):
+                total_duration += duration
+            elif isinstance(duration, str) and duration.replace('.', '').isdigit():
+                total_duration += float(duration)
+            # 忽略非数字值如 '未知'
+        
+        # 生成官方风格的HTML预览页面
+        return render_template_with_official_style(draft_id, materials, total_duration)
+        
+    except Exception as e:
+        return f"""
+        <html>
+        <head>
+            <title>预览错误</title>
+            <style>body{{font-family:Arial;margin:40px;text-align:center;background:#1a1a1a;color:#fff;}}</style>
+        </head>
+        <body>
+            <h1>❌ 预览加载失败</h1>
+            <p>草稿ID: {draft_id}</p>
+            <p>错误信息: {str(e)}</p>
+            <p><a href="javascript:history.back()" style="color:#4a9eff;">返回上一页</a></p>
+        </body>
+        </html>
+        """
+        
+        # 生成素材详情表格
+        material_rows = ""
+        for i, material in enumerate(materials):
+            material_type = material.get("type", "unknown")
+            video_url = material.get("url", "-")
+            start_time = material.get("start", 0)
+            if isinstance(start_time, str) and start_time.replace('.', '').replace('-', '').isdigit():
+                start_time = float(start_time)
+            elif not isinstance(start_time, (int, float)):
+                start_time = 0
+            
+            material_duration = material.get("duration", 30)
+            if isinstance(material_duration, str) and material_duration.replace('.', '').isdigit():
+                material_duration = float(material_duration)
+            elif not isinstance(material_duration, (int, float)):
+                material_duration = 30
+            
+            end_time = material.get("end", start_time + material_duration)
+            if isinstance(end_time, str) and end_time.replace('.', '').replace('-', '').isdigit():
+                end_time = float(end_time)
+            elif not isinstance(end_time, (int, float)):
+                end_time = start_time + material_duration
+            
+            duration = end_time - start_time
+            
+            # 为每个素材添加下载按钮
+            download_btn = f'<a href="{video_url}" target="_blank" class="download-btn">下载</a>' if video_url != "-" else "无下载链接"
+            
+            material_rows += f"""
+                <tr>
+                    <td>{i+1}</td>
+                    <td>{material_type.upper()}</td>
+                    <td title="{video_url}">{video_url[:40]}{'...' if len(video_url) > 40 else ''}</td>
+                    <td>{start_time:.2f}s</td>
+                    <td>{end_time:.2f}s</td>
+                    <td>{duration:.2f}s</td>
+                    <td>{download_btn}</td>
+                </tr>
+            """
+        
+        # 生成轨道信息
+        tracks_info = ""
+        if materials:
+            tracks = {}
+            for material in materials:
+                track_name = material.get('track_name', '默认轨道')
+                if track_name not in tracks:
+                    tracks[track_name] = {'count': 0, 'type': material.get('type', 'unknown')}
+                tracks[track_name]['count'] += 1
+            
+            for track_name, info in tracks.items():
+                tracks_info += f"""
+                    <tr>
+                        <td>{track_name}</td>
+                        <td>{info['type'].upper()}</td>
+                        <td>{info['count']}</td>
+                    </tr>
+                """
+        
+        # 生成完整的HTML预览页面
+        html_content = f"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2731,1268 +2773,347 @@ def enhanced_draft_preview(draft_id: str):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>草稿预览 - {draft_id}</title>
     <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            overflow-x: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
         }}
-        
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.3);
-        }}
-        
-        .header h1 {{
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-            text-align: center;
-            flex: 1;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }}
-        
-        .back-btn {{
-            background: rgba(255,255,255,0.2);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }}
-        
-        .back-btn:hover {{
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-1px);
-        }}
-        
-        .main-container {{
-            display: grid !important;
-            grid-template-columns: 1fr 400px !important;
-            min-height: calc(100vh - 80px);
-            gap: 0;
-            max-width: 100%;
-            box-sizing: border-box;
-        }}
-        
-        .preview-section {{
-            background: #111;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #333;
-        }}
-        
-        .content-preview {{
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            padding: 30px;
-            position: relative;
-            min-height: 60vh;
-        }}
-        
-        .preview-container {{
-            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
-            border-radius: 16px;
-            padding: 40px;
-            margin-bottom: 30px;
-            text-align: center;
-            min-height: 400px;
-            width: 100%;
-            max-width: 700px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            border: 2px solid #333;
-            position: relative;
-            transition: all 0.4s ease;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }}
-        
-        .preview-container.active {{
-            border-color: #667eea;
-            box-shadow: 0 0 40px rgba(102, 126, 234, 0.4);
-            transform: translateY(-5px);
-        }}
-        
-        .preview-icon {{
-            font-size: 80px;
-            margin-bottom: 25px;
-            opacity: 0.8;
-            transition: all 0.4s ease;
-        }}
-        
-        .preview-content {{
-            display: none;
-            width: 100%;
-            animation: fadeIn 0.5s ease;
-        }}
-        
-        .preview-content.active {{
-            display: block;
-        }}
-        
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-        
-        .video-preview {{
-            background: linear-gradient(45deg, #000 25%, #111 25%, #111 50%, #000 50%);
-            background-size: 20px 20px;
-            border-radius: 12px;
-            aspect-ratio: 16/9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 60px;
-            margin-bottom: 25px;
-            border: 2px solid #333;
-            position: relative;
-            overflow: hidden;
-        }}
-        
-        .video-preview::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            animation: shimmer 2s infinite;
-        }}
-        
-        @keyframes shimmer {{
-            0% {{ left: -100%; }}
-            100% {{ left: 100%; }}
-        }}
-        
-        .audio-preview {{
-            width: 100%;
-        }}
-        
-        .waveform {{
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(102, 126, 234, 0.3) 20%, 
-                rgba(102, 126, 234, 0.8) 50%, 
-                rgba(102, 126, 234, 0.3) 80%, 
-                transparent 100%);
-            height: 100px;
-            border-radius: 12px;
-            margin: 25px 0;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #667eea;
-            font-weight: 700;
-            font-size: 18px;
-            overflow: hidden;
-        }}
-        
-        .waveform::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent 0px,
-                transparent 8px,
-                rgba(255,255,255,0.1) 8px,
-                rgba(255,255,255,0.1) 12px
-            );
-            animation: waveAnimation 1.5s ease-in-out infinite;
-        }}
-        
-        @keyframes waveAnimation {{
-            0%, 100% {{ transform: scaleY(1); }}
-            50% {{ transform: scaleY(1.2); }}
-        }}
-        
-        .text-preview {{
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 12px;
-            padding: 30px;
-            font-size: 28px;
-            font-weight: 700;
-            color: #fff;
-            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
-            border: 2px solid #667eea;
-            position: relative;
-            overflow: hidden;
-        }}
-        
-        .text-preview::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: textGlow 3s ease-in-out infinite;
-        }}
-        
-        @keyframes textGlow {{
-            0%, 100% {{ transform: scale(1) rotate(0deg); }}
-            50% {{ transform: scale(1.1) rotate(180deg); }}
-        }}
-        
-        .play-controls {{
-            width: 100%;
-            max-width: 700px;
-            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
-            border: 1px solid #333;
-        }}
-        
-        .play-button {{
-            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            padding: 30px;
+            text-align: center;
         }}
-        
-        .play-button:hover {{
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        .header h1 {{
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
         }}
-        
-        .progress-container {{
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .warning {{
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px;
+            color: #856404;
+            text-align: center;
+            font-weight: 500;
         }}
-        
-        .progress-bar {{
-            flex: 1;
-            height: 6px;
-            background: #333;
-            border-radius: 3px;
-            position: relative;
-            cursor: pointer;
-            overflow: hidden;
+        .content {{
+            padding: 30px;
         }}
-        
-        .progress-bar::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.3), transparent);
-            animation: progressShimmer 2s infinite;
+        .section {{
+            margin-bottom: 40px;
         }}
-        
-        @keyframes progressShimmer {{
-            0% {{ transform: translateX(-100%); }}
-            100% {{ transform: translateX(100%); }}
-        }}
-        
-        .progress-fill {{
-            height: 100%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 3px;
-            width: 0%;
-            transition: width 0.2s ease;
-            position: relative;
-            z-index: 1;
-        }}
-        
-        .time-display {{
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 14px;
-            color: #ccc;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            min-width: 100px;
-            font-weight: 600;
-        }}
-        
-        .timeline {{
-            background: #1a1a1a;
-            border-top: 1px solid #333;
-            padding: 25px;
-            min-height: 200px;
-        }}
-        
-        .timeline-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .section h2 {{
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
             margin-bottom: 20px;
         }}
-        
-        .timeline-title {{
-            font-size: 18px;
-            color: #fff;
-            font-weight: 600;
-        }}
-        
-        .timeline-duration {{
-            font-size: 14px;
-            color: #888;
-            font-weight: 500;
-        }}
-        
-        .tracks-container {{
-            position: relative;
-        }}
-        
-        .time-ruler {{
+        .stats {{
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            padding: 0 15px;
-            font-size: 12px;
-            color: #666;
-            font-weight: 500;
-        }}
-        
-        .track {{
-            background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+            justify-content: space-around;
+            background: #f8f9fa;
+            padding: 20px;
             border-radius: 8px;
-            margin-bottom: 12px;
-            padding: 10px;
-            position: relative;
-            border: 1px solid #333;
-            transition: all 0.3s ease;
+            margin-bottom: 30px;
         }}
-        
-        .track:hover {{
-            border-color: #667eea;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
-            transform: translateY(-2px);
-        }}
-        
-        .track-label {{
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: #aaa;
-            z-index: 2;
-            pointer-events: none;
-            font-weight: 500;
-        }}
-        
-        .track-content {{
-            height: 50px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-            font-weight: 700;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }}
-        
-        .track-content:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-        }}
-        
-        .track-video {{
-            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
-        }}
-        
-        .track-audio {{
-            background: linear-gradient(135deg, #667eea, #764ba2);
-        }}
-        
-        .track-text {{
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-        }}
-        
-        .track-music {{
-            background: linear-gradient(135deg, #4caf50, #388e3c);
-        }}
-        
-        .track-content::after {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent 0px,
-                transparent 15px,
-                rgba(255, 255, 255, 0.1) 15px,
-                rgba(255, 255, 255, 0.1) 17px
-            );
-            border-radius: 6px;
-        }}
-        
-        .details-panel {{
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-        }}
-        
-        .panel-header {{
-            background: linear-gradient(135deg, #2d2d2d, #1a1a1a);
-            padding: 20px;
-            border-bottom: 1px solid #333;
+        .stat-item {{
             text-align: center;
-            font-size: 18px;
-            font-weight: 700;
-            color: #fff;
         }}
-        
-        .panel-content {{
-            flex: 1;
-            overflow-y: auto;
-        }}
-        
-        .details-section {{
-            padding: 20px;
-            border-bottom: 1px solid #333;
-        }}
-        
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
-        }}
-        
-        .stat-card {{
-            background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-            border: 1px solid #333;
-            transition: all 0.3s ease;
-        }}
-        
-        .stat-card:hover {{
-            border-color: #667eea;
-            transform: translateY(-2px);
-        }}
-        
         .stat-number {{
             font-size: 28px;
-            font-weight: 700;
+            font-weight: bold;
             color: #667eea;
-            margin-bottom: 5px;
+            display: block;
         }}
-        
         .stat-label {{
-            font-size: 12px;
-            color: #888;
-            font-weight: 500;
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
         }}
-        
-        .details-table {{
+        table {{
             width: 100%;
             border-collapse: collapse;
-        }}
-        
-        .details-table tr {{
-            border-bottom: 1px solid #333;
-        }}
-        
-        .details-table td {{
-            padding: 12px 0;
-            font-size: 14px;
-        }}
-        
-        .details-table td:first-child {{
-            color: #aaa;
-            width: 35%;
-            font-weight: 500;
-        }}
-        
-        .details-table td:last-child {{
-            color: #fff;
-            font-weight: 600;
-        }}
-        
-        .download-section {{
-            padding: 20px;
-            background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
-            border-top: 1px solid #333;
-        }}
-        
-        .download-info {{
-            background: rgba(102, 126, 234, 0.1);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }}
-        
-        .download-icon {{
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 32px;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }}
-        
-        .download-path {{
-            background: #0d0d0d;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 12px;
-            color: #ccc;
-            margin-bottom: 20px;
-            word-break: break-all;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        }}
-        
-        .action-buttons {{
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-top: 20px;
-        }}
-        
-        .btn {{
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 15px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }}
-        
-        .btn:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-        }}
-        
-        .btn-secondary {{
-            background: linear-gradient(135deg, #6c757d, #495057);
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
-        }}
-        
-        .btn-secondary:hover {{
-            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.5);
-        }}
-        
-        .selected-asset {{
-            background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            border: 1px solid #333;
-        }}
-        
-        .selected-asset h3 {{
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 16px;
-            font-weight: 700;
-        }}
-        
-        .asset-info {{
-            font-size: 13px;
-            color: #ccc;
-            line-height: 1.6;
-        }}
-        
-        .control-group {{
-            margin-bottom: 20px;
-        }}
-        
-        .control-group label {{
-            display: block;
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }}
-        
-        select, input[type="text"] {{
-            width: 100%;
-            padding: 12px;
-            background: #0d0d0d;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }}
-        
-        select:focus, input[type="text"]:focus {{
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }}
-        
-        .status-indicator {{
-            font-size: 12px;
-            color: #888;
             margin-top: 15px;
-            text-align: center;
-            padding: 10px;
-            background: #0d0d0d;
-            border-radius: 6px;
-            border: 1px solid #333;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+        th, td {{
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }}
+        th {{
+            background: #667eea;
+            color: white;
             font-weight: 500;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
         }}
-        
-        @media (max-width: 1200px) {{
-            .main-container {{
-                grid-template-columns: 1fr 350px;
-            }}
+        tr:hover {{
+            background: #f8f9fa;
         }}
-        
-        @media (max-width: 768px) {{
-            .main-container {{
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
-            }}
-            
-            .details-panel {{
-                border-left: none;
-                border-top: 1px solid #333;
-                max-height: 50vh;
-            }}
-            
-            .content-preview {{
-                padding: 20px;
-            }}
-            
-            .preview-container {{
-                padding: 25px;
-            }}
+        .download-btn {{
+            background: #28a745;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 12px;
+            transition: background 0.3s;
+        }}
+        .download-btn:hover {{
+            background: #218838;
+        }}
+        .no-data {{
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }}
+        .footer {{
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #eee;
         }}
     </style>
 </head>
 <body>
-    <div class="header">
-        <a href="javascript:history.back()" class="back-btn">← 返回</a>
-        <h1>🎬 草稿预览 - {draft_id}</h1>
-        <div style="width: 80px;"></div>
-    </div>
-    
-    <div class="main-container">
-        <div class="preview-section">
-            <div class="content-preview">
-                <div class="preview-container" id="preview-container">
-                    <div class="preview-icon" id="preview-icon">🎬</div>
-                    <h3 id="preview-title">点击下方轨道上的素材查看详细信息</h3>
-                    <p style="color: #888; margin-top: 15px;" id="preview-subtitle">选择素材来预览内容</p>
-                    
-                    <!-- 视频预览 -->
-                    <div class="preview-content" id="video-preview">
-                        <div class="video-preview">🎥</div>
-                        <h3>视频素材预览</h3>
-                        <p style="color: #888;">主视频轨道内容</p>
-                    </div>
-                    
-                    <!-- 音频预览 -->
-                    <div class="preview-content" id="audio-preview">
-                        <div class="audio-preview">
-                            <div class="waveform">🎵 音频波形</div>
-                        </div>
-                        <h3>音频素材预览</h3>
-                        <p style="color: #888;">语音合成音频</p>
-                    </div>
-                    
-                    <!-- 文本预览 -->
-                    <div class="preview-content" id="text-preview">
-                        <div class="text-preview" id="text-content">示例文本内容</div>
-                        <h3>文本素材预览</h3>
-                        <p style="color: #888;">文本轨道内容展示</p>
-                    </div>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 草稿预览</h1>
+            <p>草稿ID: {draft_id}</p>
+        </div>
+        
+        <div class="warning">
+            ⚠️ 重要提示：草稿在后台仅保留10分钟，长时间不操作就会释放
+        </div>
+        
+        <div class="content">
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-number">{len(materials)}</span>
+                    <div class="stat-label">素材数量</div>
                 </div>
-                
-                <div class="play-controls">
-                    <button class="play-button" id="play-btn" onclick="togglePlay()">
-                        ▶️
-                    </button>
-                    <div class="progress-container">
-                        <div class="progress-bar" onclick="seekTo(event)">
-                            <div class="progress-fill" id="progress-fill"></div>
-                        </div>
-                        <div class="time-display">
-                            <span id="current-time">0:00</span>
-                            <span style="color: #666;">/</span>
-                            <span id="total-time">{total_duration}s</span>
-                        </div>
-                    </div>
+                <div class="stat-item">
+                    <span class="stat-number">{total_duration:.1f}s</span>
+                    <div class="stat-label">总时长</div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">{draft_info.get('status', 'unknown')}</span>
+                    <div class="stat-label">草稿状态</div>
                 </div>
             </div>
             
-            <div class="timeline">
-                <div class="timeline-header">
-                    <div class="timeline-title">🎞️ 时间轴</div>
-                    <div class="timeline-duration">总时长: {total_duration}s</div>
-                </div>
-                
-                <div class="tracks-container">
-                    <div class="time-ruler">
-                        <span>0:00</span>
-                        <span>0:05</span>
-                        <span>0:10</span>
-                        <span>0:15</span>
-                        <span>0:20</span>
-                        <span>0:25</span>
-                        <span>{total_duration}s</span>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">主视频轨道</div>
-                        <div class="track-content track-video" onclick="selectAsset('video', '主视频轨道', '视频素材内容', event)" data-type="video">
-                            🎥 主视频
-                        </div>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">语音旁白</div>
-                        <div class="track-content track-audio" onclick="selectAsset('audio', '语音旁白', '语音合成音频', event)" data-type="audio" style="width: 93%;">
-                            🎤 语音旁白
-                        </div>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">标题文本</div>
-                        <div class="track-content track-text" onclick="selectAsset('text', '标题文本', 'AI生成的标题内容', event)" data-type="text" style="width: 17%;">
-                            📝 AI文本
-                        </div>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">背景音乐</div>
-                        <div class="track-content track-music" onclick="selectAsset('music', '背景音乐', '背景音乐轨道', event)" data-type="music">
-                            ♪ 背景音乐
-                        </div>
-                    </div>
+            <div class="section">
+                <h2>📋 素材详情与下载选项</h2>
+                {f'''
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>类型</th>
+                            <th>素材URL</th>
+                            <th>开始时间</th>
+                            <th>结束时间</th>
+                            <th>时长</th>
+                            <th>下载</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {material_rows}
+                    </tbody>
+                </table>
+                ''' if materials else '<div class="no-data">暂无素材数据</div>'}
+            </div>
+            
+            <div class="section">
+                <h2>🎵 轨道信息</h2>
+                {f'''
+                <table>
+                    <thead>
+                        <tr>
+                            <th>轨道名称</th>
+                            <th>轨道类型</th>
+                            <th>素材数量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tracks_info}
+                    </tbody>
+                </table>
+                ''' if tracks_info else '<div class="no-data">暂无轨道信息</div>'}
+            </div>
+            
+            <div class="section">
+                <h2>💾 草稿下载</h2>
+                <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; text-align: center;">
+                    <p>请在剪映中输入草稿目录路径来下载此草稿</p>
+                    <p><strong>草稿ID:</strong> <code>{draft_id}</code></p>
+                    <p><em>注意：请在10分钟内完成下载，超时后草稿将被自动释放</em></p>
                 </div>
             </div>
         </div>
         
-        <div class="details-panel">
-            <div class="panel-header">📊 草稿详情</div>
-            <div class="panel-content">
-                <div class="details-section">
-                    <!-- 统计信息卡片 -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-number">{video_count}</div>
-                            <div class="stat-label">视频素材</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{audio_count}</div>
-                            <div class="stat-label">音频素材</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{text_count}</div>
-                            <div class="stat-label">文本素材</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">{image_count}</div>
-                            <div class="stat-label">图片素材</div>
-                        </div>
-                    </div>
-                    
-                    <div class="selected-asset" id="selected-asset" style="display: none;">
-                        <h3>已选择素材</h3>
-                        <div class="asset-info" id="asset-info">
-                            暂无选择
-                        </div>
-                    </div>
-                    
-                    <table class="details-table">
-                        <tr>
-                            <td>草稿ID:</td>
-                            <td>{draft_id}</td>
-                        </tr>
-                        <tr>
-                            <td>画面尺寸:</td>
-                            <td>1080 × 1920</td>
-                        </tr>
-                        <tr>
-                            <td>总时长:</td>
-                            <td>{total_duration}s</td>
-                        </tr>
-                        <tr>
-                            <td>轨道数量:</td>
-                            <td>4</td>
-                        </tr>
-                        <tr>
-                            <td>文件大小:</td>
-                            <td>{round(file_size/1024, 1)} KB</td>
-                        </tr>
-                        <tr>
-                            <td>状态:</td>
-                            <td>{draft_status}</td>
-                        </tr>
-                        <tr>
-                            <td>存储位置:</td>
-                            <td>{storage_type}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="download-section">
-                <div class="download-info">
-                    <div class="download-icon">📁</div>
-                    <p><strong>草稿已准备就绪</strong></p>
-                    <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">点击下载获取完整草稿文件</p>
-                </div>
-                
-                <!-- 系统选择 -->
-                <div class="control-group">
-                    <label>目标系统:</label>
-                    <select id="osSelect">
-                        <option value="windows">Windows</option>
-                        <option value="linux">Linux</option>
-                        <option value="macos">macOS</option>
-                    </select>
-                </div>
-                
-                <!-- 自定义路径 -->
-                <div class="control-group">
-                    <label>自定义根路径 (可选):</label>
-                    <input id="baseInput" type="text" placeholder="如: F:/MyDrafts" />
-                </div>
-                
-                <!-- 本地路径显示 -->
-                <div class="download-path" id="localPath">
-                    获取本地路径中...
-                </div>
-                
-                <!-- 操作按钮 -->
-                <div class="action-buttons">
-                    <button id="saveUploadBtn" class="btn">
-                        ☁️ 智能下载
-                    </button>
-                    <button class="btn btn-secondary" onclick="copyLocalPath()">
-                        📋 复制本地路径
-                    </button>
-                </div>
-                
-                <!-- 状态显示 -->
-                <div id="downloadStatus" class="status-indicator">
-                    准备就绪
-                </div>
-            </div>
+        <div class="footer">
+            <p>CapCutAPI - 草稿预览系统 | 更新时间: {draft_info.get('update_time', '未知')}</p>
         </div>
     </div>
-
-    <script>
-        let currentAsset = null;
-        let isPlaying = false;
-        
-        // 素材数据
-        const materials = {materials_json};
-        
-        // 根据轨道类型映射到实际素材数据
-        function getMaterialByType(trackType) {
-            console.log('查找素材类型:', trackType, '可用素材:', materials);
-            
-            for (let material of materials) {
-                if (trackType === 'video' && material.type === 'video') {
-                    return material;
-                }
-                if (trackType === 'audio' && material.type === 'audio') {
-                    if (!material.track_name || (!material.track_name.includes('bgm') && !material.track_name.includes('music'))) {
-                        return material;
-                    }
-                }
-                if (trackType === 'text' && material.type === 'text') {
-                    return material;
-                }
-                if (trackType === 'music' && material.type === 'audio' && material.track_name && 
-                    (material.track_name.includes('bgm') || material.track_name.includes('music'))) {
-                    return material;
-                }
-            }
-            
-            return materials.length > 0 ? materials[0] : null;
-        }
-        
-        function selectAsset(type, name, description, event) {
-            console.log('selectAsset被调用，参数:', {type, name, description});
-            
-            // 移除之前的选择状态
-            document.querySelectorAll('.track-content').forEach(el => {
-                el.style.boxShadow = '';
-                el.style.transform = '';
-            });
-            
-            // 查找对应的素材数据
-            const material = getMaterialByType(type);
-            
-            // 添加选择状态到被点击的元素
-            const targetElement = event ? event.target : document.querySelector('[data-type="' + type + '"]');
-            if (targetElement) {
-                targetElement.style.boxShadow = '0 0 20px rgba(102, 126, 234, 0.8)';
-                targetElement.style.transform = 'translateY(-3px)';
-            }
-            
-            // 更新预览区域
-            const previewContainer = document.getElementById('preview-container');
-            const previewIcon = document.getElementById('preview-icon');
-            const previewTitle = document.getElementById('preview-title');
-            const previewSubtitle = document.getElementById('preview-subtitle');
-            
-            // 隐藏所有预览内容
-            document.querySelectorAll('.preview-content').forEach(el => {
-                el.classList.remove('active');
-            });
-            
-            // 激活预览容器
-            previewContainer.classList.add('active');
-            
-            // 根据素材类型显示对应预览
-            switch(type) {
-                case 'video':
-                    previewIcon.textContent = '🎥';
-                    previewTitle.textContent = '视频素材预览';
-                    previewSubtitle.textContent = '主视频轨道内容';
-                    document.getElementById('video-preview').classList.add('active');
-                    break;
-                case 'audio':
-                case 'music':
-                    previewIcon.textContent = '🎵';
-                    previewTitle.textContent = '音频素材预览';
-                    previewSubtitle.textContent = type === 'music' ? '背景音乐轨道' : '语音旁白轨道';
-                    document.getElementById('audio-preview').classList.add('active');
-                    break;
-                case 'text':
-                    previewIcon.textContent = '📝';
-                    previewTitle.textContent = '文本素材预览';
-                    previewSubtitle.textContent = '标题文本内容';
-                    document.getElementById('text-content').textContent = name;
-                    document.getElementById('text-preview').classList.add('active');
-                    break;
-            }
-            
-            // 更新选择的素材信息
-            const selectedAsset = document.getElementById('selected-asset');
-            const assetInfo = document.getElementById('asset-info');
-            selectedAsset.style.display = 'block';
-            assetInfo.innerHTML = `
-                <strong>类型:</strong> ${type}<br>
-                <strong>名称:</strong> ${name}<br>
-                <strong>描述:</strong> ${description}<br>
-            `;
-            
-            currentAsset = { type, name, description };
-        }
-        
-        function togglePlay() {
-            const playBtn = document.getElementById('play-btn');
-            isPlaying = !isPlaying;
-            
-            if (isPlaying) {
-                playBtn.textContent = '⏸️';
-                simulatePlayback();
-            } else {
-                playBtn.textContent = '▶️';
-            }
-        }
-        
-        function simulatePlayback() {
-            if (!isPlaying) return;
-            
-            const currentTimeEl = document.getElementById('current-time');
-            const progressFill = document.getElementById('progress-fill');
-            let seconds = 0;
-            const totalDuration = {total_duration};
-            
-            const interval = setInterval(() => {
-                if (!isPlaying) {
-                    clearInterval(interval);
-                    return;
-                }
-                
-                seconds++;
-                const mins = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                currentTimeEl.textContent = mins + ':' + secs.toString().padStart(2, '0');
-                
-                const progress = (seconds / totalDuration) * 100;
-                progressFill.style.width = progress + '%';
-                
-                if (seconds >= totalDuration) {
-                    clearInterval(interval);
-                    togglePlay();
-                    currentTimeEl.textContent = '0:00';
-                    progressFill.style.width = '0%';
-                }
-            }, 1000);
-        }
-        
-        function seekTo(event) {
-            const progressBar = event.currentTarget;
-            const rect = progressBar.getBoundingClientRect();
-            const clickX = event.clientX - rect.left;
-            const width = rect.width;
-            const percentage = clickX / width;
-            
-            const totalDuration = {total_duration};
-            const targetTime = Math.floor(percentage * totalDuration);
-            
-            const mins = Math.floor(targetTime / 60);
-            const secs = targetTime % 60;
-            document.getElementById('current-time').textContent = mins + ':' + secs.toString().padStart(2, '0');
-            
-            const progressFill = document.getElementById('progress-fill');
-            progressFill.style.width = (percentage * 100) + '%';
-            
-            if (isPlaying) {
-                isPlaying = false;
-                togglePlay();
-                setTimeout(() => togglePlay(), 100);
-            }
-        }
-        
-        function copyLocalPath() {
-            const localPath = document.getElementById('localPath').textContent;
-            navigator.clipboard.writeText(localPath).then(() => {
-                const statusEl = document.getElementById('downloadStatus');
-                statusEl.textContent = '✅ 本地路径已复制到剪贴板';
-                setTimeout(() => {
-                    statusEl.textContent = '准备就绪';
-                }, 3000);
-            }).catch(() => {
-                alert('复制失败，请手动复制：' + localPath);
-            });
-        }
-        
-        // 下载相关函数
-        function updateLocalPath() {
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const localPathEl = document.getElementById('localPath');
-            
-            const draftId = '{draft_id}';
-            const clientOs = osSelect.value;
-            const customBase = baseInput.value;
-            
-            let localPath = '';
-            if (clientOs === 'windows') {
-                const base = customBase || 'F:\\\\jianyin\\\\cgwz\\\\JianyingPro Drafts';
-                localPath = base + '\\\\' + draftId;
-            } else if (clientOs === 'macos') {
-                const base = customBase || '/Users/username/Documents/JianyingPro Drafts';
-                localPath = base + '/' + draftId;
-            } else {
-                const base = customBase || '/data/drafts';
-                localPath = base + '/' + draftId;
-            }
-            
-            localPathEl.textContent = localPath;
-        }
-        
-        async function postJSON(url, body) {
-            const res = await fetch(url, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify(body) 
-            });
-            return await res.json();
-        }
-        
-        async function pollDownloadStatus(taskId) {
-            const statusEl = document.getElementById('downloadStatus');
-            while (true) {
-                const status = await postJSON('/query_draft_status', { task_id: taskId });
-                if (status && status.status) {
-                    statusEl.textContent = `⏳ 任务状态: ${status.status}，进度: ${status.progress||0}%`;
-                    
-                    if (status.status === 'completed') break;
-                    if (status.status === 'failed') {
-                        throw new Error(status.message || '任务失败');
-                    }
-                }
-                await new Promise(r => setTimeout(r, 2000));
-            }
-        }
-        
-        async function finalizeDownloadRedirect() {
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const draftId = '{draft_id}';
-            
-            const result = await postJSON('/generate_draft_url', { 
-                draft_id: draftId, 
-                client_os: osSelect.value, 
-                draft_folder: baseInput.value || undefined 
-            });
-            
-            if (result && result.success && result.output && result.output.draft_url) {
-                document.getElementById('downloadStatus').textContent = '🎉 下载链接获取成功！';
-                window.open(result.output.draft_url, '_blank');
-            } else {
-                throw new Error('未获取到下载链接');
-            }
-        }
-        
-        // 页面加载完成后的初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('草稿预览页面已加载');
-            
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const saveUploadBtn = document.getElementById('saveUploadBtn');
-            
-            updateLocalPath();
-            
-            osSelect.addEventListener('change', updateLocalPath);
-            baseInput.addEventListener('input', updateLocalPath);
-            
-            // 保存上传按钮事件
-            saveUploadBtn.addEventListener('click', async function() {
-                const statusEl = document.getElementById('downloadStatus');
-                const draftId = '{draft_id}';
-                
-                saveUploadBtn.disabled = true;
-                statusEl.textContent = '🔍 正在检测云端文件...';
-                
-                try {
-                    const checkResult = await postJSON('/generate_draft_url', { 
-                        draft_id: draftId, 
-                        client_os: osSelect.value, 
-                        draft_folder: baseInput.value || undefined 
-                    });
-                    
-                    if (checkResult && checkResult.success && checkResult.output) {
-                        if (checkResult.output.storage === 'oss' && checkResult.output.draft_url) {
-                            statusEl.textContent = '✅ 发现云端文件！即将跳转...';
-                            setTimeout(() => {
-                                window.open(checkResult.output.draft_url, '_blank');
-                            }, 1000);
-                            return;
-                        }
-                    }
-                    
-                    statusEl.textContent = '📤 正在提交保存任务...';
-                    
-                    const saveResult = await postJSON('/generate_draft_url?force_save=true', { 
-                        draft_id: draftId, 
-                        client_os: osSelect.value, 
-                        draft_folder: baseInput.value || undefined 
-                    });
-                    
-                    if (saveResult && saveResult.success && saveResult.output) {
-                        if (saveResult.output.storage === 'oss' && saveResult.output.draft_url) {
-                            statusEl.textContent = '🎉 保存完成！即将跳转...';
-                            setTimeout(() => {
-                                window.open(saveResult.output.draft_url, '_blank');
-                            }, 1000);
-                            return;
-                        }
-                        
-                        if (saveResult.output.status === 'processing' && saveResult.output.task_id) {
-                            await pollDownloadStatus(saveResult.output.task_id);
-                            await finalizeDownloadRedirect();
-                            return;
-                        }
-                    }
-                    
-                    throw new Error('保存上传流程异常');
-                    
-                } catch (error) {
-                    statusEl.textContent = '❌ 操作失败: ' + error.message;
-                } finally {
-                    saveUploadBtn.disabled = false;
-                }
-            });
-        });
-    </script>
 </body>
 </html>
-"""
-        # 直接替换占位符，避免格式化问题
-        result = html_content.format(
-            draft_id=draft_id,
-            materials_json=materials_json,
-            draft_status=draft_status,
-            storage_type=storage_type,
-            file_size=file_size,
-            video_count=video_count,
-            audio_count=audio_count,
-            text_count=text_count,
-            image_count=image_count,
-            total_duration=total_duration
-        )
-        return result
+        """
+        
+        return html_content
         
     except Exception as e:
-        return f"预览页面生成失败: {str(e)}", 500
+        return f"""
+        <html>
+        <head>
+            <title>预览错误</title>
+            <style>body{{font-family:Arial;margin:40px;text-align:center;}}</style>
+        </head>
+        <body>
+            <h1>❌ 预览加载失败</h1>
+            <p>草稿ID: {draft_id}</p>
+            <p>错误信息: {str(e)}</p>
+            <p><a href="javascript:history.back()">返回上一页</a></p>
+        </body>
+        </html>
+        """
 
-@app.route('/debug/cache/<draft_id>', methods=['GET'])
-def debug_cache(draft_id: str):
-    """调试：查看草稿缓存内容"""
-    materials = get_draft_materials(draft_id)
-    return jsonify({
-        "draft_id": draft_id,
-        "materials": materials,
-        "cache_keys": list(draft_materials_cache.keys())
-    })
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PORT)
-PORT = 9001
+# 重复路由定义已删除，使用上面的 enhanced_draft_preview 函数
 
+def render_template_with_official_style(draft_id, materials, total_duration):
+    """使用现有模板渲染预览页面，但应用官方风格"""
+    try:
+        # 获取草稿信息
+        draft_info = get_draft_info(draft_id)
+        
+        # 生成时间轴HTML
+        timeline_html = generate_timeline_html_for_template(materials, total_duration)
+        
+        # 使用Jinja2模板渲染
+        return render_template('preview_official.html', 
+                             draft_id=draft_id,
+                             materials=materials,
+                             draft_info=draft_info,
+                             total_duration=total_duration,
+                             timeline_html=timeline_html)
+        
+    except Exception as e:
+        print(f"模板渲染失败: {e}")
+        # 如果模板渲染失败，返回简单的HTML页面
+        return f"""
+        <html>
+        <head>
+            <title>草稿预览 - {draft_id}</title>
+            <style>
+                body {{ font-family: Arial; margin: 40px; background: #1a1a1a; color: #fff; }}
+                .container {{ max-width: 800px; margin: 0 auto; }}
+                .material {{ background: #2d2d2d; padding: 15px; margin: 10px 0; border-radius: 8px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎥 草稿预览 - {draft_id}</h1>
+                <p>素材数量: {len(materials)}</p>
+                <p>总时长: {total_duration:.1f}s</p>
+                <div>
+                    {''.join([f'<div class="material">{m.get("type", "unknown")}: {m.get("name", "Unknown")}</div>' for m in materials])}
+                </div>
+                <p><a href="javascript:history.back()" style="color:#4a9eff;">返回上一页</a></p>
+            </div>
+        </body>
+        </html>
+        """
+
+def generate_timeline_html_for_template(materials, total_duration):
+    """为模板生成时间轴HTML - 增强功能版"""
+    if not materials:
+        return '<div class="empty-timeline">无素材数据</div>'
+    
+    # 按轨道分组
+    tracks = {}
+    for i, material in enumerate(materials):
+        track_name = material.get('track_name', '默认轨道')
+        if track_name not in tracks:
+            tracks[track_name] = []
+        material['index'] = i  # 添加索引用于JavaScript交互
+        tracks[track_name].append(material)
+    
+    # 生成轨道HTML
+    tracks_html = []
+    for track_name, track_materials in tracks.items():
+        items_html = []
+        for material in track_materials:
+            material_index = material.get('index', 0)
+            material_type = material.get('type', 'unknown')
+            material_name = material.get('name', material.get('url', 'Unknown').split('/')[-1] if material.get('url') else 'Unknown')
+            
+            # 缩短名称显示
+            if len(material_name) > 15:
+                material_name = material_name[:12] + '...'
+            
+            # 安全地计算时间和位置
+            try:
+                start_time = float(material.get('start', 0)) if material.get('start', 0) not in [None, '未知', ''] else 0
+                duration = float(material.get('duration', 5)) if material.get('duration', 5) not in [None, '未知', ''] else 5
+            except (ValueError, TypeError):
+                start_time = 0
+                duration = 5
+            
+            if total_duration > 0:
+                left_percent = (start_time / total_duration) * 100
+                width_percent = max((duration / total_duration) * 100, 5)  # 最小5%宽度
+            else:
+                left_percent = 0
+                width_percent = 20
+            
+            # 生成可点击的素材块
+            items_html.append(f'''
+                <div class="timeline-block" 
+                     style="position: absolute; left: {left_percent}%; width: {width_percent}%; height: 28px; cursor: pointer;"
+                     onclick="showMaterialDetails({material_index})"
+                     title="{material.get('type', 'unknown')}: {material_name} ({duration:.1f}s)">
+                    <span class="track-item {material_type}">{material_name}</span>
+                </div>
+            ''')
+        
+        tracks_html.append(f"""
+            <div class="timeline-track">
+                <span class="track-label">{track_name}</span>
+                <div class="track-items" style="position: relative; height: 30px; width: 100%;">
+                    {''.join(items_html)}
+                </div>
+            </div>
+        """)
+    
+    return ''.join(tracks_html)
+
+
+if __name__ == "__main__":
+    try:
+        print("🚀 启动 CapCutAPI 服务...")
+        print(f"🔗 访问地址: http://localhost:{PORT}")
+        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
+    except KeyboardInterrupt:
+        print("🚫 服务已停止")
+    except Exception as e:
+        print(f"❌ 启动失败: {e}")

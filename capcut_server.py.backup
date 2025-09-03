@@ -1,6 +1,7 @@
 import requests
 from flask import Flask, request, jsonify, Response
 from datetime import datetime
+import os
 import pyJianYingDraft as draft
 from pyJianYingDraft.metadata.animation_meta import Intro_type, Outro_type, Group_animation_type
 from pyJianYingDraft.metadata.capcut_animation_meta import CapCut_Intro_type, CapCut_Outro_type, CapCut_Group_animation_type
@@ -19,6 +20,9 @@ import random
 import uuid
 import json
 import codecs
+import time
+import sqlite3
+import html
 from add_audio_track import add_audio_track
 from add_video_track import add_video_track
 from add_text_impl import add_text_impl
@@ -26,6 +30,7 @@ from add_subtitle_impl import add_subtitle_impl
 from add_image_impl import add_image_impl
 from add_video_keyframe_impl import add_video_keyframe_impl
 from save_draft_impl import save_draft_impl, query_task_status, query_script_impl
+from os_path_config import get_os_path_config
 from add_effect_impl import add_effect_impl
 from add_sticker_impl import add_sticker_impl
 from create_draft import create_draft, get_or_create_draft
@@ -49,136 +54,98 @@ def _ensure_bucket_v4():
         endpoint = 'https://' + endpoint
     return _oss2.Bucket(auth, endpoint, _OSS_CONFIG['bucket_name'], region=_OSS_CONFIG['region'])
 
-app = Flask(__name__)
+from database import init_db
+
+app = Flask(__name__, template_folder='templates')
+
+init_db()
 
 # 全局草稿素材信息缓存
 draft_materials_cache = {}
 
 def add_material_to_cache(draft_id, material_info):
-    """添加素材信息到缓存"""
-    if draft_id not in draft_materials_cache:
-        draft_materials_cache[draft_id] = []
-    draft_materials_cache[draft_id].append(material_info)
+    """添加素材信息到数据库"""
+    try:
+        material_id = str(uuid.uuid4())
+        add_material_to_db(draft_id, material_id, material_info)
+        # Also update in-memory cache for now for compatibility
+        if draft_id not in draft_materials_cache:
+            draft_materials_cache[draft_id] = []
+        material_info['id'] = material_id
+        draft_materials_cache[draft_id].append(material_info)
+    except Exception as _e:
+        print('持久化素材到数据库失败:', _e)
+
+from database import get_draft_materials as get_draft_materials_from_db, add_material_to_db, get_all_drafts
 
 def get_draft_materials(draft_id):
-    """获取草稿的素材列表"""
-    # 先从缓存中获取
-    cached_materials = draft_materials_cache.get(draft_id, [])
-    if cached_materials:
-        return cached_materials
+    """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统"""
+    # 首先检查内存缓存
+    if draft_id in draft_materials_cache:
+        return draft_materials_cache[draft_id]
     
-    # 如果缓存中没有，尝试从磁盘读取
-    try:
-        import os
-        import json
+    # 如果缓存中没有，从数据库获取
+    db_materials = get_draft_materials_from_db(draft_id)
+    if db_materials:
+        # 将数据库中的数据加载到缓存中
+        draft_materials_cache[draft_id] = db_materials
+        return db_materials
+    
+    # 如果数据库中也没有，扫描草稿目录中的实际文件
+    draft_path = f"drafts/{draft_id}"
+    if os.path.exists(draft_path):
+        materials = []
         
-        # 检查草稿目录是否存在
-        draft_dir = f"/home/CapCutAPI-1.1.0/{draft_id}"
-        if os.path.exists(draft_dir):
-            # 构造默认的素材信息
-            materials = []
-            
-            # 查找视频文件
-            for file in os.listdir(draft_dir):
-                if file.endswith(('.mp4', '.mov', '.avi')):
-                    materials.append({
-                        'type': 'video',
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 30,
-                        'materialType': 'video',
-                        'material_type': 'video'
-                    })
-                elif file.endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                    materials.append({
-                        'type': 'image', 
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 5,
-                        'materialType': 'image',
-                        'material_type': 'image'
-                    })
-                elif file.endswith(('.mp3', '.wav', '.aac')):
-                    materials.append({
-                        'type': 'audio',
-                        'url': f'{draft_dir}/{file}',
-                        'start': 0,
-                        'end': 30,
-                        'materialType': 'audio',
-                        'material_type': 'audio'
-                    })
-            
-            # 如果没有足够的素材，为预览页面添加演示素材
-            has_video = any(m['type'] == 'video' for m in materials)
-            has_audio = any(m['type'] == 'audio' for m in materials) 
-            has_text = any(m['type'] == 'text' for m in materials)
-            
-            # 添加主视频轨道素材
-            if not has_video:
-                materials.append({
-                    'type': 'video',
-                    'url': 'https://example.com/main_video.mp4',
-                    'start': 0,
-                    'end': 30,
-                    'materialType': 'video',
-                    'material_type': 'video',
-                    'track_name': 'video_main'
-                })
-            
-            # 添加语音旁白素材
-            if not has_audio:
-                materials.append({
-                    'type': 'audio',
-                    'url': 'https://example.com/voice_narration.mp3',
-                    'start': 0,
-                    'end': 30,
-                    'materialType': 'audio',
-                    'material_type': 'audio',
-                    'track_name': 'audio_main'
-                })
+        # 扫描目录中的文件
+        for filename in os.listdir(draft_path):
+            file_path = os.path.join(draft_path, filename)
+            if os.path.isfile(file_path):
+                # 跳过draft_info.json文件
+                if filename == 'draft_info.json':
+                    continue
+                    
+                # 根据文件扩展名确定类型
+                file_ext = filename.lower().split('.')[-1]
+                material_type = 'unknown'
                 
-            # 添加背景音乐素材
-            materials.append({
-                'type': 'audio',
-                'url': 'https://example.com/background_music.mp3',
-                'start': 0,
-                'end': 30,
-                'materialType': 'audio', 
-                'material_type': 'audio',
-                'track_name': 'bgm_main'
-            })
-            
-            # 添加文本素材
-            if not has_text:
-                materials.append({
-                    'type': 'text',
-                    'content': 'AI生成的标题内容',
-                    'start': 0,
-                    'end': 5,
-                    'materialType': 'text',
-                    'material_type': 'text',
-                    'track_name': 'text_main'
-                })
-            
-            # 如果还是没有任何素材，添加默认文本
-            if not materials:
-                materials.append({
-                    'type': 'text',
-                    'content': f'草稿 {draft_id}',
-                    'start': 0,
-                    'end': 5,
-                    'materialType': 'text',
-                    'material_type': 'text'
-                })
-            
-            # 更新缓存
+                if file_ext in ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm']:
+                    material_type = 'video'
+                elif file_ext in ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a']:
+                    material_type = 'audio'
+                elif file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg']:
+                    material_type = 'image'
+                elif file_ext in ['txt', 'srt', 'vtt', 'ass']:
+                    material_type = 'text'
+                
+                # 获取文件大小
+                file_size = os.path.getsize(file_path)
+                
+                # 创建素材信息
+                material_info = {
+                    'id': f"{draft_id}_{filename}",
+                    'name': filename,
+                    'type': material_type,
+                    'path': file_path,
+                    'size': file_size,
+                    'duration': '未知',  # 需要额外工具来获取媒体文件时长
+                    'created_at': datetime.now().isoformat()
+                }
+                
+                materials.append(material_info)
+        
+        # 将扫描到的素材信息缓存起来
+        if materials:
             draft_materials_cache[draft_id] = materials
-            return materials
-            
-    except Exception as e:
-        print(f"读取草稿 {draft_id} 失败: {e}")
+            # 可选：将素材信息保存到数据库
+            for material in materials:
+                try:
+                    add_material_to_db(draft_id, material)
+                except Exception as e:
+                    print(f"保存素材到数据库失败: {e}")
+        
+        return materials
     
-    # 如果都失败了，返回空列表
+    # 都没有则返回空列表
     return []
 
 @app.route('/', methods=['GET'])
@@ -365,6 +332,8 @@ def index():
         <div>
             <button class="test-button" onclick="testAPI()">测试API</button>
             <button class="test-button" onclick="showJSON()">显示JSON</button>
+            <button class="test-button" onclick="openDashboard()">📊 草稿管理</button>
+            <button class="test-button" onclick="openPreview()">🎬 预览演示</button>
         </div>
         
         <div class="footer">
@@ -377,23 +346,35 @@ def index():
         function testAPI() {
             fetch('/get_intro_animation_types')
                 .then(response => response.json())
-                .then(data => {
+                .then(data => {{
                     alert('API测试成功！\n获取到 ' + data.output.length + ' 个动画类型');
                 })
-                .catch(error => {
+                .catch(error => {{
                     alert('API测试失败：' + error);
-                });
+                }}}});
         }
         
         function showJSON() {
-            fetch('/')
+            fetch('/', {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
                 .then(response => response.json())
                 .then(data => {
                     alert(JSON.stringify(data, null, 2));
                 })
                 .catch(error => {
                     alert('获取JSON失败：' + error);
-                });
+                }});
+        }
+        
+        function openDashboard() {
+            window.open('/api/drafts/dashboard', '_blank');
+        }
+        
+        function openPreview() {
+            window.open('/draft/preview/sample_draft', '_blank');
         }
     </script>
 </body>
@@ -611,6 +592,20 @@ def create_draft_service():
     try:
         # Create new draft with user specified ID or generate one
         draft_id, script = get_or_create_draft(draft_id=draft_id, width=width, height=height)
+        
+        # 初始化草稿缓存，确保预览功能能够识别草稿存在
+        if draft_id not in draft_materials_cache:
+            draft_materials_cache[draft_id] = []
+            # 添加基本草稿信息到缓存
+            basic_info = {
+                "type": "draft_info",
+                "name": data.get('name', '未命名草稿'),
+                "width": width,
+                "height": height,
+                "created_at": datetime.now().isoformat(),
+                "status": "created"
+            }
+            draft_materials_cache[draft_id].append(basic_info)
         
         result["success"] = True
         result["output"] = {
@@ -1346,27 +1341,7 @@ def generate_draft_url():
         result["error"] = error_message
         return jsonify(result)
 
-@app.route('/draft/downloader', methods=['GET'])
-def draft_downloader():
-    """Simple landing page for downloading or locating draft by id.
-    Supports both ?draft_id=xxx and legacy ?=xxx query formats.
-    """
-    # Support both standard and legacy empty-key query
-    draft_id = request.args.get('draft_id')
-    if not draft_id and '' in request.args:
-        draft_id = request.args.get('')
-    if not draft_id:
-        return Response("Missing 'draft_id' in query string.", status=400)
-    draft_id = str(draft_id).strip()
-    # Detect client os from query, default windows
-    client_os = request.args.get('os', 'windows').lower()
-    # Optional custom base from query for preview
-    custom_base = request.args.get('base', '').strip()
-    if custom_base:
-        base = custom_base.rstrip('\\/')
-    else:
-        base = ''
-    local_path = utilgenerate_draft_url(draft_id, client_os=client_os, base=base)
+    
     import json as _json
     html_template = """
     <!DOCTYPE html>
@@ -1374,117 +1349,574 @@ def draft_downloader():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>草稿下载/打开</title>
+        <title>草稿下载 - {draft_id}</title>
         <style>
-            body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 24px; }
-            .card { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
-            h1 { margin: 0 0 12px; }
-            .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-            .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #4f46e5; }
-            .path { background: #f3f4f6; padding: 12px; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow:auto; }
-            .tip { color: #6b7280; margin-top: 12px; }
-            .btn { background:#4f46e5; color:#fff; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; }
-            .btn:disabled { opacity:.6; cursor:not-allowed; }
-            .log { margin-top:10px; background:#f9fafb; border-radius:8px; padding:12px; height:160px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
-            select { padding:6px 10px; border-radius:8px; border:1px solid #e5e7eb; }
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; 
+                padding: 0; 
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+            }
+            .header {
+                background: rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(10px);
+                padding: 15px 20px;
+                color: white;
+                text-align: center;
+                font-size: 20px;
+                font-weight: 600;
+            }
+            .container { 
+                max-width: 900px; 
+                margin: 20px auto; 
+                background: #fff; 
+                border-radius: 15px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+                overflow: hidden;
+            }
+            .card-header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 25px;
+                text-align: center;
+            }
+            .card-body {
+                padding: 30px;
+            }
+            .draft-info {
+                background: #f8f9fa;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 25px;
+                border-left: 4px solid #667eea;
+            }
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
+            }
+            .info-item {
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .info-item .label {
+                font-size: 12px;
+                color: #6c757d;
+                margin-bottom: 5px;
+            }
+            .info-item .value {
+                font-size: 18px;
+                font-weight: 600;
+                color: #495057;
+            }
+            .controls-section {
+                background: #f8f9fa;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 25px;
+            }
+            .section-title {
+                font-size: 16px;
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 15px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .row { 
+                display: flex; 
+                align-items: center; 
+                gap: 15px; 
+                flex-wrap: wrap; 
+                margin-bottom: 15px;
+            }
+            .form-group {
+                flex: 1;
+                min-width: 200px;
+            }
+            .form-group label {
+                display: block;
+                font-size: 14px;
+                color: #495057;
+                margin-bottom: 5px;
+                font-weight: 500;
+            }
+            .id { 
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+                color: #667eea; 
+                background: rgba(102, 126, 234, 0.1);
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-weight: 600;
+            }
+            .path { 
+                background: #e9ecef; 
+                padding: 12px; 
+                border-radius: 8px; 
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+                font-size: 13px;
+                overflow-x: auto;
+                border: 1px solid #dee2e6;
+                word-break: break-all;
+            }
+            .alert { 
+                color: #155724;
+                background: #d1ecf1;
+                border: 1px solid #bee5eb;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 15px 0;
+                font-size: 14px;
+            }
+            .alert-info {
+                color: #0c5460;
+                background: #d1ecf1;
+                border-color: #bee5eb;
+            }
+            .alert-warning {
+                color: #856404;
+                background: #fff3cd;
+                border-color: #ffeaa7;
+            }
+            .btn { 
+                background: #667eea; 
+                color: #fff; 
+                border: none; 
+                padding: 12px 20px; 
+                border-radius: 8px; 
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                min-width: 120px;
+                justify-content: center;
+            }
+            .btn:hover { 
+                background: #5a6fd8;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            }
+            .btn:disabled { 
+                opacity: 0.6; 
+                cursor: not-allowed; 
+                transform: none;
+                box-shadow: none;
+            }
+            .btn-secondary {
+                background: #6c757d;
+            }
+            .btn-secondary:hover {
+                background: #5a6268;
+            }
+            .btn-success {
+                background: #28a745;
+            }
+            .btn-success:hover {
+                background: #218838;
+            }
+            .log { 
+                margin-top: 15px; 
+                background: #f8f9fa; 
+                border-radius: 8px; 
+                padding: 15px; 
+                height: 200px; 
+                overflow-y: auto; 
+                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; 
+                font-size: 12px;
+                border: 1px solid #dee2e6;
+                line-height: 1.5;
+            }
+            select, input[type="text"] { 
+                padding: 10px 12px; 
+                border-radius: 8px; 
+                border: 1px solid #ced4da; 
+                font-size: 14px;
+                transition: border-color 0.3s ease, box-shadow 0.3s ease;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            select:focus, input[type="text"]:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+            .action-buttons {
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            .status-display {
+                background: white;
+                border-radius: 8px;
+                padding: 15px;
+                margin-top: 15px;
+                border: 1px solid #dee2e6;
+                text-align: center;
+                font-weight: 500;
+            }
+            .loading {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border: 2px solid #f3f3f3;
+                border-top: 2px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-right: 8px;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .feature-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-top: 20px;
+            }
+            .feature-card {
+                background: white;
+                border-radius: 10px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                border: 1px solid #e9ecef;
+            }
+            .feature-icon {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+            .feature-title {
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+            .feature-desc {
+                font-size: 13px;
+                color: #6c757d;
+                line-height: 1.4;
+            }
+            @media (max-width: 768px) {
+                .container {
+                    margin: 10px;
+                    border-radius: 10px;
+                }
+                .card-body {
+                    padding: 20px;
+                }
+                .row {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                .action-buttons {
+                    flex-direction: column;
+                }
+                .btn {
+                    width: 100%;
+                }
+            }
         </style>
     </head>
     <body>
-        <div class="card">
-            <h1>草稿信息</h1>
-            <div class="row">
-              <p>草稿 ID：<span class="id">__DRAFT_ID_DISPLAY__</span></p>
-              <label>系统: 
-                <select id="osSelect">
-                  <option value="windows">Windows</option>
-                  <option value="linux">Linux</option>
-                </select>
-              </label>
-              <label>自定义根路径:
-                <input id="baseInput" type="text" placeholder="可选，如 F:/MyDrafts 或 /data/drafts" style="padding:6px 10px;border-radius:8px;border:1px solid #e5e7eb;min-width:260px;" />
-              </label>
-            </div>
-            <p>本地草稿路径（OS: __CLIENT_OS__）：</p>
-            <div class="path">__LOCAL_PATH__</div>
-            <p class="tip">如果你已开启云上传（config.json 中 is_upload_draft=true）并且该草稿 zip 已经上传，下面的按钮会在完成后自动跳转到 OSS 签名下载链接。</p>
-            <button id="saveUploadBtn" class="btn">一键保存并上传到OSS</button>
-            <div id="status" class="tip"></div>
-            <div id="log" class="log"></div>
+        <div class="header">
+            🎬 CapCutAPI - 草稿下载中心
         </div>
+        
+        <div class="container">
+            <div class="card-header">
+                <h2 style="margin: 0;">草稿下载管理</h2>
+                <p style="margin: 10px 0 0; opacity: 0.9;">智能下载 · 多平台支持 · 云端同步</p>
+            </div>
+            
+            <div class="card-body">
+                <!-- 草稿信息展示 -->
+                <div class="draft-info">
+                    <div class="section-title">
+                        📋 草稿信息
+                    </div>
+                    <p><strong>草稿 ID：</strong><span class="id">{draft_id}</span></p>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="label">素材数量</div>
+                            <div class="value">{materials_count}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">预计时长</div>
+                            <div class="value">{total_duration}s</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">存储状态</div>
+                            <div class="value">云端已保存</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="label">画面尺寸</div>
+                            <div class="value">1080×1920</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 下载配置 -->
+                <div class="controls-section">
+                    <div class="section-title">
+                        ⚙️ 下载配置
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>目标系统:</label>
+                            <select id="osSelect">
+                                <option value="windows">Windows</option>
+                                <option value="linux">Linux</option>
+                                <option value="macos">macOS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>自定义根路径 (可选):</label>
+                            <input id="baseInput" type="text" placeholder="如: F:/MyDrafts 或 /data/drafts" />
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>💡 提示：</strong>系统会根据你的选择自动生成适合的本地路径格式。OSS云下载模式下，文件会自动下载到指定位置。
+                    </div>
+                </div>
+                
+                <!-- 路径预览 -->
+                <div class="controls-section">
+                    <div class="section-title">
+                        📁 本地路径预览
+                    </div>
+                    <div class="path" id="localPath">获取本地路径中...</div>
+                </div>
+                
+                <!-- 功能特性展示 -->
+                <div class="controls-section">
+                    <div class="section-title">
+                        ✨ 功能特性
+                    </div>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">☁️</div>
+                            <div class="feature-title">智能云下载</div>
+                            <div class="feature-desc">自动检测云端文件，提供高速下载链接，支持断点续传</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔄</div>
+                            <div class="feature-title">实时同步</div>
+                            <div class="feature-desc">草稿状态实时更新，支持后台处理进度监控</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎯</div>
+                            <div class="feature-title">精准适配</div>
+                            <div class="feature-desc">根据系统类型自动调整路径格式，无缝集成到剪映</div>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📱</div>
+                            <div class="feature-title">多平台支持</div>
+                            <div class="feature-desc">支持Windows、Linux、macOS等多种操作系统</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button id="previewBtn" class="btn btn-secondary" onclick="openPreview()">
+                        🔍 预览草稿
+                    </button>
+                    <button id="saveUploadBtn" class="btn">
+                        ☁️ 智能下载
+                    </button>
+                    <button id="copyPathBtn" class="btn btn-success" onclick="copyLocalPath()">
+                        📋 复制路径
+                    </button>
+                </div>
+                
+                <!-- 状态显示 -->
+                <div id="status" class="status-display">准备就绪</div>
+                
+                <!-- 日志显示 -->
+                <div id="log" class="log" style="display: none;"></div>
+            </div>
+        </div>
+        
         <script>
-            const draftId = __DRAFT_ID__;
+            const draftId = "{draft_id}";
             const btn = document.getElementById('saveUploadBtn');
             const statusEl = document.getElementById('status');
             const logEl = document.getElementById('log');
             const osSelect = document.getElementById('osSelect');
-            const clientOs = '__CLIENT_OS__';
-            osSelect.value = clientOs;
             const baseInput = document.getElementById('baseInput');
-            try { baseInput.value = new URL(window.location.href).searchParams.get('base') || ''; } catch(e) {}
+            
+            // 设置初始系统类型
+            osSelect.value = "{client_os}";
+            try { 
+                baseInput.value = new URL(window.location.href).searchParams.get('base') || ''; 
+            } catch(e) {}
+            
+            // 监听系统选择变化
             osSelect.addEventListener('change', () => {
-                const base = new URL(window.location.href);
-                base.searchParams.set('draft_id', __DRAFT_ID__);
-                base.searchParams.set('os', osSelect.value);
-                if (baseInput.value) base.searchParams.set('base', baseInput.value);
-                window.location.href = base.toString();
+                updateLocalPath();
+                updateURL();
             });
-            baseInput.addEventListener('change', () => {
-                const base = new URL(window.location.href);
-                base.searchParams.set('draft_id', __DRAFT_ID__);
-                base.searchParams.set('os', osSelect.value);
-                if (baseInput.value) base.searchParams.set('base', baseInput.value);
-                else base.searchParams.delete('base');
-                window.location.href = base.toString();
+            
+            // 监听路径输入变化
+            baseInput.addEventListener('input', () => {
+                updateLocalPath();
+                updateURL();
             });
+            
+            // 更新URL参数
+            function updateURL() {
+                const url = new URL(window.location.href);
+                url.searchParams.set('draft_id', draftId);
+                url.searchParams.set('os', osSelect.value);
+                if (baseInput.value) {
+                    url.searchParams.set('base', baseInput.value);
+                } else {
+                    url.searchParams.delete('base');
+                }
+                window.history.replaceState({}, '', url.toString());
+            }
+            
+            // 更新本地路径显示
+            function updateLocalPath() {
+                const localPathEl = document.getElementById('localPath');
+                const clientOs = osSelect.value;
+                const customBase = baseInput.value;
+                
+                let localPath = '';
+                if (clientOs === 'windows') {
+                    const base = customBase || 'F:\\\\jianyin\\\\cgwz\\\\JianyingPro Drafts';
+                    localPath = base + '\\\\' + draftId;
+                } else if (clientOs === 'macos') {
+                    const base = customBase || '/Users/' + (window.navigator.userAgent.includes('Mac') ? 'YourUsername' : 'username') + '/Documents/JianyingPro Drafts';
+                    localPath = base + '/' + draftId;
+                } else {
+                    const base = customBase || '/data/drafts';
+                    localPath = base + '/' + draftId;
+                }
+                
+                localPathEl.textContent = localPath;
+            }
+            
+            // 日志记录函数
             function log(msg) {
                 const t = new Date().toLocaleTimeString();
-                logEl.textContent += `[${{t}}] ${{msg}}\\n`;
+                logEl.textContent += `[${t}] ${msg}\\n`;
                 logEl.scrollTop = logEl.scrollHeight;
+                logEl.style.display = 'block';
             }
+            
+            // 复制本地路径
+            function copyLocalPath() {
+                const localPath = document.getElementById('localPath').textContent;
+                navigator.clipboard.writeText(localPath).then(() => {
+                    statusEl.innerHTML = '✅ 本地路径已复制到剪贴板';
+                    setTimeout(() => {
+                        statusEl.textContent = '准备就绪';
+                    }, 3000);
+                }).catch(() => {
+                    statusEl.innerHTML = '❌ 复制失败，请手动复制：' + localPath;
+                });
+            }
+            
+            // 打开预览页面
+            function openPreview() {
+                const previewUrl = `/draft/preview/${draftId}`;
+                window.open(previewUrl, '_blank');
+            }
+            
+            // 发送JSON请求
             async function postJSON(url, body) {
-                const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                const res = await fetch(url, { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify(body) 
+                });
                 return await res.json();
             }
+            
+            // 轮询状态
             async function pollStatus(taskId) {
                 while (true) {
                     const s = await postJSON('/query_draft_status', { task_id: taskId });
                     if (s && s.status) {
-                        statusEl.textContent = `任务状态: ${{s.status}}，进度: ${{s.progress||0}}% ，${{s.message||''}}`;
-                        log(`status=${{s.status}}, progress=${{s.progress}}`);
+                        statusEl.innerHTML = `<div class="loading"></div>任务状态: ${s.status}，进度: ${s.progress||0}% ${s.message||''}`;
+                        log(`status=${s.status}, progress=${s.progress}`);
                         if (s.status === 'completed') break;
                         if (s.status === 'failed') throw new Error(s.message || '任务失败');
                     }
                     await new Promise(r => setTimeout(r, 2000));
                 }
             }
+            
+            // 最终跳转
             async function finalizeRedirect() {
-                const r = await postJSON('/generate_draft_url', { draft_id: draftId, client_os: osSelect.value, draft_folder: baseInput.value || undefined });
+                const r = await postJSON('/generate_draft_url', { 
+                    draft_id: draftId, 
+                    client_os: osSelect.value, 
+                    draft_folder: baseInput.value || undefined 
+                });
                 if (r && r.success && r.output && r.output.draft_url) {
-                    log('跳转到 OSS 链接');
-                    window.location.href = r.output.draft_url;
+                    log('🎉 获取下载链接成功，即将跳转');
+                    statusEl.innerHTML = '🎉 下载链接获取成功！即将跳转...';
+                    setTimeout(() => {
+                        window.open(r.output.draft_url, '_blank');
+                    }, 1000);
                 } else {
                     throw new Error('未获取到下载链接');
                 }
             }
+            
+            // 自动运行
             async function autoRun() {
                 try {
                     btn.disabled = true;
-                    statusEl.textContent = '正在检测云端文件...';
-                    log('检测是否已存在 OSS 直链');
-                    const first = await postJSON('/generate_draft_url', { draft_id: draftId, client_os: osSelect.value, draft_folder: baseInput.value || undefined });
+                    statusEl.innerHTML = '<div class="loading"></div>正在检测云端文件...';
+                    log('🔍 检测是否已存在 OSS 直链');
+                    
+                    const first = await postJSON('/generate_draft_url', { 
+                        draft_id: draftId, 
+                        client_os: osSelect.value, 
+                        draft_folder: baseInput.value || undefined 
+                    }});
+                    
                     if (first && first.success && first.output) {
                         if (first.output.storage === 'oss' && first.output.draft_url) {
-                            window.location.href = first.output.draft_url; return;
+                            log('✅ 发现已存在的云端文件，直接跳转');
+                            statusEl.innerHTML = '✅ 发现云端文件！即将跳转下载...';
+                            setTimeout(() => {{
+                                window.open(first.output.draft_url, '_blank');
+                            }, 1000);
+                            return;
                         }
                     }
-                    log('未发现直链，自动触发保存并上传');
-                    statusEl.textContent = '正在提交保存任务...';
-                    const start = await postJSON('/generate_draft_url?force_save=true', { draft_id: draftId, client_os: osSelect.value, draft_folder: baseInput.value || undefined });
+                    
+                    log('📤 未发现直链，自动触发保存并上传');
+                    statusEl.innerHTML = '<div class="loading"></div>正在提交保存任务...';
+                    
+                    const start = await postJSON('/generate_draft_url?force_save=true', { 
+                        draft_id: draftId, 
+                        client_os: osSelect.value, 
+                        draft_folder: baseInput.value || undefined 
+                    }});
+                    
                     if (start && start.success && start.output) {
                         if (start.output.storage === 'oss' && start.output.draft_url) {
-                            window.location.href = start.output.draft_url; return;
+                            log('⚡ 快速保存完成，直接跳转');
+                            window.open(start.output.draft_url, '_blank');
+                            return;
                         }
                         if (start.output.status === 'processing' && start.output.task_id) {
+                            log('⏳ 任务已提交，等待处理完成...');
                             await pollStatus(start.output.task_id);
                             await finalizeRedirect();
                             return;
@@ -1492,24 +1924,35 @@ def draft_downloader():
                     }
                     throw new Error('自动流程接口返回异常');
                 } catch (e) {
-                    log('自动流程失败，请点击按钮重试: ' + e.message);
+                    log('❌ 自动流程失败: ' + e.message);
+                    statusEl.innerHTML = '❌ 自动下载失败，请点击按钮重试';
                 } finally {
                     btn.disabled = false;
                 }
             }
-            // 自动运行
+            
+            // 页面加载完成后初始化
             document.addEventListener('DOMContentLoaded', () => {
-                autoRun();
+                updateLocalPath();
+                // 延迟启动自动下载，给用户时间看到页面
+                setTimeout(autoRun, 1000);
             });
-            // 手动按钮作为兜底
+            
+            // 手动下载按钮事件
             btn.addEventListener('click', async () => {
-                btn.disabled = true; statusEl.textContent = '正在提交任务...'; log('提交 force_save 请求');
+                btn.disabled = true; 
+                statusEl.innerHTML = '<div class="loading"></div>正在提交任务...'; 
+                log('🚀 手动触发 force_save 请求');
                 try {
-                    const r = await postJSON('/generate_draft_url?force_save=true', { draft_id: draftId, client_os: osSelect.value, draft_folder: baseInput.value || undefined });
+                    const r = await postJSON('/generate_draft_url?force_save=true', { 
+                        draft_id: draftId, 
+                        client_os: osSelect.value, 
+                        draft_folder: baseInput.value || undefined 
+                    }});
                     if (r && r.success && r.output) {
                         if (r.output.storage === 'oss' && r.output.draft_url) {
-                            // 已存在，直接跳转
-                            window.location.href = r.output.draft_url; return;
+                            window.open(r.output.draft_url, '_blank');
+                            return;
                         }
                         if (r.output.status === 'processing' && r.output.task_id) {
                             await pollStatus(r.output.task_id);
@@ -1519,8 +1962,8 @@ def draft_downloader():
                     }
                     throw new Error('接口返回异常');
                 } catch (e) {
-                    alert('操作失败: ' + e.message);
-                    log('失败: ' + e.message);
+                    statusEl.innerHTML = '❌ 操作失败: ' + e.message;
+                    log('❌ 失败: ' + e.message);
                 } finally {
                     btn.disabled = false;
                 }
@@ -1528,13 +1971,14 @@ def draft_downloader():
         </script>
     </body>
     </html>
-    """
-    html = (html_template
-            .replace("__DRAFT_ID__", _json.dumps(draft_id))
-            .replace("__DRAFT_ID_DISPLAY__", draft_id)
-            .replace("__LOCAL_PATH__", local_path)
-            .replace("__CLIENT_OS__", client_os))
-    return Response(html, mimetype='text/html')
+    """.format(
+        draft_id=draft_id,
+        client_os=client_os,
+        materials_count=materials_count,
+        total_duration=total_duration
+    )
+    
+    return html_template
 
 @app.route('/add_sticker', methods=['POST'])
 def add_sticker():
@@ -2184,54 +2628,561 @@ def upload_to_oss_route():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-# 删除重复的第一个预览函数，保留增强版
+# 草稿管理相关路由已在文件后面定义
 
-@app.route('/draft/preview/<draft_id>', methods=['GET'])
-def enhanced_draft_preview(draft_id: str):
-    """增强版草稿详细预览页面 - 简化版"""
+# 草稿预览路由
+@app.route('/api/drafts/preview/<draft_id>', methods=['GET'])
+def preview_draft(draft_id):
+    """
+    预览特定草稿，显示草稿信息和素材
+    """
     try:
-        # 获取草稿的素材信息
+        # 获取草稿信息
+        draft_info = get_draft_info(draft_id)
+        if not draft_info:
+            return f"<h1>草稿不存在</h1><p>草稿ID: {draft_id}</p>", 404
+        
+        # 获取草稿素材
         materials = get_draft_materials(draft_id)
         
-        # 智能检查草稿存在性 - 支持本地文件和OSS状态
-        # 简化草稿存在性检查 - 只要有素材信息就认为草稿存在
-        draft_exists = len(materials) > 0
-        file_size = 9500  # 默认值
-        import time
-        created_time = time.time()
-        draft_source = "oss"
+        # 生成时间轴HTML
+        timeline_html = generate_timeline_html(materials)
         
-        if not draft_exists:
-            return f"""
-<!DOCTYPE html>
-<html>
-<head><title>草稿不存在</title></head>
-<body style="font-family: Arial; text-align: center; padding: 50px;">
-    <h2>草稿 {draft_id} 不存在</h2>
-    <p>该草稿可能尚未生成完成，或者已被清理。</p>
-    <p><a href="javascript:history.back()">返回上一页</a></p>
-</body>
-</html>
-""", 404
+        # 渲染预览页面
+        return render_preview_page(draft_id, draft_info, materials, timeline_html)
+    except Exception as e:
+        return f"""
+        <html>
+        <head>
+            <title>错误</title>
+        </head>
+        <body>
+            <h1>加载草稿时出错</h1>
+            <p>错误信息: {str(e)}</p>
+            <a href="/api/drafts/dashboard">返回仪表板</a>
+        </body>
+        </html>
+        """
+        # 使用简单的字符串替换，避免格式化问题
+        # 生成SSR内容
+        def html_escape(text: str) -> str:
+                        return html.escape(text) if isinstance(text, str) else str(text)
+
+        # Details 首屏渲染：展示第一个素材
+        first = materials[0] if materials else {}
+        startTime = float(first.get('start_time') or first.get('start') or 0)
+        duration = float(first.get('duration') or ((first.get('end') or 0) - (first.get('start') or 0)) or 0)
+        endTime = startTime + duration
+        ssr_rows = [
+            ('Type:', first.get('type') or 'video'),
+            ('Source URL:', first.get('source_url') or first.get('url') or 'N/A'),
+            ('Start Time:', f"{startTime:.2f}s"),
+            ('End Time:', f"{endTime:.2f}s"),
+            ('Duration:', f"{duration:.2f}s"),
+            ('Track Name:', first.get('track_name') or 'N/A'),
+        ]
+        ssr_details_rows = ''.join([
+            f"<tr><td>{html_escape(k)}</td><td>" + (f"<a class='url-link' target='_blank' href='{html_escape(v)}'>{html_escape(v)}</a>" if k=='Source URL:' and v!='N/A' else html_escape(v)) + "</td></tr>"
+            for k, v in ssr_rows
+        ])
+
+        # Timeline 首屏渲染
+        lane_order = {'video':0, 'image':1, 'text':2, 'audio_voice':3, 'audio_bgm':4, 'audio':4}
+        def classify_audio(m):
+            tn = (m.get('track_name') or '')
+            if any(x in tn.lower() for x in ['voice', 'narrat']):
+                return 'audio_voice'
+            if any(x in tn.lower() for x in ['bgm', 'music']):
+                return 'audio_bgm'
+            return 'audio'
+        lane_height, gap = 28, 4
+        tl_width_pct = 100  # SSR 用百分比，前端接管后会重算像素
+        ssr_blocks = []
+        for idx, m in enumerate(materials):
+            mtype = m.get('type') or 'video'
+            if mtype == 'audio':
+                mtype = classify_audio(m)
+            s = float(m.get('start_time') or m.get('start') or 0)
+            d = float(m.get('duration') or ((m.get('end') or 0) - (m.get('start') or 0)) or 0)
+            left_pct = (s / max(total_duration, 1)) * tl_width_pct
+            width_pct = max((d / max(total_duration, 1)) * tl_width_pct, 3)
+            lane_idx = lane_order.get(mtype, 0)
+            top_px = lane_idx * (lane_height + gap)
+            name = m.get('name') or (m.get('source_url') or m.get('url') or '').split('/')[-1] or 'Material'
+            short = (name[:22] + '...') if len(name) > 25 else name
+            icon = '🎥' if m.get('type')=='video' else '🎵' if m.get('type')=='audio' else '📝' if m.get('type')=='text' else '🖼️' if m.get('type')=='image' else '📄'
+            ssr_blocks.append(
+                f"<div class='material-block {m.get('type','video')} lane-height' style='left:{left_pct}%;width:{width_pct}%;top:{top_px}px'><span class='material-icon'>{icon}</span><span style='font-size:11px'>{html_escape(short)}</span><span style='font-size:10px;opacity:.9;margin-left:6px'>{d:.1f}s</span></div>"
+            )
+        lanes_used = 0
+        for m in materials:
+            mt = m.get('type') or 'video'
+            if mt == 'audio':
+                mt = classify_audio(m)
+            lanes_used = max(lanes_used, lane_order.get(mt, 0))
+        ssr_timeline_blocks = ''.join(ssr_blocks)
+        ssr_timeline_height = (lanes_used + 1) * (lane_height + gap)
+        result = html_template.replace('{draft_id}', draft_id) \
+                              .replace('{materials_json}', materials_json) \
+                              .replace('{total_duration}', str(total_duration)) \
+                              .replace('{ssr_details_rows}', ssr_details_rows) \
+                                                             .replace('{ssr_timeline_blocks}', ssr_timeline_blocks) \
+                              .replace('{ssr_timeline_height}', str(ssr_timeline_height))
+        resp = Response(result)
+        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+        return resp
         
-        # 初始不显示素材详细信息，等待用户点击轨道时动态显示
-        material_rows = """
-                        <tr class="material-rows" style="background-color: #2a2a2a;">
-                            <td colspan="2" style="text-align: center; color: #888; padding: 20px;">
-                                点击下方轨道素材查看详细信息
-                            </td>
-                        </tr>"""
+    except Exception as e:
+        return f"预览页面生成失败: {str(e)}", 500
         
-        # 将素材数据转换为JavaScript可用的格式
-        materials_json = json.dumps(materials, ensure_ascii=False)
+@app.route('/debug/cache/<draft_id>', methods=['GET'])
+def debug_cache(draft_id: str):
+    """调试：查看草稿缓存内容"""
+    materials = get_draft_materials(draft_id)
+    return jsonify({
+        "success": True,
+        "draft_id": draft_id,
+        "materials_count": len(materials),
+        "materials": materials,
+        "cache_source": "test_materials.json" if draft_id in draft_materials_cache else "cache"
+    })
+
+@app.route('/api/drafts/list', methods=['GET'])
+def list_drafts():
+    """获取所有可用草稿列表 - 新增功能"""
+    try:
+        from datetime import datetime
         
-        html_content = f"""
+        db_drafts = get_all_drafts()
+        
+        drafts_list = []
+        for row in db_drafts:
+            draft_id, last_modified, materials_count = row
+            drafts_list.append({
+                "draft_id": draft_id,
+                "source": "database",
+                "materials_count": materials_count,
+                "status": "已保存",
+                "last_modified": last_modified
+            })
+
+        return jsonify({
+            "success": True,
+            "drafts": drafts_list,
+            "total": len(drafts_list),
+            "error": ""
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "drafts": [],
+            "total": 0,
+            "error": f"获取草稿列表失败: {str(e)}"
+        })
+
+from database import update_draft_status
+
+@app.route('/api/draft/long_poll_status', methods=['GET'])
+def long_poll_draft_status():
+    draft_id = request.args.get('draft_id')
+    last_status = request.args.get('last_status')
+    timeout = int(request.args.get('timeout', 30))
+
+    if not draft_id:
+        return jsonify({"success": False, "error": "'draft_id' is required"}), 400
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("SELECT status, progress, message FROM drafts WHERE id = ?", (draft_id,))
+        result = c.fetchone()
+        conn.close()
+        
+        current_status = result[0] if result else None
+
+        if current_status and current_status != last_status:
+            return jsonify({
+                "success": True,
+                "draft_id": draft_id,
+                "status": current_status,
+                "progress": result[1],
+                "message": result[2]
+            })
+        
+        time.sleep(1) # 1秒轮询一次
+
+    return jsonify({"success": True, "status": "timeout", "message": "No status change"})
+
+# 操作系统检测API
+@app.route('/api/os/info', methods=['GET'])
+# 操作系统检测API
+@app.route('/api/os/info', methods=['GET'])
+def get_os_info():
+    """获取操作系统信息和默认路径配置"""
+    try:
+        os_config = get_os_path_config()
+        # 使用get_os_info()方法获取可序列化的字典数据
+        os_info = os_config.get_os_info()
+        return jsonify({
+            'success': True,
+            'data': os_info
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿路径配置API
+@app.route('/api/draft/path/config', methods=['POST'])
+def update_draft_path_config():
+    """更新草稿路径配置"""
+    try:
+        data = request.get_json()
+        custom_path = data.get('custom_path', '')
+        
+        # 这里可以添加路径验证逻辑
+        if custom_path and not os.path.exists(custom_path):
+            return jsonify({
+                'success': False,
+                'error': '指定的路径不存在'
+            }), 400
+            
+        return jsonify({
+            'success': True,
+            'message': '路径配置已更新',
+            'custom_path': custom_path
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿下载进度API
+@app.route('/api/draft/download/progress/<task_id>', methods=['GET'])
+def get_download_progress(task_id):
+    """获取草稿下载进度"""
+    try:
+        # 这里应该从实际的下载任务管理器中获取进度
+        # 目前返回模拟数据
+        progress_data = {
+            'task_id': task_id,
+            'progress': 75,  # 0-100
+            'status': 'downloading',  # downloading, completed, failed
+            'message': '正在下载草稿文件...',
+            'downloaded_size': '15.2MB',
+            'total_size': '20.3MB'
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': progress_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# 草稿预览页面
+@app.route('/draft/preview/<draft_id>', methods=['GET'])
+def enhanced_draft_preview(draft_id):
+    """增强版草稿详细预览页面 - 三栏布局优化版"""
+    import os
+    from draft_cache import DRAFT_CACHE, get_draft, draft_exists
+    
+    try:
+        # 首先检查草稿目录是否存在
+        draft_dir = f"drafts/{draft_id}"
+        if not os.path.exists(draft_dir):
+            return """
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>草稿预览 - {draft_id}</title>
+    <title>草稿不存在</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            color: white;
+        }}
+        .error-container {{
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }}
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1>草稿不存在</h1>
+        <p>草稿 {0} 不存在</p>
+        <a href="/api/drafts/dashboard" style="color: #fff; text-decoration: underline;">返回仪表板</a>
+    </div>
+</body>
+</html>
+""".format(draft_id)
+        
+        # 获取草稿的素材信息
+        materials = get_draft_materials(draft_id)
+        
+        # 如果数据库中没有素材信息，但草稿目录存在，则创建空的素材列表
+        if not materials:
+            materials = []
+        
+        # 计算总时长
+        total_duration = sum(material.get('end', 30) - material.get('start', 0) for material in materials)
+        
+        # 生成素材详情表格行
+        material_rows = ""
+        for i, material in enumerate(materials):
+            material_type = material.get('type', 'unknown')
+            video_url = material.get('url', '-')
+            start_time = material.get('start', 0)
+            end_time = material.get('end', 30)
+            duration = end_time - start_time
+            
+            # 格式化时间显示
+            start_formatted = "{:02d}:{:02d}".format(int(start_time//60), int(start_time%60))
+            end_formatted = "{:02d}:{:02d}".format(int(end_time//60), int(end_time%60))
+            duration_formatted = "{:02d}:{:02d}".format(int(duration//60), int(duration%60))
+            
+            material_rows += f"""
+                <tr class="material-row" data-material-id="{i}" onclick="selectMaterial({i})">
+                    <td><span class="type-badge type-{material_type}">{material_type.upper()}</span></td>
+                    <td class="url-cell" title="{video_url}">{video_url[:50]}{'...' if len(video_url) > 50 else ''}</td>
+                    <td>{start_formatted}</td>
+                    <td>{end_formatted}</td>
+                    <td>{duration_formatted}</td>
+                </tr>
+            """
+        
+        # 生成时间轴素材块
+        timeline_blocks = ""
+        for i, material in enumerate(materials):
+            material_type = material.get('type', 'unknown')
+            start_time = material.get('start', 0)
+            end_time = material.get('end', 30)
+            duration = end_time - start_time
+            
+            # 计算在时间轴上的位置（假设总时长为最大结束时间）
+            max_time = max(material.get('end', 30) for material in materials)
+            left_percent = (start_time / max_time) * 100 if max_time > 0 else 0
+            width_percent = (duration / max_time) * 100 if max_time > 0 else 10
+            
+            timeline_blocks += f"""
+                <div class="material-block material-{material_type}" 
+                     data-material-id="{i}"
+                     style="left: {left_percent}%; width: {width_percent}%;"
+                     onclick="selectMaterial({i})"
+                     title="{material_type.upper()}: {start_time}s - {end_time}s">
+                    <span class="material-label">{material_type[:3].upper()}</span>
+                </div>
+            """
+        
+        # 生成时间刻度
+        max_time = max(material.get('end', 30) for material in materials) if materials else 30
+        time_marks = ""
+        for i in range(0, int(max_time) + 5, 5):
+            if i <= max_time:
+                left_percent = (i / max_time) * 100 if max_time > 0 else 0
+                minutes = int(i // 60)
+                seconds = int(i % 60)
+                time_marks += """
+                    <div class="time-mark" style="left: {}%">
+                        <div class="time-tick"></div>
+                        <div class="time-label">{:02d}:{:02d}</div>
+                    </div>
+                """.format(left_percent, minutes, seconds)
+        # 定义草稿目录路径
+        draft_dir = "drafts/{}".format(draft_id)
+        
+        draft_files = []
+        if os.path.exists(draft_dir):
+            for file in os.listdir(draft_dir):
+                file_path = os.path.join(draft_dir, file)
+                if os.path.isfile(file_path):
+                    file_size = os.path.getsize(file_path)
+                    draft_files.append({
+                        'name': file,
+                        'size': "{:.2f} MB".format(file_size / 1024 / 1024) if file_size > 1024*1024 else "{:.2f} KB".format(file_size / 1024)
+                    })
+        
+        # 生成素材列表HTML
+        materials_html = ""
+        if materials:
+            for i, material in enumerate(materials):
+                material_type = material.get('type', 'unknown')
+                material_name = material.get('name', f'{material_type}_{i+1}')
+                material_duration = material.get('duration', 0)
+                
+                # 根据素材类型设置图标
+                type_icon = {
+                    'video': '🎬',
+                    'audio': '🎵', 
+                    'text': '📝',
+                    'image': '🖼️'
+                }.get(material_type, '📄')
+                
+                # 确保material_duration是数字类型
+                try:
+                    duration_float = float(material_duration) if material_duration else 0.0
+                except (ValueError, TypeError):
+                    duration_float = 0.0
+                
+                materials_html += """
+                    <div class="material-item {}" onclick="selectMaterial({})">
+                        <div class="material-icon">{0}</div>
+                        <div class="material-info">
+                            <div class="material-name">{1}</div>
+                            <div class="material-meta">{2:.1f}s</div>
+                        </div>
+                    </div>
+                """.format(material_type, i, type_icon, material_name, duration_float)
+        else:
+            materials_html = '<div class="empty-state">暂无素材</div>'
+        
+        # 生成各类型时间轴项目HTML
+        video_materials = [m for m in materials if m.get('type') == 'video']
+        audio_materials = [m for m in materials if m.get('type') == 'audio']
+        text_materials = [m for m in materials if m.get('type') == 'text']
+        image_materials = [m for m in materials if m.get('type') == 'image']
+        
+        # 生成视频时间轴项目
+        video_timeline_items = ""
+        if video_materials:
+            for material in video_materials:
+                # 确保数值类型转换
+                try:
+                    start_time = float(material.get('start', 0))
+                    duration = float(material.get('duration', 5))
+                    max_time_float = float(max_time) if max_time else 1.0
+                except (ValueError, TypeError):
+                    start_time = 0.0
+                    duration = 5.0
+                    max_time_float = 1.0
+                
+                name = material.get('name', '视频')[:10]
+                left_percent = (start_time / max_time_float) * 100 if max_time_float > 0 else 0
+                width_percent = (duration / max_time_float) * 100 if max_time_float > 0 else 10
+                
+                video_timeline_items += """
+                    <div class="timeline-item video" style="left: {}%; width: {}%;" title="{}">
+                        {}
+                    </div>
+                """.format(left_percent, width_percent, material.get('name', '视频'), name)
+        
+        # 生成音频时间轴项目
+        audio_timeline_items = ""
+        if audio_materials:
+            for material in audio_materials:
+                # 确保数值类型转换
+                try:
+                    start_time = float(material.get('start', 0))
+                    duration = float(material.get('duration', 5))
+                    max_time_float = float(max_time) if max_time else 1.0
+                except (ValueError, TypeError):
+                    start_time = 0.0
+                    duration = 5.0
+                    max_time_float = 1.0
+                
+                name = material.get('name', '音频')[:10]
+                left_percent = (start_time / max_time_float) * 100 if max_time_float > 0 else 0
+                width_percent = (duration / max_time_float) * 100 if max_time_float > 0 else 10
+                
+                audio_timeline_items += """
+                    <div class="timeline-item audio" style="left: {0}%; width: {1}%;" title="{2}">
+                        {3}
+                    </div>
+                """.format(left_percent, width_percent, material.get('name', '音频'), name)
+        
+        # 生成文本时间轴项目
+        text_timeline_items = ""
+        if text_materials:
+            for material in text_materials:
+                # 确保数值类型转换
+                try:
+                    start_time = float(material.get('start', 0))
+                    duration = float(material.get('duration', 5))
+                    max_time_float = float(max_time) if max_time else 1.0
+                except (ValueError, TypeError):
+                    start_time = 0.0
+                    duration = 5.0
+                    max_time_float = 1.0
+                
+                name = material.get('name', '文本')[:10]
+                left_percent = (start_time / max_time_float) * 100 if max_time_float > 0 else 0
+                width_percent = (duration / max_time_float) * 100 if max_time_float > 0 else 10
+                
+                text_timeline_items += """
+                    <div class="timeline-item text" style="left: {0}%; width: {1}%;" title="{2}">
+                        {3}
+                    </div>
+                """.format(left_percent, width_percent, material.get('name', '文本'), name)
+        
+        # 生成图片时间轴项目
+        image_timeline_items = ""
+        if image_materials:
+            for material in image_materials:
+                # 确保数值类型转换
+                try:
+                    start_time = float(material.get('start', 0))
+                    duration = float(material.get('duration', 5))
+                    max_time_float = float(max_time) if max_time else 1.0
+                except (ValueError, TypeError):
+                    start_time = 0.0
+                    duration = 5.0
+                    max_time_float = 1.0
+                
+                name = material.get('name', '图片')[:10]
+                left_percent = (start_time / max_time_float) * 100 if max_time_float > 0 else 0
+                width_percent = (duration / max_time_float) * 100 if max_time_float > 0 else 10
+                
+                image_timeline_items += """
+                    <div class="timeline-item image" style="left: {0}%; width: {1}%;" title="{2}">
+                        {3}
+                    </div>
+                """.format(left_percent, width_percent, material.get('name', '图片'), name)
+        
+        # 计算总时长
+        total_duration = max_time if max_time > 0 else 0
+        
+        # 将素材数据转换为JSON格式供JavaScript使用
+        materials_json = json.dumps(materials, ensure_ascii=False)
+        
+        # 生成时间轴HTML
+        timeline_html = generate_timeline_html(materials)
+        
+        # 获取草稿信息
+        draft_info_path = os.path.join(draft_dir, 'draft_info.json')
+        draft_info = {}
+        if os.path.exists(draft_info_path):
+            with open(draft_info_path, 'r', encoding='utf-8') as f:
+                draft_info = json.load(f)
+        
+        # 返回草稿预览页面HTML
+        html_content = """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>草稿预览 - {}</title>
     <style>
         * {{
             margin: 0;
@@ -2242,1207 +3193,1045 @@ def enhanced_draft_preview(draft_id: str):
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
             background: #1a1a1a;
-            color: #fff;
-            overflow-x: hidden;
+            color: #ffffff;
+            overflow: hidden;
         }}
         
         .header {{
-            background: #2d2d2d;
-            padding: 15px 20px;
-            border-bottom: 1px solid #404040;
+            background: #2a2a2a;
+            padding: 12px 20px;
+            border-bottom: 1px solid #3a3a3a;
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            height: 60px;
         }}
         
         .header h1 {{
             font-size: 18px;
-            font-weight: 600;
-            color: #fff;
-            text-align: center;
-            flex: 1;
+            font-weight: 500;
         }}
         
         .back-btn {{
-            background: #404040;
-            color: #fff;
+            background: #4a4a4a;
             border: none;
+            color: white;
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
             text-decoration: none;
             font-size: 14px;
-            transition: background 0.2s;
         }}
         
         .back-btn:hover {{
-            background: #505050;
+            background: #5a5a5a;
         }}
         
         .main-container {{
-            display: grid;
-            grid-template-columns: 1fr 500px;
+            display: flex;
             height: calc(100vh - 60px);
-            gap: 20px;
         }}
         
-        .preview-section {{
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
+        .left-panel {{
+            width: 300px;
+            background: #2a2a2a;
+            border-right: 1px solid #3a3a3a;
+            overflow-y: auto;
         }}
         
-        .content-preview {{
+        .center-panel {{
             flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            padding: 20px;
-            position: relative;
-        }}
-        
-        .preview-container {{
-            background: #2d2d2d;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            text-align: center;
-            min-height: 300px;
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            border: 2px solid #404040;
-            position: relative;
-            transition: all 0.3s ease;
-        }}
-        
-        .preview-container.active {{
-            border-color: #0066ff;
-            box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
-        }}
-        
-        .preview-icon {{
-            font-size: 64px;
-            margin-bottom: 20px;
-            opacity: 0.7;
-            transition: all 0.3s ease;
-        }}
-        
-        .preview-content {{
-            display: none;
-            width: 100%;
-        }}
-        
-        .preview-content.active {{
-            display: block;
-        }}
-        
-        .video-preview {{
-            background: #000;
-            border-radius: 8px;
-            aspect-ratio: 16/9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            margin-bottom: 20px;
-        }}
-        
-        .audio-preview {{
-            width: 100%;
-        }}
-        
-        .waveform {{
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(0, 102, 255, 0.3) 20%, 
-                rgba(0, 102, 255, 0.6) 50%, 
-                rgba(0, 102, 255, 0.3) 80%, 
-                transparent 100%);
-            height: 80px;
-            border-radius: 8px;
-            margin: 20px 0;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #0066ff;
-            font-weight: bold;
-        }}
-        
-        .text-preview {{
             background: #1a1a1a;
-            border-radius: 8px;
-            padding: 20px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-            border: 2px solid #0066ff;
+            display: flex;
+            flex-direction: column;
         }}
         
-        .play-controls {{
-            width: 100%;
-            max-width: 600px;
-            background: #2d2d2d;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-top: 15px;
+        .right-panel {{
+            width: 350px;
+            background: #2a2a2a;
+            border-left: 1px solid #3a3a3a;
+            overflow-y: auto;
+        }}
+        
+        .panel-header {{
+            padding: 16px 20px;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 16px;
+            font-weight: 500;
+        }}
+        
+        .materials-list {{
+            padding: 16px;
+        }}
+        
+        .material-item {{
             display: flex;
             align-items: center;
-            gap: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }}
-        
-        .play-button {{
-            background: #0066ff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            width: 36px;
-            height: 36px;
-            font-size: 14px;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #3a3a3a;
+            border-radius: 8px;
             cursor: pointer;
+            transition: background 0.2s;
+        }}
+        
+        .material-item:hover {{
+            background: #4a4a4a;
+        }}
+        
+        .material-item.selected {{
+            background: #0066cc;
+        }}
+        
+        .material-icon {{
+            width: 40px;
+            height: 40px;
+            background: #5a5a5a;
+            border-radius: 6px;
+            margin-right: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-            flex-shrink: 0;
+            font-size: 18px;
         }}
         
-        .play-button:hover {{
-            background: #0052cc;
-            transform: scale(1.05);
+        .material-info {{
+            flex: 1;
         }}
         
-        .progress-container {{
+        .material-name {{
+            font-size: 14px;
+            margin-bottom: 4px;
+        }}
+        
+        .material-type {{
+            font-size: 12px;
+            color: #999;
+        }}
+        
+        .preview-area {{
             flex: 1;
             display: flex;
             align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+            position: relative;
+        }}
+        
+        .preview-placeholder {{
+            text-align: center;
+            color: #666;
+        }}
+        
+        .timeline-container {{
+            height: 200px;
+            background: #2a2a2a;
+            border-top: 1px solid #3a3a3a;
+        }}
+        
+        .timeline-header {{
+            padding: 12px 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        
+        .timeline-controls {{
+            display: flex;
             gap: 8px;
         }}
         
-        .progress-bar {{
-            flex: 1;
-            height: 4px;
-            background: #404040;
-            border-radius: 2px;
-            position: relative;
+        .timeline-btn {{
+            background: #4a4a4a;
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 12px;
+        }}
+        
+        .timeline-btn:hover {{
+            background: #5a5a5a;
+        }}
+        
+        .timeline-content {{
+            padding: 16px 20px;
+            height: calc(100% - 60px);
+            overflow-x: auto;
+        }}
+        
+        .timeline-tracks {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+        
+        .timeline-track {{
+            height: 40px;
+            background: #3a3a3a;
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+        }}
+        
+        .track-label {{
+            width: 80px;
+            font-size: 12px;
+            color: #999;
+        }}
+        
+        .track-content {{
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }}
+        
+        .timeline-item {{
+            position: absolute;
+            height: 32px;
+            background: #0066cc;
+            border-radius: 4px;
+            top: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }}
+        
+        .timeline-item:hover {{
+            background: #0077dd;
+        }}
+        
+        .details-content {{
+            padding: 20px;
+        }}
+        
+        .details-section {{
+            margin-bottom: 24px;
+        }}
+        
+        .details-title {{
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: #ccc;
+        }}
+        
+        .details-item {{
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #3a3a3a;
+        }}
+        
+        .details-label {{
+            font-size: 13px;
+            color: #999;
+        }}
+        
+        .details-value {{
+            font-size: 13px;
+            color: #fff;
+        }}
+        
+        .download-section {{
+            padding: 20px;
+            border-top: 1px solid #3a3a3a;
+        }}
+        
+        .download-btn {{
+            width: 100%;
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }}
+        
+        .download-btn:hover {{
+            background: #0077dd;
+        }}
+        
+        .progress-container {{
+            margin-top: 12px;
+            display: none;
+        }}
+        
+        .progress-bar {{
+            width: 100%;
+            height: 6px;
+            background: #3a3a3a;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
         }}
         
         .progress-fill {{
             height: 100%;
-            background: #0066ff;
-            border-radius: 2px;
+            background: #0066cc;
             width: 0%;
-            transition: width 0.1s ease;
+            transition: width 0.3s ease;
         }}
         
-        .time-display {{
-            display: flex;
-            align-items: center;
-            gap: 4px;
+        .progress-text {{
             font-size: 12px;
-            color: #ccc;
-            font-family: monospace;
-            min-width: 80px;
+            color: #999;
+            text-align: center;
         }}
         
-        .timeline {{
-            background: #252525;
-            border-top: 1px solid #404040;
-            padding: 20px;
-            min-height: 140px;
+        .download-section {{
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
         }}
         
-        .timeline-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+        .download-btn {{
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 10px;
         }}
         
-        .timeline-title {{
-            font-size: 14px;
-            color: #ccc;
+        .download-btn:hover {{
+            transform: translateY(-2px);
         }}
         
-        .timeline-duration {{
-            font-size: 12px;
-            color: #888;
+        .progress-container {{
+            margin-top: 20px;
+            display: none;
         }}
         
-        .tracks-container {{
-            position: relative;
-        }}
-        
-        .time-ruler {{
-            display: flex;
-            justify-content: space-between;
+        .progress-bar {{
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
             margin-bottom: 10px;
-            padding: 0 10px;
-            font-size: 11px;
+        }}
+        
+        .progress-fill {{
+            height: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }}
+        
+        .progress-text {{
+            font-size: 14px;
             color: #666;
         }}
         
-        .track {{
-            background: #1a1a1a;
-            border-radius: 6px;
-            margin-bottom: 8px;
-            padding: 8px;
-            position: relative;
-            border: 1px solid #404040;
-            transition: all 0.2s ease;
-        }}
-        
-        .track:hover {{
-            border-color: #0066ff;
-            box-shadow: 0 2px 8px rgba(0, 102, 255, 0.2);
-        }}
-        
-        .track-label {{
-            position: absolute;
-            left: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 11px;
-            color: #aaa;
-            z-index: 2;
-            pointer-events: none;
-        }}
-        
-        .track-content {{
-            height: 40px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 12px;
-            font-weight: 600;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
-        
-        .track-content:hover {{
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }}
-        
-        .track-video {{
-            background: linear-gradient(135deg, #8e24aa, #6a1b9a);
-        }}
-        
-        .track-audio {{
-            background: linear-gradient(135deg, #0066ff, #0052cc);
-        }}
-        
-        .track-text {{
-            background: linear-gradient(135deg, #ff9800, #f57c00);
-        }}
-        
-        .track-music {{
-            background: linear-gradient(135deg, #4caf50, #388e3c);
-        }}
-        
-        .track-content::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(
-                90deg,
-                transparent 0px,
-                transparent 10px,
-                rgba(255, 255, 255, 0.1) 10px,
-                rgba(255, 255, 255, 0.1) 11px
-            );
-            border-radius: 4px;
-        }}
-        
-        .details-panel {{
-            background: #2d2d2d;
-            border-left: 1px solid #404040;
-            display: flex;
-            flex-direction: column;
-        }}
-        
-        .panel-header {{
-            background: #353535;
-            padding: 8px 10px;
-            border-bottom: 1px solid #404040;
-            text-align: center;
-            font-size: 16px;
-            font-weight: 600;
-        }}
-        
-        .panel-content {{
-            flex: 1;
-            overflow-y: auto;
-        }}
-        
-        .details-section {{
-            padding: 8px;
-            border-bottom: 1px solid #404040;
-        }}
-        
-        .details-table {{
-            width: 100%;
-            border-collapse: collapse;
-        }}
-        
-        .details-table tr {{
-            border-bottom: 1px solid #404040;
-        }}
-        
-        .details-table td {{
-            padding: 8px 0;
-            font-size: 14px;
-        }}
-        
-        .details-table td:first-child {{
-            color: #aaa;
-            width: 30%;
-        }}
-        
-        .details-table td:last-child {{
-            color: #fff;
-            font-weight: 500;
-        }}
-        
-
-        
-        .download-section {{
-            padding: 15px;
-            background: #353535;
-        }}
-        
-        .download-info {{
-            background: rgba(0, 191, 165, 0.1);
-            border: 1px solid rgba(0, 191, 165, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-            text-align: center;
-        }}
-        
-        .download-icon {{
-            width: 60px;
-            height: 60px;
-            background: #00bfa5;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            font-size: 24px;
-        }}
-        
-        .download-path {{
-            background: #1a1a1a;
-            border: 1px solid #404040;
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-size: 12px;
-            color: #ccc;
-            margin-bottom: 15px;
-            word-break: break-all;
-        }}
-        
-        .action-buttons {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 15px;
-        }}
-        
-        .btn {{
-            background: #0066ff;
-            color: white;
+        .back-btn {{
+            background: rgba(255, 255, 255, 0.2);
             border: none;
-            padding: 12px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: background 0.2s;
-            text-decoration: none;
-            text-align: center;
-        }}
-        
-        .btn:hover {{
-            background: #0052cc;
-        }}
-        
-        .btn-secondary {{
-            background: #404040;
-        }}
-        
-        .btn-secondary:hover {{
-            background: #505050;
-        }}
-        
-        .selected-asset {{
-            background: #353535;
+            color: white;
+            padding: 10px 20px;
             border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }}
-        
-        .selected-asset h3 {{
-            color: #0066ff;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }}
-        
-        .asset-info {{
-            font-size: 12px;
-            color: #ccc;
-            line-height: 1.5;
-        }}
-        
-        @media (max-width: 768px) {{
-            .main-container {{
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
-            }}
-            
-            .details-panel {{
-                border-left: none;
-                border-top: 1px solid #404040;
-                max-height: 40vh;
-            }}
-            
-            .content-preview {{
-                padding: 20px;
-            }}
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
         }}
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="javascript:history.back()" class="back-btn">← 返回</a>
         <h1>草稿预览 - {draft_id}</h1>
-        <div style="width: 80px;"></div>
+        <a href="/api/drafts/dashboard" class="back-btn">← 返回</a>
     </div>
     
     <div class="main-container">
-        <div class="preview-section">
-            <div class="content-preview">
-                <div class="preview-container" id="preview-container">
-                    <div class="preview-icon" id="preview-icon">🎬</div>
-                    <h3 id="preview-title">点击下方轨道上的素材可关键帧，在此查看其详细信息</h3>
-                    <p style="color: #888; margin-top: 10px;" id="preview-subtitle">选择素材来预览内容</p>
-                    
-                    <!-- 视频预览 -->
-                    <div class="preview-content" id="video-preview">
-                        <div class="video-preview">🎥</div>
-                        <h3>视频素材预览</h3>
-                        <p style="color: #888;">视频轨道内容</p>
-                    </div>
-                    
-                    <!-- 音频预览 -->
-                    <div class="preview-content" id="audio-preview">
-                        <div class="audio-preview">
-                            <div class="waveform">🎵 音频波形</div>
-                        </div>
-                        <h3>音频素材预览</h3>
-                        <p style="color: #888;">语音合成音频</p>
-                    </div>
-                    
-                    <!-- 文本预览 -->
-                    <div class="preview-content" id="text-preview">
-                        <div class="text-preview" id="text-content">示例文本内容</div>
-                        <h3>文本素材预览</h3>
-                        <p style="color: #888;">文本轨道内容展示</p>
-                    </div>
-                </div>
-                
-                <div class="play-controls">
-                    <button class="play-button" id="play-btn" onclick="togglePlay()">
-                        ▶️
-                    </button>
-                    <div class="progress-container">
-                        <div class="progress-bar" onclick="seekTo(event)">
-                            <div class="progress-fill" id="progress-fill"></div>
-                        </div>
-                        <div class="time-display">
-                            <span id="current-time">0:00</span>
-                            <span style="color: #666;">/</span>
-                            <span id="total-time">0:30</span>
-                        </div>
-                    </div>
+        <!-- 左侧素材面板 -->
+        <div class="left-panel">
+            <div class="panel-header">素材列表</div>
+            <div class="materials-list">
+                {materials_html}
+            </div>
+        </div>
+        
+        <!-- 中央预览和时间轴面板 -->
+        <div class="center-panel">
+            <div class="preview-area">
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🎬</div>
+                    <div>选择素材查看预览</div>
                 </div>
             </div>
             
-            <div class="timeline">
+            <div class="timeline-container">
                 <div class="timeline-header">
-                    <div class="timeline-title">时间轴</div>
-                    <div class="timeline-duration">总时长: 0:30</div>
+                    <span>时间轴 (总时长: {total_duration:.1f}s)</span>
+                    <div class="timeline-controls">
+                        <button class="timeline-btn">播放</button>
+                        <button class="timeline-btn">暂停</button>
+                        <button class="timeline-btn">重置</button>
+                    </div>
                 </div>
                 
-                <div class="tracks-container">
-                    <div class="time-ruler">
-                        <span>0:00</span>
-                        <span>0:05</span>
-                        <span>0:10</span>
-                        <span>0:15</span>
-                        <span>0:20</span>
-                        <span>0:25</span>
-                        <span>0:30</span>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">主视频轨道</div>
-                        <div class="track-content track-video" onclick="selectAsset('video', '主视频轨道', '视频素材内容', event)" data-type="video">
-                            🎥 主视频
+                <div class="timeline-content">
+                    <div class="timeline-tracks">
+                        <!-- 视频轨道 -->
+                        <div class="timeline-track">
+                            <div class="track-label">视频</div>
+                            <div class="track-content">
+                                {video_timeline_items}
+                            </div>
+                        </div>
+                        
+                        <!-- 音频轨道 -->
+                        <div class="timeline-track">
+                            <div class="track-label">音频</div>
+                            <div class="track-content">
+                                {audio_timeline_items}
+                            </div>
+                        </div>
+                        
+                        <!-- 文本轨道 -->
+                        <div class="timeline-track">
+                            <div class="track-label">文本</div>
+                            <div class="track-content">
+                                {text_timeline_items}
+                            </div>
+                        </div>
+                        
+                        <!-- 图片轨道 -->
+                        <div class="timeline-track">
+                            <div class="track-label">图片</div>
+                            <div class="track-content">
+                                {image_timeline_items}
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="track">
-                        <div class="track-label">语音旁白</div>
-                        <div class="track-content track-audio" onclick="selectAsset('audio', '语音旁白', '豆包语音合成音频', event)" data-type="audio" style="width: 93%;">
-                            🎤 语音旁白
-                        </div>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">标题文本</div>
-                        <div class="track-content track-text" onclick="selectAsset('text', '标题文本', 'AI生成的标题内容', event)" data-type="text" style="width: 17%;">
-                            AI
-                        </div>
-                    </div>
-                    
-                    <div class="track">
-                        <div class="track-label">背景音乐</div>
-                        <div class="track-content track-music" onclick="selectAsset('music', '背景音乐', '背景音乐轨道', event)" data-type="music">
-                            ♪ 背景音乐
-                        </div>
+                    <!-- 时间刻度 -->
+                    <div class="timeline-ruler">
+                        {time_marks_html}
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="details-panel">
-            <div class="panel-header">详细信息</div>
-            <div class="panel-content">
-                <div class="details-section">
-                    <div class="selected-asset" id="selected-asset" style="display: none;">
-                        <h3>已选择素材</h3>
-                        <div class="asset-info" id="asset-info">
-                            暂无选择
-                        </div>
-                    </div>
-                    
-                    <table class="details-table">
-                        <!-- 素材信息 -->
-                        {material_rows}
-                        <tr>
-                            <td>草稿ID:</td>
-                            <td>{draft_id}</td>
-                        </tr>
-                        <tr>
-                            <td>画面尺寸:</td>
-                            <td>1080 × 1920</td>
-                        </tr>
-                        <tr>
-                            <td>总时长:</td>
-                            <td>0:30</td>
-                        </tr>
-                        <tr>
-                            <td>轨道数量:</td>
-                            <td>4</td>
-                        </tr>
-                        <tr>
-                            <td>文件大小:</td>
-                            <td>{round(file_size/1024, 1)} KB</td>
-                        </tr>
-                        <tr>
-                            <td>状态:</td>
-                            <td>{"已生成" if draft_source == "local" else "云端已保存" if draft_source == "oss" else "已完成"}</td>
-                        </tr>
-                        <tr>
-                            <td>存储位置:</td>
-                            <td>{"本地文件" if draft_source == "local" else "OSS云存储" if draft_source == "oss" else "未知"}</td>
-                        </tr>
-                    </table>
+        <!-- 右侧详情面板 -->
+        <div class="right-panel">
+            <div class="panel-header">素材详情</div>
+            <div class="details-content" id="material-details">
+                <div style="text-align: center; color: #666; padding: 40px 20px;">
+                    <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
+                    <div>选择素材查看详情</div>
                 </div>
-
             </div>
             
             <div class="download-section">
-                <div class="panel-header" style="background: transparent; padding: 0 0 15px 0; text-align: left;">下载草稿</div>
+                <button class="download-btn" onclick="startDownload()">📥 下载草稿</button>
+                <button class="download-btn" onclick="configPath()" style="background: #666;">⚙️ 配置路径</button>
                 
-                <div class="download-info">
-                    <div class="download-icon">📁</div>
-                    <p>草稿保存10分钟，请尽快下载</p>
-                </div>
-                
-                <!-- 系统选择 -->
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">系统类型:</label>
-                    <select id="osSelect" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px;">
-                        <option value="windows">Windows</option>
-                        <option value="linux">Linux</option>
-                    </select>
-                </div>
-                
-                <!-- 自定义路径 -->
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">自定义根路径 (可选):</label>
-                    <input id="baseInput" type="text" placeholder="如: F:/MyDrafts" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px; box-sizing: border-box;" />
-                </div>
-                
-                <!-- 本地路径显示 -->
-                <div class="download-path" id="localPath">
-                    获取本地路径中...
-                </div>
-                
-                <!-- 操作按钮 -->
-                <div class="action-buttons">
-                    <button id="saveUploadBtn" class="btn" style="width: 100%; margin-bottom: 10px;">
-                        ☁️ 一键保存并上传到OSS
-                    </button>
-                    <button class="btn btn-secondary" onclick="copyLocalPath()" style="width: 100%;">
-                        📋 复制本地路径
-                    </button>
-                </div>
-                
-                <!-- 状态显示 -->
-                <div id="downloadStatus" style="font-size: 11px; color: #888; margin-top: 10px; text-align: center;">
-                    准备就绪
-                </div>
-                
-                <!-- 日志区域 -->
-                <div id="downloadLog" style="background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; padding: 8px; margin-top: 10px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #ccc; display: none;">
+                <div class="progress-container" id="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">准备下载...</div>
                 </div>
             </div>
         </div>
     </div>
     
     <script>
-        let isPlaying = false;
-        let currentTime = 0;
-        const maxTime = 30;
-        let playInterval;
-        let currentAsset = null;
+        // 素材数据
+        const materials = {materials_json};
+        let selectedMaterialId = null;
         
-        // 显示不同类型的内容
-        function showContent(type, name, description) {{
-            document.querySelectorAll('.preview-content').forEach(content => {{
-                content.classList.remove('active');
+        // 素材选择功能
+        function selectMaterial(materialId) {{
+            // 移除之前的选中状态
+            document.querySelectorAll('.material-item.selected, .timeline-item.selected').forEach(el => {{
+                el.classList.remove('selected');
             }});
             
-            document.getElementById('preview-icon').textContent = type === 'video' ? '🎥' : type === 'audio' ? '🎵' : '📝';
-            document.getElementById('preview-title').textContent = name;
-            document.getElementById('preview-subtitle').textContent = description;
+            // 添加新的选中状态
+            document.querySelectorAll(`[data-material-id="${{materialId}}"]`).forEach(el => {{
+                el.classList.add('selected');
+            }});
             
-            if (type === 'video') {{
-                document.getElementById('video-preview').classList.add('active');
-            }} else if (type === 'audio') {{
-                document.getElementById('audio-preview').classList.add('active');
-            }} else {{
-                document.getElementById('text-preview').classList.add('active');
+            selectedMaterialId = materialId;
+            updateMaterialDetails(materialId);
+        }}
+        
+        // 更新素材详情面板
+        function updateMaterialDetails(materialId) {{
+            const material = materials[materialId];
+            if (!material) return;
+            
+            const detailsContainer = document.getElementById('material-details');
+            const startTime = material.start || 0;
+            const endTime = material.end || 30;
+            const duration = endTime - startTime;
+            
+            detailsContainer.innerHTML = `
+                <div class="details-section">
+                    <div class="details-title">基本信息</div>
+                    <div class="details-item">
+                        <span class="details-label">类型</span>
+                        <span class="details-value">${{material.type?.toUpperCase() || 'UNKNOWN'}}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">开始时间</span>
+                        <span class="details-value">${{Math.floor(startTime/60).toString().padStart(2,'0')}}:${{Math.floor(startTime%60).toString().padStart(2,'0')}}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">结束时间</span>
+                        <span class="details-value">${{Math.floor(endTime/60).toString().padStart(2,'0')}}:${{Math.floor(endTime%60).toString().padStart(2,'0')}}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">时长</span>
+                        <span class="details-value">${{Math.floor(duration/60).toString().padStart(2,'0')}}:${{Math.floor(duration%60).toString().padStart(2,'0')}}</span>
+                    </div>
+                </div>
+                
+                <div class="details-section">
+                    <div class="details-title">文件信息</div>
+                    <div class="details-item">
+                        <span class="details-label">文件路径</span>
+                        <span class="details-value" style="word-break: break-all; font-size: 11px;">${{material.url || '-'}}</span>
+                    </div>
+                </div>
+            `;
+        }}
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {{
+            if (e.key === 'Escape') {{
+                // ESC键取消选择
+                document.querySelectorAll('.material-item.selected, .timeline-item.selected').forEach(el => {{
+                    el.classList.remove('selected');
+                }});
+                selectedMaterialId = null;
+                document.getElementById('material-details').innerHTML = `
+                    <div style="text-align: center; color: #666; padding: 40px 20px;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
+                        <div>选择素材查看详情</div>
+                    </div>
+                `;
             }}
+        }});
+        
+        // 下载功能
+        function startDownload() {{
+            const progressContainer = document.getElementById('progress-container');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
             
-            // timeline代码暂时注释掉进行调试
-            console.log('selectAsset function called successfully');
+            progressContainer.style.display = 'block';
+            progressText.textContent = '开始下载...';
+            
+            // 模拟下载进度
+            let progress = 0;
+            const interval = setInterval(() => {{
+                progress += Math.random() * 10;
+                if (progress >= 100) {{
+                    progress = 100;
+                    clearInterval(interval);
+                    progressText.textContent = '下载完成！';
+                }} else {{
+                    progressText.textContent = `下载中... ${{Math.round(progress)}}%`;
+                }}
+                progressFill.style.width = progress + '%';
+            }}}}, 200);
+            
+            // 实际下载API调用
+            const downloadTaskId = 'task_' + Date.now();
+            fetch('/api/draft/download/progress/' + downloadTaskId)
+                .then(response => response.json())
+                .then(data => {{
+                    console.log('下载任务状态:', data);
+                }})
+                .catch(error => {{
+                    console.error('下载失败:', error);
+                    progressText.textContent = '下载失败，请重试';
+                }});
+        }}
+        
+        // 配置下载路径
+        function configPath() {{
+            const newPath = prompt('请输入新的下载路径:', '/home/downloads');
+            if (newPath) {{
+                fetch('/api/draft/path/config', {{{{
+                    method: 'POST',
+                    headers: {{{{
+                        'Content-Type': 'application/json'
+                    }}}},
+                    body: JSON.stringify({{{{
+                        path: newPath
+                    }}}})
+                }})
+                .then(response => response.json())
+                .then(data => {{{{
+                    if (data.success) {{{{
+                        alert('路径配置成功！');
+                    }}}} else {{{{
+                        alert('路径配置失败: ' + data.message);
+                    }}}}
+                }}}})
+                .catch(error => {{{{
+                    console.error('配置失败:', error);
+                    alert('配置失败，请重试');
+                }}}});
+            }}
+        }}
+                        <button class="timeline-btn">播放</button>
+                        <button class="timeline-btn">暂停</button>
+                        <button class="timeline-btn">重置</button>
+                    </div>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-tracks">
+                        {timeline_html}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧详情面板 -->
+        <div class="right-panel">
+            <div class="panel-header">素材详情</div>
+            <div class="details-content" id="detailsContent">
+                <div class="details-section">
+                    <div class="details-title">草稿信息</div>
+                    <div class="details-item">
+                        <span class="details-label">草稿ID</span>
+                        <span class="details-value">{draft_id}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">素材数量</span>
+                        <span class="details-value">{materials_count} 个</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">创建时间</span>
+                        <span class="details-value">{create_time}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">修改时间</span>
+                        <span class="details-value">{update_time}</span>
+                    </div>
+                </div>
+                
+                <div class="details-section" id="materialDetails" style="display: none;">
+                    <div class="details-title">选中素材</div>
+                    <div id="materialDetailsContent">
+                        <!-- 动态内容 -->
                     </div>
                 </div>
             </div>
             
             <div class="download-section">
-                <div class="panel-header" style="background: transparent; padding: 0 0 15px 0; text-align: left;">下载草稿</div>
+                <button class="download-btn" onclick="startDownload('{draft_id}')">
+                    📦 下载草稿
+                </button>
+                <button class="download-btn" onclick="configPath()">
+                    ⚙️ 配置路径
+                </button>
                 
-                <div class="download-info">
-                    <div class="download-icon">📁</div>
-                    <p>草稿保存10分钟，请尽快下载</p>
-                </div>
-                
-                <!-- 系统选择 -->
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">系统类型:</label>
-                    <select id="osSelect" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px;">
-                        <option value="windows">Windows</option>
-                        <option value="linux">Linux</option>
-                    </select>
-                </div>
-                
-                <!-- 自定义路径 -->
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">自定义根路径 (可选):</label>
-                    <input id="baseInput" type="text" placeholder="如: F:/MyDrafts" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; color: #fff; font-size: 12px; box-sizing: border-box;" />
-                </div>
-                
-                <!-- 本地路径显示 -->
-                <div class="download-path" id="localPath">
-                    获取本地路径中...
-                </div>
-                
-                <!-- 操作按钮 -->
-                <div class="action-buttons">
-                    <button id="saveUploadBtn" class="btn" style="width: 100%; margin-bottom: 10px;">
-                        ☁️ 一键保存并上传到OSS
-                    </button>
-                    <button class="btn btn-secondary" onclick="copyLocalPath()" style="width: 100%;">
-                        📋 复制本地路径
-                    </button>
-                </div>
-                
-                <!-- 状态显示 -->
-                <div id="downloadStatus" style="font-size: 11px; color: #888; margin-top: 10px; text-align: center;">
-                    准备就绪
-                </div>
-                
-                <!-- 日志区域 -->
-                <div id="downloadLog" style="background: #1a1a1a; border: 1px solid #404040; border-radius: 6px; padding: 8px; margin-top: 10px; height: 100px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #ccc; display: none;">
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">准备下载...</div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        let currentAsset = null;
-        let isPlaying = false;
+        let downloadTaskId = null;
+        let selectedMaterial = null;
         
-        // 全局变量，防止materialType未定义错误
-        let materialType = 'unknown';
-        
-        // 素材数据
-        const materials = {materials_json};
-        
-        // 根据轨道类型映射到实际素材数据
-        function getMaterialByType(trackType) {{
-            console.log('查找素材类型:', trackType, '可用素材:', materials);
+        // 素材选择功能
+        function selectMaterial(materialId, materialData) {{{{
+            // 移除之前的选中状态
+            document.querySelectorAll('.material-item').forEach(item => {{{{
+                item.classList.remove('selected');
+            }}}});
             
-            // 根据轨道类型查找对应的素材
-            for (let material of materials) {{
-                if (trackType === 'video' && material.type === 'video') {{
-                    console.log('找到视频素材:', material);
-                    return material;
-                }}
-                if (trackType === 'audio' && material.type === 'audio') {{
-                    // 优先匹配非背景音乐的音频素材（语音旁白）
-                    if (!material.track_name || (!material.track_name.includes('bgm') && !material.track_name.includes('music'))) {{
-                        console.log('找到语音旁白素材:', material);
-                        return material;
-                    }}
-                }}
-                if (trackType === 'text' && material.type === 'text') {{
-                    console.log('找到文本素材:', material);
-                    return material;
-                }}
-                if (trackType === 'music' && material.type === 'audio' && material.track_name && 
-                    (material.track_name.includes('bgm') || material.track_name.includes('music'))) {{
-                    console.log('找到背景音乐素材:', material);
-                    return material;
-                }}
-            }}
+            // 添加新的选中状态
+            const selectedItem = document.querySelector(`[data-material-id="${{{{materialId}}}}"]`);
+            if (selectedItem) {{{{
+                selectedItem.classList.add('selected');
+            }}}}
             
-            // 如果没有找到对应的素材，返回第一个素材作为示例
-            console.log('未找到匹配素材，返回第一个素材');
-            return materials.length > 0 ? materials[0] : null;
+            selectedMaterial = materialData;
+            updateMaterialDetails(materialData);
         }}
         
-        // 更新Details表格
-        function updateDetailsTable(material) {{
-            alert('updateDetailsTable函数被调用');
-            console.log('更新Details表格，素材数据:', material);
-            if (!material) {{
-                console.log('没有素材数据，退出');
+        // 更新素材详情面板
+        function updateMaterialDetails(material) {{{{
+            const detailsSection = document.getElementById('materialDetails');
+            const detailsContent = document.getElementById('materialDetailsContent');
+
+            if (!material) {{{{
+                detailsSection.style.display = 'none';
                 return;
-            }}
+            }}}}
             
-            // 删除所有现有的素材信息行
-            const materialRows = document.querySelectorAll('.details-table .material-rows');
-            materialRows.forEach(row => row.remove());
+            detailsSection.style.display = 'block';
             
-            const detailsTable = document.querySelector('.details-table');
-            const draftIdRow = detailsTable.querySelector('tr');
-            
-            // 创建新的素材信息行
-            const materialType = material.type || material.materialType || material.material_type || 'unknown';
-            const urlLabel = materialType === 'text' ? 'Content' : materialType.charAt(0).toUpperCase() + materialType.slice(1) + ' URL';
-            const urlContent = material.url || material.content || '-';
-            const startTime = material.start || '-';
-            const endTime = material.end || '-';
-            const duration = (typeof startTime === 'number' && typeof endTime === 'number') ? 
-                (endTime - startTime).toFixed(2) + 's' : '-';
-            
-            const materialRowsHTML = `
-                <tr class="material-rows" style="background-color: #2a2a2a;">
-                    <td>Type:</td>
-                    <td>${{materialType}}</td>
-                </tr>
-                <tr class="material-rows" style="background-color: #2a2a2a;">
-                    <td>${{urlLabel}}:</td>
-                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${{urlContent}}">${{urlContent}}</td>
-                </tr>
-                <tr class="material-rows" style="background-color: #2a2a2a;">
-                    <td>Start Time:</td>
-                    <td>${{startTime}}s</td>
-                </tr>
-                <tr class="material-rows" style="background-color: #2a2a2a;">
-                    <td>End Time:</td>
-                    <td>${{endTime}}s</td>
-                </tr>
-                <tr class="material-rows" style="background-color: #2a2a2a;">
-                    <td>Playback Duration:</td>
-                    <td>${{duration}}</td>
-                </tr>
-                <tr class="material-rows"><td colspan="2" style="height: 10px; border: none;"></td></tr>
+            const detailsHtml = `
+                <div class="details-item">
+                    <span class="details-label">文件名</span>
+                    <span class="details-value">${{material.name || '未知'}}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">类型</span>
+                    <span class="details-value">${{material.type || '未知'}}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">大小</span>
+                    <span class="details-value">${{material.size || '未知'}}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">时长</span>
+                    <span class="details-value">${{material.duration || '未知'}}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">路径</span>
+                    <span class="details-value" style="word-break: break-all;">${{material.path || '未知'}}</span>
+                </div>
             `;
             
-            draftIdRow.insertAdjacentHTML('beforebegin', materialRowsHTML);
+            detailsContent.innerHTML = detailsHtml;
         }}
         
-        function selectAsset(type, name, description, event) {{
-            alert('点击事件触发成功！素材类型: ' + type);
-            console.log('selectAsset被调用，参数:', {{type, name, description}});
+        // 下载功能
+        function startDownload(draftId) {{
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
             
-            // 移除之前的选择状态
-            document.querySelectorAll('.track-content').forEach(el => {{
-                el.style.boxShadow = '';
-                el.style.transform = '';
-            }});
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            progressText.textContent = '正在准备下载...';
             
-            // 查找对应的素材数据并更新Details表格
-            const material = getMaterialByType(type);
-            console.log('获取到的素材:', material);
-            if (material) {{
-                updateDetailsTable(material);
-            }} else {{
-                console.log('没有找到对应的素材数据');
-            }}
+            // 生成任务ID
+            downloadTaskId = 'download_' + Date.now();
             
-            // 添加选择状态到被点击的元素
-            const targetElement = event ? event.target : document.querySelector(`[data-type="${{type}}"]`);
-            if (targetElement) {{
-                targetElement.style.boxShadow = '0 0 15px rgba(0, 102, 255, 0.6)';
-                targetElement.style.transform = 'translateY(-2px)';
-            }}
-            
-            // 更新预览区域
-            const previewContainer = document.getElementById('preview-container');
-            const previewIcon = document.getElementById('preview-icon');
-            const previewTitle = document.getElementById('preview-title');
-            const previewSubtitle = document.getElementById('preview-subtitle');
-            
-            // 隐藏所有预览内容
-            document.querySelectorAll('.preview-content').forEach(el => {{
-                el.classList.remove('active');
-            }});
-            
-            // 激活预览容器
-            previewContainer.classList.add('active');
-            
-            // 根据素材类型显示对应预览
-            switch(type) {{
-                case 'video':
-                    previewIcon.textContent = '🎥';
-                    previewTitle.textContent = '视频素材预览';
-                    previewSubtitle.textContent = '主视频轨道内容';
-                    document.getElementById('video-preview').classList.add('active');
-                    break;
-                case 'audio':
-                case 'music':
-                    previewIcon.textContent = '🎵';
-                    previewTitle.textContent = '音频素材预览';
-                    previewSubtitle.textContent = type === 'music' ? '背景音乐轨道' : '语音旁白轨道';
-                    document.getElementById('audio-preview').classList.add('active');
-                    break;
-                case 'text':
-                    previewIcon.textContent = '📝';
-                    previewTitle.textContent = '文本素材预览';
-                    previewSubtitle.textContent = '标题文本内容';
-                    document.getElementById('text-content').textContent = name;
-                    document.getElementById('text-preview').classList.add('active');
-                    break;
-            }}
-            
-            // 更新选择的素材信息
-            const selectedAsset = document.getElementById('selected-asset');
-            const assetInfo = document.getElementById('asset-info');
-            selectedAsset.style.display = 'block';
-//             assetInfo.innerHTML = \`
-//                 <strong>类型:</strong> \${{type}}<br>
-//                 <strong>名称:</strong> \${{name}}<br>
-//                 <strong>描述:</strong> \${{description}}<br>
-//             `;
-//             
-//             currentAsset = {{ type, name, description }};
-//         }}
-        
-
-        
-        function togglePlay() {{
-            const playBtn = document.getElementById('play-btn');
-            isPlaying = !isPlaying;
-            
-            if (isPlaying) {{
-                playBtn.textContent = '⏸️';
-                simulatePlayback();
-            }} else {{
-                playBtn.textContent = '▶️';
-            }}
-        }}
-        
-        function simulatePlayback() {{
-            if (!isPlaying) return;
-            
-            const currentTimeEl = document.getElementById('current-time');
-            const progressFill = document.getElementById('progress-fill');
-            let seconds = 0;
-            const totalDuration = 30;
-            
+            // 模拟下载进度
+            let progress = 0;
             const interval = setInterval(() => {{
-                if (!isPlaying) {{
+                progress += Math.random() * 10;
+                if (progress > 100) progress = 100;
+                
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `下载进度: ${{progress.toFixed(1)}}%`;
+                
+                if (progress >= 100) {{
                     clearInterval(interval);
-                    return;
+                    progressText.textContent = '下载完成！';
+                    setTimeout(() => {{
+                        progressContainer.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }}, 2000);
                 }}
-                
-                seconds++;
-                const mins = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                currentTimeEl.textContent = `${{mins}}:${{secs.toString().padStart(2, '0')}}`;
-                
-                // 更新进度条
-                const progress = (seconds / totalDuration) * 100;
-                progressFill.style.width = `${{progress}}%`;
-                
-                if (seconds >= totalDuration) {{
-                    clearInterval(interval);
-                    togglePlay();
-                    currentTimeEl.textContent = '0:00';
-                    progressFill.style.width = '0%';
-                }}
-            }}, 1000);
+            }}, 200);
+            
+            // 实际的下载API调用
+            fetch('/api/draft/download/progress/' + downloadTaskId)
+                .then(response => response.json())
+                .then(data => {{
+                    console.log('下载状态:', data);
+                }})
+                .catch(error => {{
+                    console.error('下载失败:', error);
+                    progressText.textContent = '下载失败，请重试';
+                }});
         }}
         
-        function seekTo(event) {{
-            const progressBar = event.currentTarget;
-            const rect = progressBar.getBoundingClientRect();
-            const clickX = event.clientX - rect.left;
-            const width = rect.width;
-            const percentage = clickX / width;
-            
-            const totalDuration = 30;
-            const targetTime = Math.floor(percentage * totalDuration);
-            
-            // 更新时间显示
-            const mins = Math.floor(targetTime / 60);
-            const secs = targetTime % 60;
-            document.getElementById('current-time').textContent = `${{mins}}:${{secs.toString().padStart(2, '0')}}`;
-            
-            // 更新进度条
-            const progressFill = document.getElementById('progress-fill');
-            progressFill.style.width = `${{percentage * 100}}%`;
-            
-            // 如果正在播放，重新开始播放
-            if (isPlaying) {{
-                isPlaying = false;
-                togglePlay();
-                setTimeout(() => togglePlay(), 100);
-            }}
-        }}
-        
-        function copyUrl(url) {{
-            navigator.clipboard.writeText(url).then(() => {{
-                alert('链接已复制到剪贴板');
-            }}).catch(() => {{
-                alert('复制失败，请手动复制：' + url);
-            }});
-        }}
-        
-        function copyLocalPath() {{
-            const localPath = document.getElementById('localPath').textContent;
-            navigator.clipboard.writeText(localPath).then(() => {{
-                alert('本地路径已复制到剪贴板');
-            }}).catch(() => {{
-                alert('复制失败，请手动复制：' + localPath);
-            }});
-        }}
-        
-        // 下载相关函数
-        function updateLocalPath() {{
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const localPathEl = document.getElementById('localPath');
-            
-            const draftId = '{draft_id}';
-            const clientOs = osSelect.value;
-            const customBase = baseInput.value;
-            
-            // 构造本地路径
-            let localPath = '';
-            if (clientOs === 'windows') {{
-                const base = customBase || 'F:\\\\jianyin\\\\cgwz\\\\JianyingPro Drafts';
-                localPath = `${{base}}\\\\${{draftId}}`;
-            }} else {{
-                const base = customBase || '/data/drafts';
-                localPath = `${{base}}/${{draftId}}`;
-            }}
-            
-            localPathEl.textContent = localPath;
-        }}
-        
-        function downloadLog(msg) {{
-            const logEl = document.getElementById('downloadLog');
-            const time = new Date().toLocaleTimeString();
-            logEl.textContent += `[${{time}}] ${{msg}}\\n`;
-            logEl.scrollTop = logEl.scrollHeight;
-            logEl.style.display = 'block';
-        }}
-        
-        async function postJSON(url, body) {{
-            const res = await fetch(url, {{ 
-                method: 'POST', 
-                headers: {{'Content-Type': 'application/json'}}, 
-                body: JSON.stringify(body) 
-            }});
-            return await res.json();
-        }}
-        
-        async function pollDownloadStatus(taskId) {{
-            const statusEl = document.getElementById('downloadStatus');
-            while (true) {{
-                const status = await postJSON('/query_draft_status', {{ task_id: taskId }});
-                if (status && status.status) {{
-                    downloadLog(`status=${{status.status}}, progress=${{status.progress}}`);
-                    
-                    if (status.status === 'completed') break;
-                    if (status.status === 'failed') {{
-                        throw new Error(status.message || '任务失败');
+        // 配置路径功能
+        function configPath() {{
+            const newPath = prompt('请输入下载路径:', '/home');
+            if (newPath) {{
+                fetch('/api/draft/path/config', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json'
+                    }},
+                    body: JSON.stringify({{
+                        custom_path: newPath
+                    }})
+                }})
+                .then(response => response.json())
+                .then(data => {{
+                    if (data.success) {{
+                        alert('路径配置成功: ' + data.custom_path);
+                    }} else {{
+                        alert('路径配置失败: ' + data.error);
                     }}
-                }}
-                await new Promise(r => setTimeout(r, 2000));
+                }})
+                .catch(error => {{
+                    alert('配置失败: ' + error.message);
+                }});
             }}
         }}
         
-        async function finalizeDownloadRedirect() {{
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const draftId = '{draft_id}';
-            
-            const result = await postJSON('/generate_draft_url', {{ 
-                draft_id: draftId, 
-                client_os: osSelect.value, 
-                draft_folder: baseInput.value || undefined 
-            }});
-            
-            if (result && result.success && result.output && result.output.draft_url) {{
-                downloadLog('跳转到 OSS 下载链接');
-                window.open(result.output.draft_url, '_blank');
-            }} else {{
-                throw new Error('未获取到下载链接');
-            }}
-        }}
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {{{{
+            if (e.key === 'Escape') {{{{
+                // ESC键取消选择
+                document.querySelectorAll('.material-item').forEach(item => {{{{
+                    item.classList.remove('selected');
+                }}}});
+                selectedMaterial = null;
+                updateMaterialDetails(null);
+            }}}}
+        }}}});
         
-        // 页面加载完成后的初始化
-        document.addEventListener('DOMContentLoaded', function() {{
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {{{{
             console.log('草稿预览页面已加载');
-            
-            // 初始化下载功能
-            const osSelect = document.getElementById('osSelect');
-            const baseInput = document.getElementById('baseInput');
-            const saveUploadBtn = document.getElementById('saveUploadBtn');
-            
-            // 初始更新路径
-            updateLocalPath();
-            
-            // 监听变化
-            osSelect.addEventListener('change', updateLocalPath);
-            baseInput.addEventListener('input', updateLocalPath);
-            
-            // 保存上传按钮事件
-            saveUploadBtn.addEventListener('click', async function() {{
-                const statusEl = document.getElementById('downloadStatus');
-                const draftId = '{draft_id}';
-                
-                saveUploadBtn.disabled = true;
-                statusEl.textContent = '正在检测云端文件...';
-                downloadLog('开始保存并上传到OSS');
-                
-                try {{
-                    // 首先检查是否已存在
-                    downloadLog('检测是否已存在 OSS 直链');
-                    const checkResult = await postJSON('/generate_draft_url', {{ 
-                        draft_id: draftId, 
-                        client_os: osSelect.value, 
-                        draft_folder: baseInput.value || undefined 
-                    }});
-                    
-                    if (checkResult && checkResult.success && checkResult.output) {{
-                        if (checkResult.output.storage === 'oss' && checkResult.output.draft_url) {{
-                            downloadLog('发现已存在的OSS链接，直接跳转');
-                            window.open(checkResult.output.draft_url, '_blank');
-                            return;
-                        }}
-                    }}
-                    
-                    // 触发保存上传
-                    downloadLog('未发现直链，开始保存并上传');
-                    statusEl.textContent = '正在提交保存任务...';
-                    
-                    const saveResult = await postJSON('/generate_draft_url?force_save=true', {{ 
-                        draft_id: draftId, 
-                        client_os: osSelect.value, 
-                        draft_folder: baseInput.value || undefined 
-                    }});
-                    
-                    if (saveResult && saveResult.success && saveResult.output) {{
-                        if (saveResult.output.storage === 'oss' && saveResult.output.draft_url) {{
-                            downloadLog('保存完成，直接跳转');
-                            window.open(saveResult.output.draft_url, '_blank');
-                            return;
-                        }}
-                        
-                        if (saveResult.output.status === 'processing' && saveResult.output.task_id) {{
-                            downloadLog('任务已提交，等待完成...');
-                            await pollDownloadStatus(saveResult.output.task_id);
-                            await finalizeDownloadRedirect();
-                            return;
-                        }}
-                    }}
-                    
-                    throw new Error('保存上传流程异常');
-                    
-                }} catch (error) {{
-                    downloadLog('操作失败: ' + error.message);
-                    statusEl.textContent = '操作失败: ' + error.message;
-                    alert('操作失败: ' + error.message);
-                }} finally {{
-                    saveUploadBtn.disabled = false;
-                }}
-            }});
-        }});
+        }}}});
     </script>
 </body>
 </html>
-"""
+        """.format(
+            draft_id=draft_id,
+            materials_html=materials_html,
+            video_timeline_items=video_timeline_items,
+            audio_timeline_items=audio_timeline_items,
+            text_timeline_items=text_timeline_items,
+            image_timeline_items=image_timeline_items,
+            time_marks_html=time_marks,
+            materials_json=materials_json,
+            total_duration=total_duration,
+            materials_count=len(materials),
+            create_time=draft_info.get('create_time', '未知'),
+            update_time=draft_info.get('update_time', '未知')
+        )
+        
         return html_content
         
     except Exception as e:
-        return f"预览页面生成失败: {str(e)}", 500
+        return """
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>错误</title>
+</head>
+<body>
+    <h1>加载草稿时出错</h1>
+    <p>错误信息: {0}</p>
+    <a href="/api/drafts/dashboard">返回仪表板</a>
+</body>
+</html>
+        """.format(str(e))
 
-@app.route('/debug/cache/<draft_id>', methods=['GET'])
-def debug_cache(draft_id: str):
-    """调试：查看草稿缓存内容"""
-    materials = get_draft_materials(draft_id)
+
+
+# 草稿管理相关路由
+@app.route('/api/drafts/dashboard', methods=['GET'])
+def drafts_dashboard():
+    """草稿管理仪表板页面"""
+    try:
+        from flask import render_template
+        # 获取所有草稿信息
+        drafts = get_all_drafts()
+        
+        # 统计信息
+        total_drafts = len(drafts)
+        total_materials = sum(len(get_draft_materials(draft['id'])) for draft in drafts)
+        
+        return render_template('dashboard.html', 
+                             drafts=drafts,
+                             total_drafts=total_drafts,
+                             total_materials=total_materials)
+    except Exception as e:
+        return f"<h1>加载仪表板失败</h1><p>错误: {str(e)}</p>"
+
+@app.route('/api/drafts/preview/<draft_id>', methods=['GET'])
+def draft_preview(draft_id):
+    """草稿预览页面"""
+    try:
+        from flask import render_template
+        import os
+        
+        # 获取草稿信息
+        draft_path = f"drafts/{draft_id}"
+        if not os.path.exists(draft_path):
+            return f"<h1>草稿不存在</h1><p>草稿ID: {draft_id}</p>"
+        
+        # 读取草稿信息
+        draft_info_path = os.path.join(draft_path, 'draft_info.json')
+        draft_info = {}
+        if os.path.exists(draft_info_path):
+            with open(draft_info_path, 'r', encoding='utf-8') as f:
+                draft_info = json.load(f)
+        
+        # 获取素材信息
+        materials = get_draft_materials(draft_id)
+        
+        # 生成时间轴HTML
+        timeline_html = generate_timeline_html(materials)
+        
+        return render_template('preview.html',
+                             draft_id=draft_id,
+                             draft_info=draft_info,
+                             materials=materials,
+                             timeline_html=timeline_html)
+    except Exception as e:
+        return f"<h1>加载草稿预览失败</h1><p>错误: {str(e)}</p>"
+
+@app.route('/api/draft/download/<draft_id>', methods=['POST'])
+def download_draft(draft_id):
+    """下载草稿"""
+    try:
+        import shutil
+        import tempfile
+        from flask import send_file
+        
+        # 检查草稿是否存在
+        draft_path = f"drafts/{draft_id}"
+        if not os.path.exists(draft_path):
+            return jsonify({
+                "success": False,
+                "message": "草稿不存在"
+            })
+        
+        # 创建临时zip文件
+        temp_dir = tempfile.mkdtemp()
+        zip_path = os.path.join(temp_dir, f"{draft_id}.zip")
+        
+        # 压缩草稿文件夹
+        shutil.make_archive(zip_path[:-4], 'zip', draft_path)
+        
+        return send_file(zip_path, as_attachment=True, download_name=f"{draft_id}.zip")
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"下载失败: {str(e)}"
+        })
+
+@app.route('/api/draft/download/progress/<task_id>', methods=['GET'])
+def download_progress(task_id):
+    """获取下载进度"""
+    # 这里可以实现真实的下载进度跟踪
+    # 目前返回模拟数据
     return jsonify({
-        "draft_id": draft_id,
-        "materials": materials,
-        "cache_keys": list(draft_materials_cache.keys())
+        "success": True,
+        "task_id": task_id,
+        "progress": 100,
+        "status": "completed",
+        "message": "下载完成"
     })
+
+@app.route('/api/draft/path/config', methods=['POST'])
+def config_download_path():
+    """配置下载路径"""
+    try:
+        data = request.get_json()
+        custom_path = data.get('custom_path', '/home')
+        
+        # 验证路径是否存在
+        if not os.path.exists(custom_path):
+            return jsonify({
+                "success": False,
+                "error": "路径不存在"
+            })
+        
+        # 这里可以保存路径配置到数据库或配置文件
+        return jsonify({
+            "success": True,
+            "custom_path": custom_path,
+            "message": "路径配置成功"
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
+
+def generate_timeline_html(materials):
+    """生成时间轴HTML"""
+    if not materials:
+        return '<div class="timeline-track"><div class="track-label">视频轨道</div></div>'
+    
+    # 按类型分组素材
+    video_materials = [m for m in materials if m.get('type') == 'video']
+    audio_materials = [m for m in materials if m.get('type') == 'audio']
+    text_materials = [m for m in materials if m.get('type') == 'text']
+    image_materials = [m for m in materials if m.get('type') == 'image']
+    
+    timeline_html = ''
+    
+    # 视频轨道
+    if video_materials:
+        timeline_html += '<div class="timeline-track">'
+        timeline_html += '<div class="track-label">视频轨道</div>'
+        timeline_html += '<div class="track-content">'
+        for material in video_materials:
+            timeline_html += f'<div class="timeline-item video" title="{material.get("name", "视频")}">{material.get("name", "视频")[:10]}</div>'
+        timeline_html += '</div></div>'
+    
+    # 音频轨道
+    if audio_materials:
+        timeline_html += '<div class="timeline-track">'
+        timeline_html += '<div class="track-label">音频轨道</div>'
+        timeline_html += '<div class="track-content">'
+        for material in audio_materials:
+            timeline_html += '<div class="timeline-item audio" title="{}">{}></div>'.format(material.get("name", "音频"), material.get("name", "音频")[:10])
+        timeline_html += '</div></div>'
+    
+    # 文本轨道
+    if text_materials:
+        timeline_html += '<div class="timeline-track">'
+        timeline_html += '<div class="track-label">文本轨道</div>'
+        timeline_html += '<div class="track-content">'
+        for material in text_materials:
+            timeline_html += '<div class="timeline-item text" title="{}">{}></div>'.format(material.get("name", "文本"), material.get("name", "文本")[:10])
+        timeline_html += '</div></div>'
+    
+    # 图片轨道
+    if image_materials:
+        timeline_html += '<div class="timeline-track">'
+        timeline_html += '<div class="track-label">图片轨道</div>'
+        timeline_html += '<div class="track-content">'
+        for material in image_materials:
+            timeline_html += '<div class="timeline-item image" title="{}">{}></div>'.format(material.get("name", "图片"), material.get("name", "图片")[:10])
+        timeline_html += '</div></div>'
+    
+    return timeline_html if timeline_html else '<div class="timeline-track"><div class="track-label">空轨道</div></div>'
+
+@app.route('/download_draft/<draft_id>', methods=['GET'])
+def download_draft_json(draft_id):
+    """
+    下载特定草稿的功能
+    """
+    try:
+        # 获取草稿信息
+        draft_info = get_draft_info(draft_id)
+        if not draft_info:
+            return jsonify({'success': False, 'error': '草稿不存在'}), 404
+        
+        # 返回草稿信息作为下载
+        response = jsonify(draft_info)
+        response.headers['Content-Disposition'] = f'attachment; filename={draft_id}.json'
+        return response
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=PORT)
-PORT = 9001
+

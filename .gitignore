@@ -1,22 +1,72 @@
-__pycache__
-ignored
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
+# 虚拟环境
+venv/
+.venv/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# 构建产物
 build/
 dist/
 *.egg-info/
 
+# IDE和编辑器
 .vscode/
 .idea/
+.qoder/
+.trae/
+.cursor/
+.claude/
 .DS_Store
 
+# 配置文件（包含敏感信息）
 config.json
-./resource
+!config.json.example
 
-.venv/
-venv/
-tmp/
-# 运行时文件
-*.pid
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+capcut.db
+
+# 日志文件
+logs/
 *.log
+*.pid
+
+# 临时文件和缓存
+tmp/
+*.tmp
+*.bak
+*.backup
+*.cache
+materials_cache/
+
+# 草稿文件（用户生成）
+drafts/*/
+!drafts/.gitkeep
+
+# 压缩文件（自动生成）
+*.zip
+!example*.zip
+
+# 测试文件
+test_*.html
+preview_*.html
 complete_test_draft/
-logs/capcut_server.log
+
+# 备份文件
+*.py.backup*
+capcut_server_backup.py
+
+# 其他
+ignored
+./resource

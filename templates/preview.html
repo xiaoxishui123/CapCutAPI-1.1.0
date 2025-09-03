@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>草稿预览 - {{ draft_id }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .btn.primary {
+            background: rgba(255,255,255,0.9);
+            color: #667eea;
+        }
+        
+        .btn.primary:hover {
+            background: white;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+            min-height: calc(100vh - 100px);
+        }
+        
+        .left-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .preview-section {
+            flex: 1;
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .materials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .material-item {
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .material-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .material-item.selected {
+            border-color: #667eea;
+            background: #e8f0ff;
+        }
+        
+        .material-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .material-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+        
+        .material-type {
+            font-size: 12px;
+            color: #666;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .timeline-section {
+            height: 200px;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .timeline-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .timeline-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .timeline-btn:hover {
+            background: #5a6fd8;
+        }
+        
+        .timeline-content {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            height: calc(100% - 50px);
+            overflow-y: auto;
+        }
+        
+        .timeline-tracks {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .timeline-track {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 8px;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .track-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+            min-width: 60px;
+        }
+        
+        .track-items {
+            display: flex;
+            gap: 4px;
+            flex: 1;
+        }
+        
+        .track-item {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        
+        .track-item.video {
+            background: #28a745;
+        }
+        
+        .track-item.audio {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .track-item.text {
+            background: #17a2b8;
+        }
+        
+        .track-item.image {
+            background: #fd7e14;
+        }
+        
+        .right-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 100px;
+        }
+        
+        .panel-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .details-content {
+            margin-bottom: 20px;
+        }
+        
+        .details-section {
+            margin-bottom: 20px;
+        }
+        
+        .details-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+        
+        .details-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .details-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .details-value {
+            color: #333;
+            text-align: right;
+            max-width: 150px;
+            word-break: break-all;
+        }
+        
+        .download-section {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        
+        .download-btn {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            background: #5a6fd8;
+        }
+        
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+        }
+        
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            background: #667eea;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        
+        .empty-state .icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .right-panel {
+                position: static;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .materials-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .main-container {
+                padding: 0 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部 -->
+    <div class="header">
+        <div class="header-content">
+            <div class="header-title">📋 草稿预览 - {{ draft_id }}</div>
+            <div class="header-actions">
+                <a href="/api/drafts/dashboard" class="btn">← 返回仪表板</a>
+                <button class="btn primary" onclick="startDownload('{{ draft_id }}')">📥 下载草稿</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 主要内容区域 -->
+    <div class="main-container">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <!-- 素材预览区域 -->
+            <div class="preview-section">
+                <div class="section-title">📁 素材列表 ({{ materials|length }} 个)</div>
+                {% if materials %}
+                <div class="materials-grid">
+                    {% for material in materials %}
+                    <div class="material-item" 
+                         data-material-id="{{ material.id }}" 
+                         data-material-data="{{ material|tojson|e }}" 
+                         onclick="selectMaterial('{{ material.id }}', this.dataset.materialData)">
+                        <div class="material-icon">
+                            {% if material.type == 'video' %}🎬
+                            {% elif material.type == 'audio' %}🎵
+                            {% elif material.type == 'image' %}🖼️
+                            {% elif material.type == 'text' %}📝
+                            {% else %}📄{% endif %}
+                        </div>
+                        <div class="material-name">{{ material.name or '未命名' }}</div>
+                        <div class="material-type">{{ material.type or '未知' }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="icon">📂</div>
+                    <div>暂无素材</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- 时间轴区域 -->
+            <div class="timeline-section">
+                <div class="section-title">⏱️ 时间轴</div>
+                <div class="timeline-controls">
+                    <button class="timeline-btn">▶️ 播放</button>
+                    <button class="timeline-btn">⏸️ 暂停</button>
+                    <button class="timeline-btn">⏹️ 停止</button>
+                    <button class="timeline-btn">🔄 重置</button>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-tracks">
+                        {{ timeline_html|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 右侧详情面板 -->
+        <div class="right-panel">
+            <div class="panel-header">📊 素材详情</div>
+            <div class="details-content" id="detailsContent">
+                <div class="details-section">
+                    <div class="details-title">草稿信息</div>
+                    <div class="details-item">
+                        <span class="details-label">草稿ID</span>
+                        <span class="details-value">{{ draft_id }}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">素材数量</span>
+                        <span class="details-value">{{ materials|length }} 个</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">创建时间</span>
+                        <span class="details-value">{{ draft_info.get('create_time', '未知') }}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">修改时间</span>
+                        <span class="details-value">{{ draft_info.get('update_time', '未知') }}</span>
+                    </div>
+                </div>
+                
+                <div class="details-section" id="materialDetails" style="display: none;">
+                    <div class="details-title">选中素材</div>
+                    <div id="materialDetailsContent">
+                        <!-- 动态内容 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 下载区域 -->
+            <div class="download-section">
+                <button class="download-btn" onclick="startDownload('{{ draft_id }}')">
+                    📦 下载草稿
+                </button>
+                <button class="download-btn" onclick="configPath()">
+                    ⚙️ 配置路径
+                </button>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">准备下载...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 全局变量
+        let downloadTaskId = null;
+        let selectedMaterial = null;
+        
+        // 素材选择功能
+        function selectMaterial(materialId, materialDataStr) {
+            // 移除之前的选中状态
+            document.querySelectorAll('.material-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // 添加新的选中状态
+            const selectedItem = document.querySelector(`[data-material-id="${materialId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+            }
+            
+            try {
+                selectedMaterial = JSON.parse(materialDataStr);
+                updateMaterialDetails(selectedMaterial);
+            } catch (e) {
+                console.error('解析素材数据失败:', e);
+            }
+        }
+        
+        // 更新素材详情面板
+        function updateMaterialDetails(material) {
+            const detailsSection = document.getElementById('materialDetails');
+            const detailsContent = document.getElementById('materialDetailsContent');
+            
+            if (!material) {
+                detailsSection.style.display = 'none';
+                return;
+            }
+            
+            detailsSection.style.display = 'block';
+            
+            const detailsHtml = `
+                <div class="details-item">
+                    <span class="details-label">文件名</span>
+                    <span class="details-value">${material.name || '未知'}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">类型</span>
+                    <span class="details-value">${material.type || '未知'}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">大小</span>
+                    <span class="details-value">${material.size || '未知'}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">时长</span>
+                    <span class="details-value">${material.duration || '未知'}</span>
+                </div>
+                <div class="details-item">
+                    <span class="details-label">路径</span>
+                    <span class="details-value" style="word-break: break-all;">${material.path || '未知'}</span>
+                </div>
+            `;
+            
+            detailsContent.innerHTML = detailsHtml;
+        }
+        
+        // 下载功能
+        function startDownload(draftId) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            // 显示进度条
+            progressContainer.style.display = 'block';
+            progressText.textContent = '正在准备下载...';
+            
+            // 生成任务ID
+            downloadTaskId = 'download_' + Date.now();
+            
+            // 模拟下载进度
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 100) progress = 100;
+                
+                progressFill.style.width = progress + '%';
+                progressText.textContent = `下载进度: ${progress.toFixed(1)}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    progressText.textContent = '下载完成！';
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                        progressFill.style.width = '0%';
+                    }, 2000);
+                }
+            }, 200);
+            
+            // 实际的下载API调用
+            fetch(`/api/draft/download/progress/${downloadTaskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('下载状态:', data);
+                })
+                .catch(error => {
+                    console.error('下载失败:', error);
+                    progressText.textContent = '下载失败，请重试';
+                });
+        }
+        
+        // 配置路径功能
+        function configPath() {
+            const newPath = prompt('请输入下载路径:', '/home');
+            if (newPath) {
+                fetch('/api/draft/path/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        custom_path: newPath
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('路径配置成功: ' + data.custom_path);
+                    } else {
+                        alert('路径配置失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('配置失败: ' + error.message);
+                });
+            }
+        }
+        
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // ESC键取消选择
+                document.querySelectorAll('.material-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+                selectedMaterial = null;
+                updateMaterialDetails(null);
+            }
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('草稿预览页面已加载');
+        });
+    </script>
+</body>
+</html>
