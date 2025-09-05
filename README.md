@@ -444,6 +444,36 @@ export MP4_OSS_REGION="cn-xxx"
 
 📺 **视频演示**: [CapCutAPI 功能演示](https://www.bilibili.com/video/BV1234567890)
 
+## 🔧 故障排除 | Troubleshooting
+
+遇到问题？不要慌！我们为您准备了完整的故障排除指南：
+
+### 📋 快速诊断
+
+```bash
+# 运行一键诊断脚本
+./diagnose.sh
+```
+
+### 📚 详细指南
+
+查看完整的故障排除文档：[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+**包含以下常见问题的解决方案**：
+- ❌ 连接被拒绝或无法访问
+- 🚫 草稿预览页面无法打开
+- ⚠️ ERR_ABORTED 错误（模板渲染失败）
+- 🔄 服务启动失败
+- 📁 模板和静态文件问题
+- 🌐 网络连接问题
+
+### 🆘 紧急求助
+
+如果问题仍未解决：
+1. 运行 `./diagnose.sh` 获取诊断信息
+2. 查看 [故障排除指南](docs/TROUBLESHOOTING.md)
+3. 在 [GitHub Issues](https://github.com/sun-guannan/CapCutAPI/issues) 提交问题
+
 ## 进群交流 | Community
 
 🔥 **微信群**: 扫码加入技术交流群

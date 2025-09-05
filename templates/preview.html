@@ -74,7 +74,7 @@
         
         .main-container {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr;
             gap: 20px;
             max-width: 1400px;
             margin: 20px auto;
@@ -91,10 +91,33 @@
             flex-direction: column;
         }
         
+        /* 新增：顶部横向布局容器 */
+        .top-panels-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* 调整素材详情容器样式 */
+        .material-details-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
         .preview-section {
             flex: 1;
             padding: 20px;
             border-bottom: 1px solid #eee;
+        }
+        
+        /* 调整素材详情容器高度 */
+        .material-details-panel .material-details-container {
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .section-title {
@@ -104,32 +127,113 @@
             color: #333;
         }
         
-        .materials-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            max-height: 300px;
+        .material-details-container {
+            min-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
         }
         
-        .material-item {
+        .selected-material-details {
             background: #f8f9fa;
-            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid #667eea;
+        }
+        
+        .material-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .material-icon-large {
+            font-size: 48px;
+            margin-right: 15px;
+            background: #667eea;
+            color: white;
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .material-info {
+            flex: 1;
+        }
+        
+        .material-name-large {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        
+        .material-type-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .material-details-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        .detail-group {
+            background: white;
             border-radius: 8px;
             padding: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
+            border: 1px solid #e9ecef;
         }
         
-        .material-item:hover {
-            border-color: #667eea;
-            background: #f0f4ff;
+        .detail-group-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9ecef;
         }
         
-        .material-item.selected {
-            border-color: #667eea;
-            background: #e8f0ff;
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+            min-width: 80px;
+        }
+        
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+            text-align: right;
+            max-width: 200px;
+            word-break: break-all;
+            font-weight: 400;
         }
         
         .material-icon {
@@ -154,7 +258,7 @@
         }
         
         .timeline-section {
-            height: 200px;
+            height: 300px;
             padding: 20px;
             background: #fafafa;
         }
@@ -193,27 +297,74 @@
             gap: 8px;
         }
         
+        /* 官方风格时间轴样式 */
         .timeline-track {
-            background: #f8f9fa;
-            border-radius: 4px;
-            padding: 8px;
-            min-height: 30px;
             display: flex;
-            align-items: center;
-            gap: 8px;
+            margin-bottom: 2px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            overflow: hidden;
         }
         
         .track-label {
-            font-size: 12px;
+            width: 80px;
+            min-width: 80px;
+            background: #2a2a2a;
+            padding: 8px 6px;
+            font-size: 11px;
             font-weight: 500;
-            color: #666;
-            min-width: 60px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid #333;
+            text-align: center;
         }
         
         .track-items {
-            display: flex;
-            gap: 4px;
             flex: 1;
+            position: relative;
+            height: 32px;
+            background: #1a1a1a;
+            overflow: hidden;
+        }
+        
+        /* 时间轴块样式 */
+        .timeline-block {
+            position: absolute;
+            height: 28px;
+            top: 2px;
+            border-radius: 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+        
+        .timeline-block:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            border-color: rgba(255,255,255,0.3);
+            z-index: 10;
+        }
+        
+        .timeline-block .material-text {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .timeline-block .material-time {
+            font-size: 9px;
+            opacity: 0.8;
+            white-space: nowrap;
         }
         
         .track-item {
@@ -225,21 +376,53 @@
             white-space: nowrap;
         }
         
-        .track-item.video {
-            background: #28a745;
+        /* 官方风格素材类型颜色 */
+        .track-item.video, .timeline-block.video {
+            background: #4a90e2;
+            color: white;
         }
         
-        .track-item.audio {
-            background: #ffc107;
+        .track-item.audio, .timeline-block.audio {
+            background: #50c878;
+            color: white;
+        }
+        
+        .track-item.text, .timeline-block.text {
+            background: #f5a623;
+            color: white;
+        }
+        
+        .track-item.image, .timeline-block.image {
+            background: #bd10e0;
+            color: white;
+        }
+        
+        .track-item.subtitle, .timeline-block.subtitle {
+            background: #7ed321;
+            color: white;
+        }
+        
+        .track-item.effect, .timeline-block.effect {
+            background: #d0021b;
+            color: white;
+        }
+        
+        .track-item.sticker, .timeline-block.sticker {
+            background: #f8e71c;
             color: #333;
         }
         
-        .track-item.text {
-            background: #17a2b8;
+        .track-item.unknown, .timeline-block.unknown {
+            background: #9b9b9b;
+            color: white;
         }
         
-        .track-item.image {
-            background: #fd7e14;
+        /* 空时间轴样式 */
+        .empty-timeline {
+            text-align: center;
+            color: #6c757d;
+            padding: 40px 20px;
+            font-style: italic;
         }
         
         .right-panel {
@@ -396,39 +579,113 @@
     
     <!-- 主要内容区域 -->
     <div class="main-container">
-        <!-- 左侧面板 -->
-        <div class="left-panel">
-            <!-- 素材预览区域 -->
-            <div class="preview-section">
-                <div class="section-title">📁 素材列表 ({{ materials|length }} 个)</div>
-                {% if materials %}
-                <div class="materials-grid">
-                    {% for material in materials %}
-                    <div class="material-item" 
-                         data-material-id="{{ material.id }}" 
-                         data-material-data="{{ material|tojson|e }}" 
-                         onclick="selectMaterial('{{ material.id }}', this.dataset.materialData)">
-                        <div class="material-icon">
-                            {% if material.type == 'video' %}🎬
-                            {% elif material.type == 'audio' %}🎵
-                            {% elif material.type == 'image' %}🖼️
-                            {% elif material.type == 'text' %}📝
-                            {% else %}📄{% endif %}
-                        </div>
-                        <div class="material-name">{{ material.name or '未命名' }}</div>
-                        <div class="material-type">{{ material.type or '未知' }}</div>
+        <!-- 顶部横向布局容器：素材详情 + 草稿信息 -->
+        <div class="top-panels-container">
+            <!-- 素材详情面板 -->
+            <div class="material-details-panel">
+                <div class="section-title">📋 素材详情</div>
+                <div id="materialDetailsContainer" class="material-details-container">
+                    <div class="empty-state" id="emptyDetailsState">
+                        <div class="icon">📋</div>
+                        <div>点击时间轴中的素材查看详情</div>
                     </div>
-                    {% endfor %}
+                    
+                    <!-- 素材详情显示区域 -->
+                    <div id="selectedMaterialDetails" class="selected-material-details" style="display: none;">
+                        <div class="material-header">
+                            <div class="material-icon-large" id="materialIconLarge">📄</div>
+                            <div class="material-info">
+                                <div class="material-name-large" id="materialNameLarge">素材名称</div>
+                                <div class="material-type-badge" id="materialTypeBadge">类型</div>
+                            </div>
+                        </div>
+                        
+                        <div class="material-details-grid">
+                            <div class="detail-group">
+                                <div class="detail-group-title">基本信息</div>
+                                <div class="detail-item">
+                                    <span class="detail-label">名称:</span>
+                                    <span class="detail-value" id="detailName">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">类型:</span>
+                                    <span class="detail-value" id="detailType">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">时长:</span>
+                                    <span class="detail-value" id="detailDuration">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">开始时间:</span>
+                                    <span class="detail-value" id="detailStartTime">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">结束时间:</span>
+                                    <span class="detail-value" id="detailEndTime">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">轨道:</span>
+                                    <span class="detail-value" id="detailTrack">-</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-group" id="specificDetailsGroup">
+                                <div class="detail-group-title" id="specificDetailsTitle">详细信息</div>
+                                <div id="specificDetailsContent">
+                                    <!-- 根据素材类型动态填充 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <div class="empty-state">
-                    <div class="icon">📂</div>
-                    <div>暂无素材</div>
-                </div>
-                {% endif %}
             </div>
             
-            <!-- 时间轴区域 -->
+            <!-- 草稿信息面板 -->
+            <div class="right-panel">
+                <div class="panel-header">📊 草稿信息</div>
+                <div class="details-content" id="detailsContent">
+                    <div class="details-section">
+                        <div class="details-title">草稿详情</div>
+                        <div class="details-item">
+                            <span class="details-label">草稿ID</span>
+                            <span class="details-value">{{ draft_id }}</span>
+                        </div>
+                        <div class="details-item">
+                            <span class="details-label">素材数量</span>
+                            <span class="details-value">{{ materials|length }} 个</span>
+                        </div>
+                    <div class="details-item">
+                        <span class="details-label">创建时间</span>
+                        <span class="details-value">{{ draft_info.get('create_time', '未知') }}</span>
+                    </div>
+                    <div class="details-item">
+                        <span class="details-label">修改时间</span>
+                        <span class="details-value">{{ draft_info.get('update_time', '未知') }}</span>
+                    </div>
+                </div>
+            </div>
+            
+                <!-- 下载区域 -->
+                <div class="download-section">
+                    <button class="download-btn" onclick="startDownload('{{ draft_id }}')">
+                        📦 下载草稿
+                    </button>
+                    <button class="download-btn" onclick="configPath()">
+                        ⚙️ 配置路径
+                    </button>
+                    
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">准备下载...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 时间轴区域 -->
+        <div class="left-panel">
             <div class="timeline-section">
                 <div class="section-title">⏱️ 时间轴</div>
                 <div class="timeline-controls">
@@ -444,56 +701,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- 右侧详情面板 -->
-        <div class="right-panel">
-            <div class="panel-header">📊 素材详情</div>
-            <div class="details-content" id="detailsContent">
-                <div class="details-section">
-                    <div class="details-title">草稿信息</div>
-                    <div class="details-item">
-                        <span class="details-label">草稿ID</span>
-                        <span class="details-value">{{ draft_id }}</span>
-                    </div>
-                    <div class="details-item">
-                        <span class="details-label">素材数量</span>
-                        <span class="details-value">{{ materials|length }} 个</span>
-                    </div>
-                    <div class="details-item">
-                        <span class="details-label">创建时间</span>
-                        <span class="details-value">{{ draft_info.get('create_time', '未知') }}</span>
-                    </div>
-                    <div class="details-item">
-                        <span class="details-label">修改时间</span>
-                        <span class="details-value">{{ draft_info.get('update_time', '未知') }}</span>
-                    </div>
-                </div>
-                
-                <div class="details-section" id="materialDetails" style="display: none;">
-                    <div class="details-title">选中素材</div>
-                    <div id="materialDetailsContent">
-                        <!-- 动态内容 -->
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 下载区域 -->
-            <div class="download-section">
-                <button class="download-btn" onclick="startDownload('{{ draft_id }}')">
-                    📦 下载草稿
-                </button>
-                <button class="download-btn" onclick="configPath()">
-                    ⚙️ 配置路径
-                </button>
-                
-                <div class="progress-container" id="progressContainer">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
-                    <div class="progress-text" id="progressText">准备下载...</div>
-                </div>
-            </div>
-        </div>
     </div>
     
     <script>
@@ -501,63 +708,287 @@
         let downloadTaskId = null;
         let selectedMaterial = null;
         
-        // 素材选择功能
-        function selectMaterial(materialId, materialDataStr) {
-            // 移除之前的选中状态
-            document.querySelectorAll('.material-item').forEach(item => {
-                item.classList.remove('selected');
-            });
+        /**
+         * 显示选中素材的详细信息
+         * @param {Object} material - 素材数据对象
+         */
+        function showSelectedMaterialDetails(material) {
+            const container = document.getElementById('materialDetailsContainer');
+            const emptyState = document.getElementById('emptyDetailsState');
+            const detailsSection = document.getElementById('selectedMaterialDetails');
             
-            // 添加新的选中状态
-            const selectedItem = document.querySelector(`[data-material-id="${materialId}"]`);
-            if (selectedItem) {
-                selectedItem.classList.add('selected');
+            // 检查元素是否存在
+            if (!container || !emptyState || !detailsSection) {
+                console.error('素材详情容器元素未找到:', {
+                    container: !!container,
+                    emptyState: !!emptyState,
+                    detailsSection: !!detailsSection
+                });
+                return;
             }
-            
-            try {
-                selectedMaterial = JSON.parse(materialDataStr);
-                updateMaterialDetails(selectedMaterial);
-            } catch (e) {
-                console.error('解析素材数据失败:', e);
-            }
-        }
-        
-        // 更新素材详情面板
-        function updateMaterialDetails(material) {
-            const detailsSection = document.getElementById('materialDetails');
-            const detailsContent = document.getElementById('materialDetailsContent');
             
             if (!material) {
+                // 显示空状态
+                emptyState.style.display = 'block';
                 detailsSection.style.display = 'none';
                 return;
             }
             
+            // 隐藏空状态，显示详情
+            emptyState.style.display = 'none';
             detailsSection.style.display = 'block';
             
-            const detailsHtml = `
-                <div class="details-item">
-                    <span class="details-label">文件名</span>
-                    <span class="details-value">${material.name || '未知'}</span>
-                </div>
-                <div class="details-item">
-                    <span class="details-label">类型</span>
-                    <span class="details-value">${material.type || '未知'}</span>
-                </div>
-                <div class="details-item">
-                    <span class="details-label">大小</span>
-                    <span class="details-value">${material.size || '未知'}</span>
-                </div>
-                <div class="details-item">
-                    <span class="details-label">时长</span>
-                    <span class="details-value">${material.duration || '未知'}</span>
-                </div>
-                <div class="details-item">
-                    <span class="details-label">路径</span>
-                    <span class="details-value" style="word-break: break-all;">${material.path || '未知'}</span>
-                </div>
-            `;
+            // 更新素材基本信息
+            updateMaterialHeader(material);
+            updateMaterialBasicInfo(material);
+            updateMaterialSpecificInfo(material);
+        }
+        
+        /**
+         * 更新素材头部信息（图标、名称、类型）
+         * @param {Object} material - 素材数据对象
+         */
+        function updateMaterialHeader(material) {
+            const iconElement = document.getElementById('materialIconLarge');
+            const nameElement = document.getElementById('materialNameLarge');
+            const typeElement = document.getElementById('materialTypeBadge');
             
-            detailsContent.innerHTML = detailsHtml;
+            // 检查元素是否存在
+            if (!iconElement || !nameElement || !typeElement) {
+                console.error('素材头部元素未找到:', {
+                    iconElement: !!iconElement,
+                    nameElement: !!nameElement,
+                    typeElement: !!typeElement
+                });
+                return;
+            }
+            
+            // 获取素材类型和名称
+            const materialType = material.type || material.material_type || '未知';
+            const materialName = material.name || material.material_name || material.content || extractNameFromUrl(material.url) || '未知';
+            
+            // 设置图标
+            let icon = '📄';
+            switch (materialType.toLowerCase()) {
+                case 'video': icon = '🎬'; break;
+                case 'audio': icon = '🎵'; break;
+                case 'image': icon = '🖼️'; break;
+                case 'text': icon = '📝'; break;
+                default: icon = '📄';
+            }
+            
+            iconElement.textContent = icon;
+            nameElement.textContent = materialName;
+            typeElement.textContent = materialType;
+        }
+        
+        /**
+         * 更新素材基本信息
+         * @param {Object} material - 素材数据对象
+         */
+        function updateMaterialBasicInfo(material) {
+            // 直接更新各个详情元素
+            const detailName = document.getElementById('detailName');
+            const detailType = document.getElementById('detailType');
+            const detailDuration = document.getElementById('detailDuration');
+            const detailStartTime = document.getElementById('detailStartTime');
+            const detailEndTime = document.getElementById('detailEndTime');
+            const detailTrack = document.getElementById('detailTrack');
+            
+            // 检查元素是否存在
+            if (!detailName || !detailType || !detailDuration || !detailStartTime || !detailEndTime || !detailTrack) {
+                console.error('基本信息元素未找到:', {
+                    detailName: !!detailName,
+                    detailType: !!detailType,
+                    detailDuration: !!detailDuration,
+                    detailStartTime: !!detailStartTime,
+                    detailEndTime: !!detailEndTime,
+                    detailTrack: !!detailTrack
+                });
+                return;
+            }
+            
+            const materialType = material.type || material.material_type || '未知';
+            const materialName = material.name || material.material_name || material.content || extractNameFromUrl(material.url) || '未知';
+            const materialDuration = formatDuration(material.duration);
+            const startTime = material.start !== undefined ? `${material.start}秒` : (material.start_time || '0') + 's';
+            const endTime = material.end !== undefined ? `${material.end}秒` : (material.end_time || '未知');
+            const trackName = material.track_name || material.track_index || '未知';
+            
+            // 更新各个元素的内容
+            detailName.textContent = materialName;
+            detailType.textContent = materialType;
+            detailDuration.textContent = materialDuration;
+            detailStartTime.textContent = startTime;
+            detailEndTime.textContent = endTime;
+            detailTrack.textContent = trackName;
+        }
+        
+        /**
+         * 更新素材特定信息（根据类型显示不同信息）
+         * @param {Object} material - 素材数据对象
+         */
+        function updateMaterialSpecificInfo(material) {
+            const specificInfoContainer = document.getElementById('specificDetailsContent');
+            
+            // 检查元素是否存在
+            if (!specificInfoContainer) {
+                console.error('特定信息容器未找到');
+                return;
+            }
+            const materialType = (material.type || material.material_type || '').toLowerCase();
+            
+            let specificHtml = '';
+            
+            switch (materialType) {
+                case 'video':
+                case 'image':
+                    specificHtml = `
+                        <div class="detail-item">
+                            <span class="detail-label">分辨率</span>
+                            <span class="detail-value">${material.width || '未知'} × ${material.height || '未知'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">帧率</span>
+                            <span class="detail-value">${material.fps || '未知'} fps</span>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'audio':
+                    const volume = material.volume !== undefined ? `${(material.volume * 100).toFixed(0)}%` : '未知';
+                    specificHtml = `
+                        <div class="detail-item">
+                            <span class="detail-label">音量</span>
+                            <span class="detail-value">${volume}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">采样率</span>
+                            <span class="detail-value">${material.sample_rate || '未知'} Hz</span>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'text':
+                    specificHtml = `
+                        <div class="detail-item">
+                            <span class="detail-label">文本内容</span>
+                            <span class="detail-value">${material.content || '未知'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">字体</span>
+                            <span class="detail-value">${material.font_family || '未知'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">字体大小</span>
+                            <span class="detail-value">${material.font_size || '未知'}</span>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            // 添加文件路径信息
+            if (material.path || material.url) {
+                specificHtml += `
+                    <div class="detail-item">
+                        <span class="detail-label">文件路径</span>
+                        <span class="detail-value">${material.path || material.url}</span>
+                    </div>
+                `;
+            }
+            
+            // 添加文件大小信息
+            if (material.file_size) {
+                specificHtml += `
+                    <div class="detail-item">
+                        <span class="detail-label">文件大小</span>
+                        <span class="detail-value">${formatFileSize(material.file_size)}</span>
+                    </div>
+                `;
+            }
+            
+            specificInfoContainer.innerHTML = specificHtml;
+        }
+        
+        /**
+         * 处理时间轴素材点击事件
+         * @param {string} materialId - 素材ID
+         * @param {string} materialDataStr - 素材数据JSON字符串
+         */
+        function onTimelineMaterialClick(materialId, materialDataStr) {
+            try {
+                const materialData = JSON.parse(materialDataStr);
+                selectedMaterial = materialData;
+                console.log('时间轴素材点击:', materialData);
+                
+                // 显示素材详情
+                showSelectedMaterialDetails(materialData);
+                
+            } catch (error) {
+                console.error('解析素材数据失败:', error);
+                console.log('原始数据:', materialDataStr);
+            }
+        }
+        
+        /**
+         * 更新素材详情显示（兼容旧版本调用）
+         * @param {Object} material - 素材数据对象
+         */
+        function updateMaterialDetails(material) {
+            showSelectedMaterialDetails(material);
+        }
+        
+        /**
+         * 格式化文件大小显示
+         * @param {number} bytes - 文件大小（字节）
+         * @returns {string} 格式化后的文件大小字符串
+         */
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        /**
+         * 从URL中提取文件名
+         * @param {string} url - 文件URL或路径
+         * @returns {string|null} 提取的文件名
+         */
+        function extractNameFromUrl(url) {
+            if (!url) return null;
+            try {
+                const urlObj = new URL(url);
+                const pathname = urlObj.pathname;
+                const filename = pathname.split('/').pop();
+                return filename || null;
+            } catch (e) {
+                // 如果不是有效URL，尝试从路径中提取
+                const parts = url.split('/');
+                return parts[parts.length - 1] || null;
+            }
+        }
+        
+        // 格式化时长显示
+        function formatDuration(duration) {
+            if (duration === undefined || duration === null || duration === '未知') {
+                return '未知';
+            }
+            
+            const num = parseFloat(duration);
+            if (isNaN(num)) {
+                return '未知';
+            }
+            
+            if (num < 60) {
+                return `${num.toFixed(1)}秒`;
+            } else {
+                const minutes = Math.floor(num / 60);
+                const seconds = (num % 60).toFixed(1);
+                return `${minutes}分${seconds}秒`;
+            }
         }
         
         // 下载功能

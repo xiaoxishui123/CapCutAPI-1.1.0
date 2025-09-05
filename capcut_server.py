@@ -2335,11 +2335,14 @@ def preview_draft(draft_id):
         # 获取草稿素材
         materials = get_draft_materials(draft_id)
         
-        # 生成时间轴HTML
-        timeline_html = generate_timeline_html(materials)
+        # 计算总时长
+        total_duration = 0
+        for material in materials:
+            if material.get('duration', 0) > 0:
+                total_duration = max(total_duration, material.get('start_time', 0) + material.get('duration', 0))
         
         # 渲染预览页面
-        return render_preview_page(draft_id, draft_info, materials, timeline_html)
+        return render_template_with_official_style(draft_id, materials, total_duration)
     except Exception as e:
         return f"""
         <html>
@@ -3039,7 +3042,7 @@ def enhanced_draft_preview(draft_id):
             # 忽略非数字值如 '未知'
         
         # 生成官方风格的HTML预览页面
-        return render_template_with_official_style(draft_id, materials, total_duration)
+        return render_template_with_official_style(draft_id, materials, total_duration, draft_info)
         
     except Exception as e:
         return f"""
@@ -3352,14 +3355,22 @@ def enhanced_draft_preview(draft_id):
 
 # 重复路由定义已删除，使用上面的 enhanced_draft_preview 函数
 
-def render_template_with_official_style(draft_id, materials, total_duration):
+def render_template_with_official_style(draft_id, materials, total_duration, draft_info=None):
     """使用现有模板渲染预览页面，但应用官方风格"""
     try:
-        # 使用现有的官方风格模板
-        return render_template('preview_official.html', 
+        # 如果没有提供 draft_info，创建一个默认的
+        if draft_info is None:
+            draft_info = {
+                'create_time': '未知',
+                'update_time': '未知'
+            }
+        
+        # 使用现有的预览模板
+        return render_template('preview.html', 
                              draft_id=draft_id,
                              materials=materials,
                              total_duration=total_duration,
+                             draft_info=draft_info,
                              timeline_html=generate_timeline_html_for_template(materials, total_duration))
     except Exception as e:
         print(f"模板渲染失败: {e}")
@@ -3392,34 +3403,89 @@ def render_template_with_official_style(draft_id, materials, total_duration):
         """
 
 def generate_timeline_html_for_template(materials, total_duration):
-    """生成适用于模板的时间轴HTML"""
+    """生成适用于官方模板的时间轴HTML"""
     if not materials:
         return '<div class="empty-timeline">暂无素材数据</div>'
     
-    # 简化的时间轴生成
-    timeline_items = []
-    for i, material in enumerate(materials):
-        material_type = material.get('type', 'unknown')
-        start = float(material.get('start', 0) or 0)
-        duration = float(material.get('duration', 30) or 30)
-        
-        # 计算位置和宽度（百分比）
-        if total_duration > 0:
-            left_percent = (start / total_duration) * 100
-            width_percent = (duration / total_duration) * 100
-        else:
-            left_percent = i * 20
-            width_percent = 15
-        
-        timeline_items.append(f"""
-        <div class="timeline-block track-item {material_type}" 
-             style="left: {left_percent}%; width: {width_percent}%; top: {i * 35}px;"
-             onclick="showMaterialDetails({i})">
-            <span class="material-text">{material_type.upper()[:8]}</span>
-        </div>
-        """)
+    # 定义轨道类型和对应的轨道索引（按官方顺序）
+    track_types = {
+        'video': {'index': 0, 'label': '视频', 'icon': '🎥'},
+        'audio': {'index': 1, 'label': '音频', 'icon': '🎵'}, 
+        'text': {'index': 2, 'label': '文本', 'icon': '📝'},
+        'image': {'index': 3, 'label': '图片', 'icon': '🖼️'},
+        'subtitle': {'index': 4, 'label': '字幕', 'icon': '💬'},
+        'effect': {'index': 5, 'label': '特效', 'icon': '✨'},
+        'sticker': {'index': 6, 'label': '贴纸', 'icon': '🏷️'},
+        'unknown': {'index': 7, 'label': '其他', 'icon': '📄'}
+    }
     
-    return ''.join(timeline_items)
+    # 为每个轨道类型维护一个素材列表
+    track_materials = {track_type: [] for track_type in track_types.keys()}
+    
+    # 按轨道类型分组素材
+    for i, material in enumerate(materials):
+        material_type = material.get('type', 'unknown').lower()
+        if material_type not in track_types:
+            material_type = 'unknown'
+        
+        material_info = {
+            'index': i,
+            'type': material_type,
+            'start': float(material.get('start', 0) or 0),
+            'duration': float(material.get('duration', 30) or 30),
+            'material': material
+        }
+        track_materials[material_type].append(material_info)
+    
+    # 生成多轨道HTML（官方风格）
+    timeline_html = []
+    
+    # 为每个有素材的轨道类型生成轨道
+    for track_type, track_info in track_types.items():
+        materials_in_track = track_materials[track_type]
+        if not materials_in_track:  # 如果该轨道没有素材，跳过
+            continue
+            
+        # 轨道容器开始
+        timeline_html.append(f'''
+        <div class="timeline-track" data-track-type="{track_type}">
+            <div class="track-label">{track_info['icon']} {track_info['label']}</div>
+            <div class="track-items">''')
+        
+        # 为该轨道的每个素材生成时间块
+        for material_info in materials_in_track:
+            start = material_info['start']
+            duration = material_info['duration']
+            material_index = material_info['index']
+            material = material_info['material']
+            
+            # 计算位置和宽度（百分比）
+            if total_duration > 0:
+                left_percent = (start / total_duration) * 100
+                width_percent = (duration / total_duration) * 100
+            else:
+                left_percent = material_index * 20
+                width_percent = 15
+            
+            # 限制最小宽度和最大宽度
+            width_percent = max(2, min(width_percent, 100 - left_percent))
+            
+            # 生成时间块（官方风格）
+            # 将素材数据转换为JSON字符串，并进行HTML转义
+            material_json = html.escape(json.dumps(material, ensure_ascii=False))
+            material_id = material.get('id', f'material_{material_index}')
+            timeline_html.append(f'''
+                <div class="timeline-block track-item {track_type}" 
+                     style="left: {left_percent:.2f}%; width: {width_percent:.2f}%;"
+                     onclick="onTimelineMaterialClick('{material_id}', '{material_json}')"
+                     title="{track_info['label']}: {start:.2f}s - {start + duration:.2f}s">
+                    <span style="font-size: 10px; font-weight: 500; text-overflow: ellipsis; overflow: hidden;">{track_info['label'][:4]}</span>
+                </div>''')
+        
+        # 轨道容器结束
+        timeline_html.append('</div></div>')
+    
+    return ''.join(timeline_html)
 
 
 @app.route('/draft/downloader', methods=['GET'])
