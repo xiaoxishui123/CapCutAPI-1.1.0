@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CapCutAPI - 草稿管理仪表板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .drafts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.secondary:hover {
+            background: #545b62;
+        }
+        
+        .btn.danger {
+            background: #dc3545;
+        }
+        
+        .btn.danger:hover {
+            background: #c82333;
+        }
+        
+        .drafts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .draft-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+        
+        .draft-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .draft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .draft-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .draft-id {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+        }
+        
+        .draft-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-draft {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-processing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-saved {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .draft-info {
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .draft-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #6c757d !important;
+        }
+        
+        .btn:disabled:hover {
+            background: #6c757d !important;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* 状态说明区域样式 */
+        .status-legend-section {
+            margin-bottom: 30px;
+        }
+        
+        .status-legend {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .legend-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        
+        .legend-item:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+        
+        .legend-status {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .legend-desc {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+            
+            .drafts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .legend-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .legend-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 草稿管理仪表板</h1>
+        <p>管理和查看您的所有视频草稿项目</p>
+    </div>
+    
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-number" id="totalDrafts">-</div>
+                <div class="stat-label">总草稿数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-number" id="processingDrafts">-</div>
+                <div class="stat-label">处理中</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-number" id="activeDrafts">-</div>
+                <div class="stat-label">活跃草稿</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-number" id="errorDrafts">-</div>
+                <div class="stat-label">错误草稿</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🎬</div>
+                <div class="stat-number" id="totalMaterials">-</div>
+                <div class="stat-label">总素材数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💾</div>
+                <div class="stat-number" id="totalSize">-</div>
+                <div class="stat-label">总大小</div>
+            </div>
+        </div>
+        
+        <!-- 状态说明区域 -->
+        <div class="status-legend-section">
+            <div class="status-legend">
+                <h3 class="legend-title">📋 状态说明</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span class="legend-status status-draft">草稿</span>
+                        <span class="legend-desc">初始状态，草稿已创建但未开始处理</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-processing">处理中</span>
+                        <span class="legend-desc">正在处理中，请耐心等待</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-active">活跃</span>
+                        <span class="legend-desc">处理完成，可以下载或编辑</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-saved">已保存</span>
+                        <span class="legend-desc">草稿已保存，可以继续编辑</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-status status-failed">错误</span>
+                        <span class="legend-desc">处理失败，请检查或重新创建</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 草稿列表 -->
+        <div class="drafts-section">
+            <div class="section-header">
+                <h2 class="section-title">草稿列表</h2>
+                <div>
+                    <button class="btn" onclick="createNewDraft()">➕ 新建草稿</button>
+                    <button class="btn secondary" onclick="refreshDrafts()">🔄 刷新</button>
+                </div>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" class="search-input" placeholder="搜索草稿..." id="searchInput" oninput="filterDrafts()">
+            </div>
+            
+            <div id="draftsContainer">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>正在加载草稿列表...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let allDrafts = [];
+        
+        // 页面加载时获取草稿列表
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDrafts();
+        });
+        
+        // 加载草稿列表 - Live Preview 适配版本
+        async function loadDrafts() {
+            try {
+                // 检测是否在Live Preview环境中
+                if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                    // Live Preview 环境 - 使用模拟数据
+                    loadMockData();
+                    return;
+                }
+                
+                const response = await fetch('/api/drafts/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allDrafts = data.drafts || [];
+                    updateStats(allDrafts);
+                    renderDrafts(allDrafts);
+                } else {
+                    showError('加载草稿列表失败: ' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                console.error('加载草稿失败:', error);
+                showError('网络错误，请检查连接');
+            }
+        }
+        
+        // Live Preview 模拟数据加载
+        function loadMockData() {
+            allDrafts = [
+                {
+                    id: 'demo_draft_001',
+                    name: '🎬 产品宣传视频',
+                    status: 'active',
+                    material_count: 8,
+                    total_size: 67108864, // 64MB
+                    create_time: Math.floor(Date.now() / 1000) - 3600,
+                    update_time: Math.floor(Date.now() / 1000) - 300
+                },
+                {
+                    id: 'demo_draft_002', 
+                    name: '🎵 音乐MV制作',
+                    status: 'processing',
+                    material_count: 12,
+                    total_size: 134217728, // 128MB
+                    create_time: Math.floor(Date.now() / 1000) - 7200,
+                    update_time: Math.floor(Date.now() / 1000) - 600
+                },
+                {
+                    id: 'demo_draft_003',
+                    name: '📺 教学课程录制',
+                    status: 'completed',
+                    material_count: 6,
+                    total_size: 33554432, // 32MB
+                    create_time: Math.floor(Date.now() / 1000) - 86400,
+                    update_time: Math.floor(Date.now() / 1000) - 1800
+                },
+                {
+                    id: 'demo_draft_004',
+                    name: '🎯 营销短视频',
+                    status: 'active',
+                    material_count: 4,
+                    total_size: 16777216, // 16MB
+                    create_time: Math.floor(Date.now() / 1000) - 1800,
+                    update_time: Math.floor(Date.now() / 1000) - 60
+                }
+            ];
+            
+            updateStats(allDrafts);
+            renderDrafts(allDrafts);
+            
+            // 显示Live Preview提示
+            showLivePreviewNotice();
+        }
+        
+        // 显示Live Preview环境提示
+        function showLivePreviewNotice() {
+            const container = document.querySelector('.container');
+            const notice = document.createElement('div');
+            notice.style.cssText = `
+                background: rgba(255, 255, 255, 0.95);
+                border-left: 4px solid #667eea;
+                padding: 15px 20px;
+                margin-bottom: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            `;
+            notice.innerHTML = `
+                <h4 style="color: #667eea; margin-bottom: 8px;">📱 Live Preview 模式</h4>
+                <p style="margin: 4px 0; font-size: 14px;">当前在VS Code Live Preview环境中，显示模拟数据用于界面预览。</p>
+                <p style="margin: 4px 0; font-size: 14px;">要使用完整功能，请访问: 
+                    <a href="http://8.148.70.18:9000/api/drafts/dashboard" target="_blank" style="color: #667eea; text-decoration: none;">
+                        🚀 真实服务器
+                    </a>
+                </p>
+            `;
+            container.insertBefore(notice, container.firstChild);
+        }
+        
+        // 更新统计信息
+        function updateStats(drafts) {
+            const totalDrafts = drafts.length;
+            // 统计各种状态的草稿数量
+            const statusCounts = {
+                draft: drafts.filter(d => d.status === 'draft').length,
+                processing: drafts.filter(d => d.status === 'processing').length,
+                active: drafts.filter(d => d.status === 'active').length,
+                saved: drafts.filter(d => d.status === 'saved').length,
+                error: drafts.filter(d => d.status === 'error').length
+            };
+            
+            // 活跃草稿包括active和saved状态
+            const activeDrafts = statusCounts.active + statusCounts.saved;
+            // 错误草稿包括error状态
+            const errorDrafts = statusCounts.error;
+            const totalMaterials = drafts.reduce((sum, d) => sum + (d.material_count || 0), 0);
+            const totalSize = formatFileSize(drafts.reduce((sum, d) => sum + (d.total_size || 0), 0));
+            
+            // 更新所有统计卡片
+            document.getElementById('totalDrafts').textContent = totalDrafts;
+            document.getElementById('processingDrafts').textContent = statusCounts.processing;
+            document.getElementById('activeDrafts').textContent = activeDrafts;
+            document.getElementById('errorDrafts').textContent = errorDrafts;
+            document.getElementById('totalMaterials').textContent = totalMaterials;
+            document.getElementById('totalSize').textContent = totalSize;
+            
+            // 在控制台输出详细统计信息，便于调试
+            console.log('草稿状态统计:', statusCounts);
+            console.log('活跃草稿:', activeDrafts, '错误草稿:', errorDrafts);
+        }
+        
+        // 渲染草稿列表
+        function renderDrafts(drafts) {
+            const container = document.getElementById('draftsContainer');
+            
+            if (drafts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <h3>暂无草稿</h3>
+                        <p>点击"新建草稿"开始创建您的第一个视频项目</p>
+                        <button class="btn" onclick="createNewDraft()">➕ 新建草稿</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const draftsHtml = drafts.map(draft => `
+                <div class="draft-card">
+                    <div class="draft-header">
+                        <div>
+                            <div class="draft-title">${escapeHtml(draft.name || '未命名草稿')}</div>
+                            <div class="draft-id">ID: ${draft.id}</div>
+                        </div>
+                        <span class="draft-status ${getStatusClass(draft.status)}">
+                            ${getStatusText(draft.status)}
+                        </span>
+                    </div>
+                    
+                    <div class="draft-info">
+                        <div class="info-item">
+                            <span class="info-label">素材数量</span>
+                            <span class="info-value">${draft.material_count || 0} 个</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">创建时间</span>
+                            <span class="info-value">${formatDate(draft.create_time)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">修改时间</span>
+                            <span class="info-value">${formatDate(draft.update_time)}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">文件大小</span>
+                            <span class="info-value">${formatFileSize(draft.total_size || 0)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="draft-actions">
+                        <button class="btn btn-small primary" onclick="viewDraft('${draft.id}')">
+                            👁️ 预览
+                        </button>
+                        <button class="btn btn-small secondary" onclick="downloadDraft('${draft.id}', event)" ${draft.status === 'failed' ? 'disabled title="草稿状态为失败，无法下载"' : ''}>
+                            📥 下载
+                        </button>
+                        <button class="btn btn-small danger" onclick="deleteDraft('${draft.id}')">
+                            🗑️ 删除
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = `<div class="drafts-grid">${draftsHtml}</div>`;
+        }
+        
+        // 搜索过滤
+        function filterDrafts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredDrafts = allDrafts.filter(draft => 
+                (draft.name || '').toLowerCase().includes(searchTerm) ||
+                draft.id.toLowerCase().includes(searchTerm)
+            );
+            renderDrafts(filteredDrafts);
+        }
+        
+        // 刷新草稿列表 - Live Preview 适配版本
+        function refreshDrafts() {
+            document.getElementById('draftsContainer').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>正在刷新...</p>
+                </div>
+            `;
+            
+            // 检测Live Preview环境
+            if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                // Live Preview 环境 - 延迟显示模拟数据
+                setTimeout(() => {
+                    loadMockData();
+                }, 500);
+                return;
+            }
+            
+            loadDrafts();
+        }
+        
+        // 新建草稿 - Live Preview 适配版本
+        async function createNewDraft() {
+            const name = prompt('请输入草稿名称:', '新建草稿 ' + new Date().toLocaleString());
+            if (!name) return;
+            
+            // 检测Live Preview环境
+            if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                // Live Preview 环境 - 模拟创建
+                const newDraft = {
+                    id: 'demo_draft_' + Date.now(),
+                    name: name,
+                    status: 'active',
+                    material_count: 0,
+                    total_size: 0,
+                    create_time: Math.floor(Date.now() / 1000),
+                    update_time: Math.floor(Date.now() / 1000)
+                };
+                allDrafts.unshift(newDraft);
+                updateStats(allDrafts);
+                renderDrafts(allDrafts);
+                alert('📱 Live Preview 模式\n草稿"' + name + '"创建成功！\n\n(这是模拟效果，真实功能请访问服务器)');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/create_draft', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: '通过仪表板创建的草稿'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('草稿创建成功！');
+                    refreshDrafts();
+                } else {
+                    alert('创建失败: ' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        }
+        
+        // 查看草稿 - Live Preview 适配版本
+        function viewDraft(draftId) {
+            // 检测Live Preview环境
+            if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                alert('📱 Live Preview 模式\n\n预览功能: ' + draftId + '\n\n在真实版本中，这会打开草稿预览页面。\n要使用完整功能，请访问真实服务器。');
+                return;
+            }
+            window.open(`/api/draft/preview/${draftId}`, '_blank');
+        }
+        
+        // 下载草稿 - Live Preview 适配版本
+        async function downloadDraft(draftId, event) {
+            // 检测Live Preview环境
+            if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                alert('📱 Live Preview 模式\n\n下载功能: ' + draftId + '\n\n在真实版本中，这会开始下载草稿文件。\n要使用完整功能，请访问真实服务器。');
+                return;
+            }
+            
+            try {
+                // 检查草稿状态
+                const draft = allDrafts.find(d => d.id === draftId);
+                if (draft && draft.status === 'failed') {
+                    alert('该草稿状态为失败，无法下载。请检查草稿是否正确生成。');
+                    return;
+                }
+                
+                // 显示下载准备中的提示
+                const downloadBtn = event.target;
+                const originalText = downloadBtn.innerHTML;
+                downloadBtn.innerHTML = '📥 准备中...';
+                downloadBtn.disabled = true;
+                
+                // 使用正确的API端点
+                const response = await fetch(`/api/drafts/download/${draftId}`);
+                const contentType = response.headers.get('content-type');
+                
+                if (response.ok && contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // 如果返回了下载链接，直接跳转
+                        if (data.download_url && data.download_url[0] && data.download_url[0].trim() !== '') {
+                            window.open(data.download_url[0], '_blank');
+                            alert('下载链接已生成，请在新窗口中下载');
+                        } else {
+                            // 否则使用生成草稿URL的接口
+                            const genResponse = await fetch('/generate_draft_url', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    draft_id: draftId,
+                                    force_save: true
+                                })
+                            });
+                            
+                            if (genResponse.ok) {
+                                const genData = await genResponse.json();
+                                if (genData.success && genData.output && genData.output.draft_url) {
+                                    window.open(genData.output.draft_url, '_blank');
+                                } else {
+                                    alert('下载链接生成失败: ' + (genData.error || '未知错误'));
+                                }
+                            } else {
+                                alert('下载链接生成失败，请重试');
+                            }
+                        }
+                    } else {
+                        // 检查是否是因为没有素材导致的错误
+                        const errorMsg = data.error || data.message || '未知错误';
+                        if (errorMsg.includes('不存在') || errorMsg.includes('not found') || errorMsg.includes('没有找到')) {
+                            alert('该草稿暂无可下载的素材，可能是空草稿或素材尚未生成。');
+                        } else {
+                            alert('下载失败: ' + errorMsg);
+                        }
+                    }
+                } else if (response.ok) {
+                    // 如果响应不是JSON格式，可能是重定向或其他内容
+                    alert('下载准备就绪，请检查草稿是否已生成');
+                } else {
+                    const errorText = await response.text();
+                    if (response.status === 404) {
+                        alert('该草稿不存在或暂无可下载的素材');
+                    } else {
+                        alert('下载失败: ' + response.status + ' ' + response.statusText + '\n' + errorText);
+                    }
+                }
+            } catch (error) {
+                alert('下载失败: ' + error.message);
+            } finally {
+                // 恢复按钮状态
+                const downloadBtn = event.target;
+                downloadBtn.innerHTML = '📥 下载';
+                downloadBtn.disabled = false;
+            }
+        }
+        
+        // 删除草稿 - Live Preview 适配版本
+        async function deleteDraft(draftId) {
+            if (!confirm('确定要删除这个草稿吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            // 检测Live Preview环境
+            if (window.location.protocol === 'vscode-webview:' || window.location.host.includes('localhost')) {
+                // Live Preview 环境 - 模拟删除
+                const draftIndex = allDrafts.findIndex(d => d.id === draftId);
+                if (draftIndex !== -1) {
+                    const draftName = allDrafts[draftIndex].name;
+                    allDrafts.splice(draftIndex, 1);
+                    updateStats(allDrafts);
+                    renderDrafts(allDrafts);
+                    alert('📱 Live Preview 模式\n草稿"' + draftName + '"已删除！\n\n(这是模拟效果，真实功能请访问服务器)');
+                }
+                return;
+            }
+            
+            try {
+                // 使用正确的API端点
+                const response = await fetch(`/api/drafts/delete/${draftId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('草稿删除成功');
+                    refreshDrafts();
+                } else {
+                    alert('删除失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+        
+        // 显示错误
+        function showError(message) {
+            document.getElementById('draftsContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <h3>加载失败</h3>
+                    <p>${escapeHtml(message)}</p>
+                    <button class="btn" onclick="refreshDrafts()">🔄 重试</button>
+                </div>
+            `;
+        }
+        
+        // 状态映射函数 - 支持所有草稿状态
+        function getStatusClass(status) {
+            switch(status) {
+                case 'active':
+                case 'completed':
+                    return 'status-active';
+                case 'processing':
+                    return 'status-processing';
+                case 'error':
+                case 'failed':
+                    return 'status-failed';
+                case 'saved':
+                    return 'status-saved';
+                case 'draft':
+                default:
+                    return 'status-draft';
+            }
+        }
+        
+        function getStatusText(status) {
+            switch(status) {
+                case 'active':
+                    return '活跃';
+                case 'completed':
+                    return '已完成';
+                case 'processing':
+                    return '处理中';
+                case 'error':
+                    return '错误';
+                case 'failed':
+                    return '失败';
+                case 'saved':
+                    return '已保存';
+                case 'draft':
+                default:
+                    return '草稿';
+            }
+        }
+        
+        // 工具函数
+        function formatDate(timestamp) {
+            if (!timestamp) return '未知';
+            return new Date(timestamp * 1000).toLocaleString('zh-CN');
+        }
+        
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

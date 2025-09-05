@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>CapCutAPI 服务器连接测试</h1>
+        <p>点击下面的按钮测试各个功能是否正常工作：</p>
+        
+        <button onclick="testBasicAPI()">测试基础API</button>
+        <button onclick="testPreviewAPI()">测试预览API</button>
+        <button onclick="testNetworkSpeed()">测试网络速度</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(message, isSuccess = true) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-item ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        function testBasicAPI() {
+            addResult('开始测试基础API...');
+            
+            fetch('/get_intro_animation_types')
+                .then(response => {
+                    if (response.ok) {
+                        addResult('✅ 基础API测试成功 - 状态码: ' + response.status);
+                        return response.json();
+                    } else {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                })
+                .then(data => {
+                    addResult('✅ 数据解析成功 - 获取到 ' + (data.data ? data.data.length : 0) + ' 个动画类型');
+                })
+                .catch(error => {
+                    addResult('❌ 基础API测试失败: ' + error.message, false);
+                });
+        }
+
+        function testPreviewAPI() {
+            addResult('开始测试预览API...');
+            
+            const testUrl = '/api/drafts/preview/dfd_cat_1756871405_c3a488a5';
+            
+            fetch(testUrl)
+                .then(response => {
+                    if (response.ok) {
+                        addResult('✅ 预览API测试成功 - 状态码: ' + response.status);
+                        addResult('✅ 内容类型: ' + response.headers.get('content-type'));
+                        addResult('✅ 内容长度: ' + response.headers.get('content-length') + ' 字节');
+                    } else {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                })
+                .catch(error => {
+                    addResult('❌ 预览API测试失败: ' + error.message, false);
+                });
+        }
+
+        function testNetworkSpeed() {
+            addResult('开始测试网络速度...');
+            
+            const startTime = performance.now();
+            
+            fetch('/get_intro_animation_types')
+                .then(response => {
+                    const endTime = performance.now();
+                    const duration = endTime - startTime;
+                    
+                    if (response.ok) {
+                        addResult(`✅ 网络响应时间: ${duration.toFixed(2)}ms`);
+                        
+                        if (duration < 100) {
+                            addResult('✅ 网络速度: 优秀');
+                        } else if (duration < 500) {
+                            addResult('✅ 网络速度: 良好');
+                        } else {
+                            addResult('⚠️ 网络速度: 较慢', false);
+                        }
+                    } else {
+                        throw new Error('HTTP ' + response.status);
+                    }
+                })
+                .catch(error => {
+                    addResult('❌ 网络测试失败: ' + error.message, false);
+                });
+        }
+
+        // 页面加载时自动运行基础测试
+        document.addEventListener('DOMContentLoaded', function() {
+            addResult('页面加载完成，开始自动测试...');
+            setTimeout(testBasicAPI, 1000);
+        });
+    </script>
+</body>
+</html>
