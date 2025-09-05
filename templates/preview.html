@@ -11,7 +11,107 @@
             box-sizing: border-box;
         }
         
-        body {
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .material-details-container {
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .selected-material-details {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            border: 2px solid #667eea;
+        }
+        
+        .material-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .material-icon-large {
+            font-size: 36px;
+            margin-right: 12px;
+            background: #667eea;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .material-info {
+            flex: 1;
+        }
+        
+        .material-name-large {
+            font-size: 17px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+        
+        .material-type-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .material-details-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .detail-group {
+            background: white;
+            border-radius: 6px;
+            padding: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .detail-group-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            padding: 2px 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .detail-item:last-child {
+             border-bottom: none;
+             margin-bottom: 0;
+         }
+         
+          body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
             background: #f5f5f5;
             color: #333;
@@ -94,8 +194,8 @@
         /* 新增：顶部横向布局容器 */
         .top-panels-container {
             display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
+            grid-template-columns: 60% 40%;
+            gap: 15px;
             margin-bottom: 20px;
         }
         
@@ -104,7 +204,7 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            padding: 20px;
+            padding: 10px;
         }
         
         .preview-section {
@@ -115,123 +215,23 @@
         
         /* 调整素材详情容器高度 */
         .material-details-panel .material-details-container {
-            min-height: 300px;
-            max-height: 400px;
+            min-height: 280px;
+            max-height: 380px;
             overflow-y: auto;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .material-details-container {
-            min-height: 400px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .selected-material-details {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            border: 2px solid #667eea;
-        }
-        
-        .material-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e9ecef;
-        }
-        
-        .material-icon-large {
-            font-size: 48px;
-            margin-right: 15px;
-            background: #667eea;
-            color: white;
-            width: 80px;
-            height: 80px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .material-info {
-            flex: 1;
-        }
-        
-        .material-name-large {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            word-break: break-all;
-        }
-        
-        .material-type-badge {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-        
-        .material-details-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-        
-        .detail-group {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            border: 1px solid #e9ecef;
-        }
-        
-        .detail-group-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .detail-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid #f8f9fa;
-        }
-        
-        .detail-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
         }
         
         .detail-label {
             color: #666;
             font-weight: 500;
             font-size: 14px;
-            min-width: 80px;
+            min-width: 50px;
         }
         
         .detail-value {
             color: #333;
             font-size: 14px;
             text-align: right;
-            max-width: 200px;
+            max-width: 120px;
             word-break: break-all;
             font-weight: 400;
         }
