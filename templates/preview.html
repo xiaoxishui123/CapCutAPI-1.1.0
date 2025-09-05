@@ -306,6 +306,13 @@
             overflow: hidden;
         }
         
+        /* 官方轨道样式 */
+        .timeline-track.official-track {
+            margin-bottom: 3px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+        }
+        
         .track-label {
             width: 80px;
             min-width: 80px;
@@ -321,12 +328,48 @@
             text-align: center;
         }
         
+        /* 官方轨道标签样式 */
+        .track-label.official-label {
+            width: 120px;
+            min-width: 120px;
+            background: #3a3a3a;
+            padding: 10px 8px;
+            font-size: 12px;
+            flex-direction: column;
+            gap: 2px;
+            border-right: 2px solid #4a4a4a;
+        }
+        
+        .track-icon {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        
+        .track-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .track-count {
+            font-size: 9px;
+            color: #aaa;
+            font-weight: 400;
+        }
+        
         .track-items {
             flex: 1;
             position: relative;
             height: 32px;
             background: #1a1a1a;
             overflow: hidden;
+        }
+        
+        /* 官方轨道项目容器 */
+        .track-items.official-items {
+            height: 40px;
+            background: #252525;
+            border-top: 1px solid #3a3a3a;
         }
         
         /* 时间轴块样式 */
@@ -347,11 +390,29 @@
             text-align: center;
         }
         
+        /* 官方轨道时间轴块样式 */
+        .timeline-block.official-block {
+            height: 36px;
+            top: 2px;
+            border-radius: 4px;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
         .timeline-block:hover {
             transform: translateY(-1px);
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             border-color: rgba(255,255,255,0.3);
             z-index: 10;
+        }
+        
+        .timeline-block.official-block:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border-color: rgba(255,255,255,0.5);
+            z-index: 15;
         }
         
         .timeline-block .material-text {
@@ -397,6 +458,48 @@
             color: white;
         }
         
+        /* 官方轨道类型样式 */
+        .timeline-track.video-track {
+            background: #2a3a4a;
+            border-color: #4a90e2;
+        }
+        
+        .timeline-track.audio-track {
+            background: #2a3a2a;
+            border-color: #50c878;
+        }
+        
+        .timeline-track.text-track {
+            background: #3a3a2a;
+            border-color: #f5a623;
+        }
+        
+        .timeline-track.image-track {
+            background: #3a2a3a;
+            border-color: #bd10e0;
+        }
+        
+        /* 官方轨道标签类型样式 */
+        .track-label.video-label {
+            background: #3a4a5a;
+            border-right-color: #4a90e2;
+        }
+        
+        .track-label.audio-label {
+            background: #3a4a3a;
+            border-right-color: #50c878;
+        }
+        
+        .track-label.text-label {
+            background: #4a4a3a;
+            border-right-color: #f5a623;
+        }
+        
+        .track-label.image-label {
+            background: #4a3a4a;
+            border-right-color: #bd10e0;
+        }
+        
         .track-item.subtitle, .timeline-block.subtitle {
             background: #7ed321;
             color: white;
@@ -415,6 +518,34 @@
         .track-item.unknown, .timeline-block.unknown {
             background: #9b9b9b;
             color: white;
+        }
+        
+        /* div类型素材样式 */
+        .track-item.div, .div-block {
+            background: #6c5ce7;
+            color: white;
+        }
+        
+        /* 选中状态样式 */
+        .timeline-block.selected {
+            border: 2px solid #007bff !important;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3) !important;
+            transform: scale(1.02);
+            z-index: 10;
+            position: relative;
+        }
+        
+        .timeline-block.selected::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border-radius: 6px;
+            z-index: -1;
+            opacity: 0.2;
         }
         
         /* 空时间轴样式 */
@@ -921,6 +1052,17 @@
                 selectedMaterial = materialData;
                 console.log('时间轴素材点击:', materialData);
                 
+                // 移除所有时间轴块的选中状态
+                document.querySelectorAll('.timeline-block').forEach(block => {
+                    block.classList.remove('selected');
+                });
+                
+                // 为当前点击的素材添加选中状态
+                const currentBlock = document.querySelector(`[data-material-id="${materialId}"]`);
+                if (currentBlock) {
+                    currentBlock.classList.add('selected');
+                }
+                
                 // 显示素材详情
                 showSelectedMaterialDetails(materialData);
                 
@@ -1074,9 +1216,41 @@
             }
         });
         
+        /**
+         * 自动选择并显示第一个轨道的第一个素材
+         */
+        function autoSelectFirstMaterial() {
+            // 查找第一个时间轴块
+            const firstTimelineBlock = document.querySelector('.timeline-block');
+            if (firstTimelineBlock) {
+                // 模拟点击第一个素材
+                const materialId = firstTimelineBlock.getAttribute('data-material-id');
+                const materialData = firstTimelineBlock.getAttribute('data-material');
+                
+                if (materialId && materialData) {
+                    console.log('自动选择第一个素材:', materialId);
+                    
+                    // 添加选中样式
+                    firstTimelineBlock.classList.add('selected');
+                    
+                    // 显示素材详情
+                    onTimelineMaterialClick(materialId, materialData);
+                } else {
+                    console.log('未找到有效的素材数据');
+                }
+            } else {
+                console.log('未找到任何时间轴素材块');
+            }
+        }
+        
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('草稿预览页面已加载');
+            
+            // 延迟执行自动选择，确保DOM完全渲染
+            setTimeout(function() {
+                autoSelectFirstMaterial();
+            }, 100);
         });
     </script>
 </body>

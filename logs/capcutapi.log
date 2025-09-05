@@ -910,3 +910,199 @@ Error updating metadata for video_0be36731e87eddf4bfc8f49446d37f39.mp4: Command 
 111.183.21.71 - - [05/Sep/2025 14:03:49] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
 111.183.21.71 - - [05/Sep/2025 14:03:58] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
 111.183.21.71 - - [05/Sep/2025 14:07:11] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 14:20:15] "GET /api/draft/download/progress/download_1757053214894 HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 14:38:20] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 14:38:21] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+34.78.183.19 - - [05/Sep/2025 14:54:01] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:20:13] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:20:31] "GET /api/drafts/dashboard HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:20:31] "GET /api/drafts/list HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:20:32] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:20:40] "[32mGET /api/draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1[0m" 302 -
+111.183.21.71 - - [05/Sep/2025 15:20:40] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:20:40] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:23:20] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:23:21] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:30:01] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:30:02] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:30:45] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:30:46] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:31:22] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:31:22] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:31:23] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:31:24] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:31:25] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:31:25] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 15:31:54] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:31:54] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:31:57] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:32:07] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:32:40] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:32:41] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:33:20] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:33:21] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+8.148.70.18 - - [05/Sep/2025 15:33:42] "GET / HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:37:38] "GET / HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:38:45] "GET /draft/preview/sample_draft HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:39:20] "[33mGET /templates/preview.html HTTP/1.1[0m" 404 -
+8.148.70.18 - - [05/Sep/2025 15:39:42] "GET /draft/preview/test_draft HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:40:07] "POST /create_draft HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:40:15] "GET /draft/preview/dfd_cat_1757058007_f3d94091 HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:40:22] "POST /add_text HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 15:40:31] "GET /draft/preview/dfd_cat_1757058007_f3d94091 HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:42:14] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:42:16] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:42:49] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:42:50] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 15:43:18] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:43:18] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:43:19] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:43:20] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:43:20] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 15:43:21] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 15:43:21] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:35:13] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:35:13] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:35:44] "GET /api/drafts/dashboard HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:35:45] "GET /api/drafts/list HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:35:45] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:35:45] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:35:46] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:35:47] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:35:47] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:37:56] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:37:57] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:38:16] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:38:16] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:38:18] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:38:18] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:38:26] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:38:27] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:38:35] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:38:35] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:38:36] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:38:36] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:38:47] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:39:10] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:39:11] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:39:15] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:40:06] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+8.148.70.18 - - [05/Sep/2025 16:40:16] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:43:38] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:43:38] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+8.148.70.18 - - [05/Sep/2025 16:44:14] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:44:29] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:44:29] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:44:31] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:44:31] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:44:36] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:45:11] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:45:12] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:45:22] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:45:42] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+8.148.70.18 - - [05/Sep/2025 16:50:01] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:50:29] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:50:29] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:52:25] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:52:25] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:52:27] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:52:28] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:52:31] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:52:31] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+[33mPress CTRL+C to quit[0m
+111.183.21.71 - - [05/Sep/2025 16:52:54] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:52:54] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:52:59] "GET /draft/preview/b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:53:00] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:53:00] "GET / HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:53:01] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:53:02] "GET /api/drafts/dashboard HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:53:02] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:53:03] "GET /api/drafts/list HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:53:09] "[32mGET /api/draft/preview/dfd_cat_1756871405_c3a488a5 HTTP/1.1[0m" 302 -
+111.183.21.71 - - [05/Sep/2025 16:53:09] "GET /draft/preview/dfd_cat_1756871405_c3a488a5 HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:53:09] "[33mGET /@vite/client HTTP/1.1[0m" 404 -
+111.183.21.71 - - [05/Sep/2025 16:54:15] "GET /draft/preview/dfd_cat_1756796894_b2b3d36e HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:55:50] "GET /draft/preview/dfd_cat_1756871405_c3a488a5 HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:55:50] "GET /draft/preview/dfd_cat_1756871405_c3a488a5 HTTP/1.1" 200 -
+111.183.21.71 - - [05/Sep/2025 16:55:51] "[33mGET /@vite/client HTTP/1.1[0m" 404 -

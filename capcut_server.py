@@ -3403,67 +3403,107 @@ def render_template_with_official_style(draft_id, materials, total_duration, dra
         """
 
 def generate_timeline_html_for_template(materials, total_duration):
-    """生成适用于官方模板的时间轴HTML - 每个素材独立轨道"""
+    """生成适用于官方模板的时间轴HTML - 按类型分层显示（官方模式）"""
     if not materials:
         return '<div class="empty-timeline">暂无素材数据</div>'
     
-    # 定义轨道类型和对应的图标
+    # 定义轨道类型和对应的图标，按官方显示顺序排列
     track_types = {
-        'video': {'label': '视频', 'icon': '🎥'},
-        'audio': {'label': '音频', 'icon': '🎵'}, 
-        'text': {'label': '文本', 'icon': '📝'},
-        'image': {'label': '图片', 'icon': '🖼️'},
-        'subtitle': {'label': '字幕', 'icon': '💬'},
-        'effect': {'label': '特效', 'icon': '✨'},
-        'sticker': {'label': '贴纸', 'icon': '🏷️'},
-        'unknown': {'label': '其他', 'icon': '📄'}
+        'video': {'label': '视频', 'icon': '🎥', 'order': 1},
+        'image': {'label': '图片', 'icon': '🖼️', 'order': 2},
+        'text': {'label': '文本', 'icon': '📝', 'order': 3},
+        'subtitle': {'label': '字幕', 'icon': '💬', 'order': 4},
+        'effect': {'label': '特效', 'icon': '✨', 'order': 5},
+        'sticker': {'label': '贴纸', 'icon': '🏷️', 'order': 6},
+        'audio': {'label': '音频', 'icon': '🎵', 'order': 7},
+        'unknown': {'label': '其他', 'icon': '📄', 'order': 8}
     }
     
-    # 生成多轨道HTML（官方风格）- 每个素材独立轨道
-    timeline_html = []
-    
-    # 为每个素材创建独立轨道
-    for i, material in enumerate(materials):
+    # 按类型分组素材
+    materials_by_type = {}
+    for material in materials:
         material_type = material.get('type', 'unknown').lower()
         if material_type not in track_types:
             material_type = 'unknown'
         
+        if material_type not in materials_by_type:
+            materials_by_type[material_type] = []
+        materials_by_type[material_type].append(material)
+    
+    # 按时间顺序排序每个类型的素材
+    for material_type in materials_by_type:
+        materials_by_type[material_type].sort(key=lambda x: float(x.get('start', 0) or 0))
+    
+    # 生成多轨道HTML（官方风格）- 按类型分层
+    timeline_html = []
+    
+    # 按官方顺序显示轨道（视频在上，音频在下）
+    sorted_types = sorted(materials_by_type.keys(), key=lambda x: track_types[x]['order'])
+    
+    for material_type in sorted_types:
+        type_materials = materials_by_type[material_type]
         track_info = track_types[material_type]
-        start = float(material.get('start', 0) or 0)
-        duration = float(material.get('duration', 30) or 30)
-        
-        # 计算位置和宽度（百分比）
-        if total_duration > 0:
-            left_percent = (start / total_duration) * 100
-            width_percent = (duration / total_duration) * 100
-        else:
-            left_percent = i * 20
-            width_percent = 15
-        
-        # 限制最小宽度和最大宽度
-        width_percent = max(2, min(width_percent, 100 - left_percent))
-        
-        # 生成素材名称（用于轨道标签）
-        material_name = material.get('name', material.get('filename', f'{track_info["label"]}_{i+1}'))
-        if len(material_name) > 15:
-            material_name = material_name[:12] + '...'
         
         # 轨道容器开始
         timeline_html.append(f'''
-        <div class="timeline-track" data-track-type="{material_type}" data-material-index="{i}">
-            <div class="track-label">{track_info['icon']} {material_name}</div>
-            <div class="track-items">''')
+        <div class="timeline-track official-track" data-track-type="{material_type}">
+            <div class="track-label official-label">
+                <span class="track-icon">{track_info['icon']}</span>
+                <span class="track-name">{track_info['label']}</span>
+                <span class="track-count">({len(type_materials)})</span>
+            </div>
+            <div class="track-items official-items">''')
         
-        # 生成时间块（官方风格）
-        # 将素材数据转换为JSON字符串，并进行HTML转义
-        material_json = html.escape(json.dumps(material, ensure_ascii=False))
-        material_id = material.get('id', f'material_{i}')
-        timeline_html.append(f'''
-                <div class="timeline-block track-item {material_type}" 
+        # 为该类型的所有素材生成时间块
+        for i, material in enumerate(type_materials):
+            start = float(material.get('start', 0) or 0)
+            duration = float(material.get('duration', 30) or 30)
+            
+            # 计算位置和宽度（百分比）
+            if total_duration > 0:
+                left_percent = (start / total_duration) * 100
+                width_percent = (duration / total_duration) * 100
+            else:
+                left_percent = i * 20
+                width_percent = 15
+            
+            # 限制最小宽度和最大宽度
+            width_percent = max(2, min(width_percent, 100 - left_percent))
+            
+            # 生成素材名称
+            material_name = material.get('name', material.get('filename', f'{track_info["label"]}_{i+1}'))
+            if len(material_name) > 12:
+                display_name = material_name[:9] + '...'
+            else:
+                display_name = material_name
+            
+            # 将素材数据转换为JSON字符串，并进行HTML转义
+            material_json = html.escape(json.dumps(material, ensure_ascii=False))
+            material_id = material.get('id', f'material_{material_type}_{i}')
+            
+            # 根据素材类型设置不同的样式
+            if material_type == 'video':
+                block_class = 'timeline-block video-block'
+                block_content = f'<div class="video-thumbnail">🎬</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'audio':
+                block_class = 'timeline-block audio-block'
+                block_content = f'<div class="audio-waveform">🎵</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'image':
+                block_class = 'timeline-block image-block'
+                block_content = f'<div class="image-thumbnail">🖼️</div><span class="material-name">{display_name}</span>'
+            else:
+                block_class = f'timeline-block {material_type}-block'
+                block_content = f'<span class="material-icon">{track_info["icon"]}</span><span class="material-name">{display_name}</span>'
+            
+            timeline_html.append(f'''
+                <div class="{block_class}" 
                      style="left: {left_percent:.2f}%; width: {width_percent:.2f}%;"
                      onclick="onTimelineMaterialClick('{material_id}', '{material_json}')"
-                     title="{track_info['label']}: {start:.2f}s - {start + duration:.2f}s">
-                    <span style="font-size: 10px; font-weight: 500; text-overflow: ellipsis; overflow: hidden;">{track_info['label'][:4]}</span>
+                     title="{track_info['label']}: {material_name}\n时间: {start:.2f}s - {start + duration:.2f}s\n时长: {duration:.2f}s"
+                     data-start="{start}"
+                     data-duration="{duration}"
+                     data-type="{material_type}">
+                    {block_content}
                 </div>''')
         
         # 轨道容器结束
