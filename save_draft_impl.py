@@ -124,11 +124,32 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
             raise Exception("Failed to compress draft folder")
 
         draft_url = zip_file_path
-        if IS_UPLOAD_DRAFT:
+        
+        # 检查是否是自定义下载路径（任何临时目录或自定义路径）
+        is_custom_download = draft_folder and (draft_folder.startswith('/tmp/') or 'custom' in draft_folder.lower())
+        
+        if IS_UPLOAD_DRAFT and not is_custom_download:
+            # 正常OSS上传模式
             update_draft_status(draft_id, 'processing', 90, '正在上传至云存储')
             draft_url = upload_to_oss(zip_file_path)
+            # 删除本地文件
             if os.path.exists(draft_path):
                 shutil.rmtree(draft_path)
+        else:
+            # 本地保存模式或自定义下载模式
+            if is_custom_download:
+                # 自定义下载：将文件复制到指定的临时目录
+                update_draft_status(draft_id, 'processing', 90, '正在复制文件到临时目录')
+                temp_target_path = os.path.join(draft_folder, draft_id)
+                if os.path.exists(temp_target_path):
+                    shutil.rmtree(temp_target_path)
+                shutil.copytree(draft_path, temp_target_path)
+                logger.info(f"Task {task_id}: 已将草稿文件复制到临时目录: {temp_target_path}")
+                # 保留原始draft_path，不删除
+            else:
+                # 普通本地保存模式，保留文件
+                logger.info(f"Task {task_id}: 本地保存模式，文件保存在: {draft_path}")
+                logger.info(f"草稿文件已复制到临时目录: {temp_target_path}")
         
         update_draft_status(draft_id, 'completed', 100, draft_url)
         logger.info(f"Task {task_id} completed, draft URL: {draft_url}")

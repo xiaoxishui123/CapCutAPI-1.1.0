@@ -423,9 +423,32 @@
         }
         
         .timeline-block .material-time {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
             font-size: 9px;
             opacity: 0.8;
             white-space: nowrap;
+            background: rgba(0,0,0,0.3);
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: 500;
+        }
+        
+        .timeline-block .material-icon {
+            display: inline-block;
+            margin-right: 4px;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+        
+        .timeline-block .material-name {
+            font-size: 10px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
         }
         
         .track-item {
@@ -614,6 +637,32 @@
             padding-top: 20px;
         }
         
+        .current-path-display {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        
+        .path-label {
+            color: #1976d2;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .path-value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+            background: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            word-break: break-all;
+            font-size: 11px;
+        }
+        
         .download-btn {
             width: 100%;
             background: #667eea;
@@ -703,7 +752,7 @@
             <div class="header-title">📋 草稿预览 - {{ draft_id }}</div>
             <div class="header-actions">
                 <a href="/api/drafts/dashboard" class="btn">← 返回仪表板</a>
-                <button class="btn primary" onclick="startDownload('{{ draft_id }}')">📥 下载草稿</button>
+                <button class="btn primary" onclick="directDownload('{{ draft_id }}')">📥 直接下载</button>
             </div>
         </div>
     </div>
@@ -798,11 +847,17 @@
             
                 <!-- 下载区域 -->
                 <div class="download-section">
-                    <button class="download-btn" onclick="startDownload('{{ draft_id }}')">
-                        📦 下载草稿
-                    </button>
+                    <!-- 当前路径显示 -->
+                    <div class="current-path-display" id="currentPathDisplay">
+                        <div class="path-label">📁 当前下载路径:</div>
+                        <div class="path-value" id="currentPathValue">默认路径</div>
+                    </div>
+                    
                     <button class="download-btn" onclick="configPath()">
                         ⚙️ 配置路径
+                    </button>
+                    <button class="download-btn" onclick="startCustomDownload('{{ draft_id }}')">
+                        📥 自定义下载
                     </button>
                     
                     <div class="progress-container" id="progressContainer">
@@ -1044,10 +1099,17 @@
         /**
          * 处理时间轴素材点击事件
          * @param {string} materialId - 素材ID
-         * @param {string} materialDataStr - 素材数据JSON字符串
+         * @param {HTMLElement} element - 被点击的DOM元素
          */
-        function onTimelineMaterialClick(materialId, materialDataStr) {
+        function onTimelineMaterialClick(materialId, element) {
             try {
+                // 从DOM元素的data-material属性获取素材数据
+                const materialDataStr = element.getAttribute('data-material');
+                if (!materialDataStr) {
+                    console.error('未找到素材数据');
+                    return;
+                }
+                
                 const materialData = JSON.parse(materialDataStr);
                 selectedMaterial = materialData;
                 console.log('时间轴素材点击:', materialData);
@@ -1058,17 +1120,32 @@
                 });
                 
                 // 为当前点击的素材添加选中状态
-                const currentBlock = document.querySelector(`[data-material-id="${materialId}"]`);
-                if (currentBlock) {
-                    currentBlock.classList.add('selected');
-                }
+                element.classList.add('selected');
                 
                 // 显示素材详情
                 showSelectedMaterialDetails(materialData);
                 
             } catch (error) {
                 console.error('解析素材数据失败:', error);
-                console.log('原始数据:', materialDataStr);
+                console.log('原始数据:', element.getAttribute('data-material'));
+                
+                // 降级处理：从DOM属性构建基本素材信息
+                const fallbackMaterial = {
+                    id: materialId,
+                    type: element.getAttribute('data-type') || 'unknown',
+                    start: parseFloat(element.getAttribute('data-start')) || 0,
+                    duration: parseFloat(element.getAttribute('data-duration')) || 0,
+                    name: element.querySelector('.material-name')?.textContent || '未知素材'
+                };
+                
+                selectedMaterial = fallbackMaterial;
+                showSelectedMaterialDetails(fallbackMaterial);
+                
+                // 移除所有选中状态并添加到当前元素
+                document.querySelectorAll('.timeline-block').forEach(block => {
+                    block.classList.remove('selected');
+                });
+                element.classList.add('selected');
             }
         }
         
@@ -1133,75 +1210,489 @@
             }
         }
         
-        // 下载功能
-        function startDownload(draftId) {
-            const progressContainer = document.getElementById('progressContainer');
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
+        /**
+         * 直接浏览器下载功能
+         * 直接跳转到草稿链接，由浏览器下载到默认路径
+         * @param {string} draftId - 草稿ID
+         */
+        async function directDownload(draftId) {
+            const downloadBtn = document.querySelector('.btn.primary');
             
-            // 显示进度条
-            progressContainer.style.display = 'block';
-            progressText.textContent = '正在准备下载...';
-            
-            // 生成任务ID
-            downloadTaskId = 'download_' + Date.now();
-            
-            // 模拟下载进度
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 10;
-                if (progress > 100) progress = 100;
+            try {
+                // 更新按钮状态
+                if (downloadBtn) {
+                    downloadBtn.innerHTML = '📥 准备下载...';
+                    downloadBtn.disabled = true;
+                }
                 
-                progressFill.style.width = progress + '%';
-                progressText.textContent = `下载进度: ${progress.toFixed(1)}%`;
+                console.log('开始直接下载草稿:', draftId);
                 
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    progressText.textContent = '下载完成！';
+                // 调用后端API获取下载链接
+                const response = await fetch(`/api/drafts/download/${draftId}`);
+                const contentType = response.headers.get('content-type');
+                
+                if (response.ok && contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    console.log('下载API响应:', data);
+                    
+                    if (data.success && data.download_url && data.download_url.length > 0) {
+                        // 使用更安全的下载方式，避免ERR_ABORTED错误
+                        // 使用代理端点下载，避免跨域问题
+                        const proxyUrl = `/api/drafts/download/proxy/${draftId}`;
+                        
+                        // 创建隐藏的a标签进行下载
+                        const link = document.createElement('a');
+                        link.href = proxyUrl;
+                        link.download = `draft_${draftId}.zip`; // 设置下载文件名
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        
+                        // 触发下载
+                        link.click();
+                        
+                        // 清理DOM
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                        }, 100);
+                        
+                        // 更新按钮状态为成功
+                        if (downloadBtn) {
+                            downloadBtn.innerHTML = '✅ 下载开始';
+                            setTimeout(() => {
+                                downloadBtn.innerHTML = '📥 直接下载';
+                                downloadBtn.disabled = false;
+                            }, 2000);
+                        }
+                        
+                        console.log('通过代理下载已开始:', proxyUrl);
+                        return;
+                    } else {
+                        throw new Error(data.error || '获取下载链接失败');
+                    }
+                } else {
+                    throw new Error('服务器响应格式错误');
+                }
+                
+            } catch (error) {
+                console.error('直接下载失败:', error);
+                
+                // 恢复按钮状态
+                if (downloadBtn) {
+                    downloadBtn.innerHTML = '❌ 下载失败';
+                    downloadBtn.disabled = false;
                     setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        progressFill.style.width = '0%';
+                        downloadBtn.innerHTML = '📥 直接下载';
                     }, 2000);
                 }
-            }, 200);
-            
-            // 实际的下载API调用
-            fetch(`/api/draft/download/progress/${downloadTaskId}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('下载状态:', data);
-                })
-                .catch(error => {
-                    console.error('下载失败:', error);
-                    progressText.textContent = '下载失败，请重试';
-                });
+                
+                alert(`直接下载失败: ${error.message}`);
+            }
         }
         
-        // 配置路径功能
-        function configPath() {
-            const newPath = prompt('请输入下载路径:', '/home');
-            if (newPath) {
-                fetch('/api/draft/path/config', {
+        /**
+         * 自定义路径下载功能
+         * 通过后端API下载到自定义客户端路径
+         * @param {string} draftId - 草稿ID
+         */
+        async function customPathDownload(draftId) {
+            const downloadBtn = document.querySelector('.download-btn');
+            
+            try {
+                // 更新按钮状态
+                if (downloadBtn) {
+                    downloadBtn.innerHTML = '📦 准备下载...';
+                    downloadBtn.disabled = true;
+                }
+                
+                console.log('开始自定义路径下载草稿:', draftId);
+                
+                // 调用后端API进行自定义路径下载
+                const response = await fetch(`/api/drafts/download/custom/${draftId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        custom_path: newPath
+                        use_custom_path: true
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('路径配置成功: ' + data.custom_path);
-                    } else {
-                        alert('路径配置失败: ' + data.error);
-                    }
-                })
-                .catch(error => {
-                    alert('配置失败: ' + error.message);
                 });
+                const contentType = response.headers.get('content-type');
+                
+                if (response.ok && contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    console.log('自定义下载API响应:', data);
+                    
+                    if (data.success) {
+                        // 更新按钮状态为成功
+                        if (downloadBtn) {
+                            downloadBtn.innerHTML = '✅ 下载完成';
+                            setTimeout(() => {
+                                downloadBtn.innerHTML = '📦 自定义下载';
+                                downloadBtn.disabled = false;
+                            }, 2000);
+                        }
+                        
+                        alert(`文件已下载到: ${data.download_path || '自定义路径'}`);
+                        console.log('自定义路径下载完成:', data.download_path);
+                        return;
+                    } else {
+                        throw new Error(data.error || '自定义路径下载失败');
+                    }
+                } else {
+                    throw new Error('服务器响应格式错误');
+                }
+                
+            } catch (error) {
+                console.error('自定义路径下载失败:', error);
+                
+                // 恢复按钮状态
+                if (downloadBtn) {
+                    downloadBtn.innerHTML = '❌ 下载失败';
+                    downloadBtn.disabled = false;
+                    setTimeout(() => {
+                        downloadBtn.innerHTML = '📦 自定义下载';
+                    }, 2000);
+                }
+                
+                alert(`自定义路径下载失败: ${error.message}`);
             }
+        }
+        
+        /**
+         * 创建路径配置模态框
+         * @param {string} currentPath - 当前路径
+         * @returns {HTMLElement} 模态框元素
+         */
+        function createPathConfigModal(currentPath) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                max-width: 500px;
+                width: 90%;
+            `;
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0; color: #333;">配置下载路径</h3>
+                <p style="color: #666; margin: 10px 0;">请输入自定义下载路径:</p>
+                <input type="text" id="pathInput" value="${currentPath}" 
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;">
+                <div style="text-align: right; margin-top: 15px;">
+                    <button onclick="closePathModal()" 
+                            style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer;">取消</button>
+                    <button onclick="savePathConfig()" 
+                            style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">确定</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            return modal;
+        }
+
+        /**
+         * 关闭路径配置模态框
+         */
+        function closePathModal() {
+            const modal = document.querySelector('div[style*="z-index: 10000"]');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        /**
+         * 保存路径配置
+         */
+        function savePathConfig() {
+            const pathInput = document.getElementById('pathInput');
+            const newPath = pathInput ? pathInput.value.trim() : '';
+            
+            if (!newPath) {
+                alert('请输入有效的路径');
+                return;
+            }
+            
+            fetch('/api/draft/path/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    custom_path: newPath
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('路径配置成功!\n当前路径: ' + newPath);
+                    closePathModal();
+                    updatePathDisplay(newPath);
+                } else {
+                    alert('路径配置失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('配置路径失败:', error);
+                alert('配置路径失败: ' + error.message);
+            });
+        }
+
+        // 配置路径功能
+        function configPath() {
+            // 先获取当前配置的路径
+            fetch('/api/draft/path/config', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                const currentPath = data.success ? data.custom_path : '';
+                console.log('当前配置路径:', currentPath || '默认路径');
+                
+                // 创建一个简单的输入对话框
+                const pathModal = createPathConfigModal(currentPath || '/home');
+                document.body.appendChild(pathModal);
+                
+                // 显示模态框
+                pathModal.style.display = 'flex';
+            })
+            .catch(error => {
+                console.error('获取当前路径失败:', error);
+                // 如果获取失败，使用默认路径
+                console.log('使用默认路径配置');
+                const pathModal = createPathConfigModal('/home');
+                document.body.appendChild(pathModal);
+                pathModal.style.display = 'flex';
+            });
+        }
+        
+        /**
+         * 创建路径配置模态框
+         */
+        function createPathConfigModal(currentPath) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: none;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                max-width: 500px;
+                width: 90%;
+            `;
+            
+            content.innerHTML = `
+                <h3 style="margin-top: 0; color: #333;">配置下载路径</h3>
+                <p style="color: #666; margin: 10px 0;">请输入自定义下载路径:</p>
+                <input type="text" id="pathInput" value="${currentPath}" 
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;">
+                <div style="text-align: right; margin-top: 15px;">
+                    <button onclick="closePathModal()" 
+                            style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer;">取消</button>
+                    <button onclick="savePathConfig()" 
+                            style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">确定</button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            return modal;
+        }
+        
+        /**
+         * 关闭路径配置模态框
+         */
+        function closePathModal() {
+            const modal = document.querySelector('div[style*="z-index: 10000"]');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        /**
+         * 保存路径配置
+         */
+        function savePathConfig() {
+            const pathInput = document.getElementById('pathInput');
+            const newPath = pathInput ? pathInput.value.trim() : '';
+            
+            if (!newPath) {
+                alert('请输入有效的路径');
+                return;
+            }
+            
+            // 更新路径配置
+            fetch('/api/draft/path/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    custom_path: newPath
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('路径配置成功!\n当前路径: ' + newPath);
+                    // 更新页面显示的路径信息
+                    updatePathDisplay(newPath);
+                    closePathModal();
+                } else {
+                    alert('路径配置失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('配置路径失败:', error);
+                alert('配置路径失败: ' + error.message);
+            });
+        }
+        
+        /**
+         * 更新页面上的路径显示
+         */
+        function updatePathDisplay(path) {
+            const pathValueElement = document.getElementById('currentPathValue');
+            if (pathValueElement) {
+                pathValueElement.textContent = path || '默认路径';
+            }
+            console.log('当前配置路径:', path || '默认路径');
+        }
+        
+        /**
+         * 自定义下载功能
+         */
+        function startCustomDownload(draftId) {
+            // 显示进度条
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.querySelector('.progress-fill');
+            const progressText = document.querySelector('.progress-text');
+            
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '0%';
+                progressText.textContent = '准备下载...';
+            }
+            
+            // 先获取配置的路径
+            fetch('/api/draft/path/config', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(pathData => {
+                const customPath = pathData.success ? pathData.custom_path : '';
+                
+                if (!customPath) {
+                    throw new Error('请先配置下载路径');
+                }
+                
+                // 调用自定义下载API
+                return fetch('/api/draft/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        use_custom_path: true,
+                        draft_folder: customPath
+                    })
+                });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 模拟下载进度，显示"下载完成"而不是API返回的消息
+                    simulateDownloadProgress('下载完成');
+                } else {
+                    throw new Error(data.error || '下载失败');
+                }
+            })
+            .catch(error => {
+                console.error('下载失败:', error);
+                if (progressText) {
+                    progressText.textContent = '下载失败: ' + error.message;
+                }
+                alert('下载失败: ' + error.message);
+                // 隐藏进度条
+                setTimeout(() => {
+                    if (progressContainer) {
+                        progressContainer.style.display = 'none';
+                    }
+                }, 3000);
+            });
+        }
+        
+        /**
+         * 模拟下载进度
+         */
+        function simulateDownloadProgress(message) {
+            const progressFill = document.querySelector('.progress-fill');
+            const progressText = document.querySelector('.progress-text');
+            const progressContainer = document.getElementById('progressContainer');
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    if (progressFill) progressFill.style.width = '100%';
+                    if (progressText) progressText.textContent = message;
+                    
+                    // 下载完成后不隐藏进度条，保持显示状态
+                    console.log('下载完成，进度条保持显示');
+                } else {
+                    if (progressFill) progressFill.style.width = progress + '%';
+                    if (progressText) progressText.textContent = `下载中... ${Math.round(progress)}%`;
+                }
+            }, 200);
+        }
+        
+        /**
+         * 页面加载时获取当前路径配置
+         */
+        function loadCurrentPathConfig() {
+            fetch('/api/draft/path/config', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.custom_path) {
+                    updatePathDisplay(data.custom_path);
+                    console.log('已加载路径配置:', data.custom_path);
+                }
+            })
+            .catch(error => {
+                console.error('加载路径配置失败:', error);
+            });
         }
         
         // 键盘快捷键
@@ -1223,21 +1714,30 @@
             // 查找第一个时间轴块
             const firstTimelineBlock = document.querySelector('.timeline-block');
             if (firstTimelineBlock) {
-                // 模拟点击第一个素材
-                const materialId = firstTimelineBlock.getAttribute('data-material-id');
-                const materialData = firstTimelineBlock.getAttribute('data-material');
+                console.log('找到第一个素材块，准备自动选择');
                 
-                if (materialId && materialData) {
-                    console.log('自动选择第一个素材:', materialId);
-                    
-                    // 添加选中样式
-                    firstTimelineBlock.classList.add('selected');
-                    
-                    // 显示素材详情
-                    onTimelineMaterialClick(materialId, materialData);
-                } else {
-                    console.log('未找到有效的素材数据');
+                // 移除所有其他选中状态
+                document.querySelectorAll('.timeline-block').forEach(block => {
+                    block.classList.remove('selected');
+                });
+                
+                // 添加选中样式
+                firstTimelineBlock.classList.add('selected');
+                
+                // 获取素材ID（从onclick属性中提取或使用默认值）
+                const onclickAttr = firstTimelineBlock.getAttribute('onclick');
+                let materialId = 'first_material';
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/onTimelineMaterialClick\('([^']+)'/);
+                    if (match) {
+                        materialId = match[1];
+                    }
                 }
+                
+                // 调用点击处理函数，传递正确的参数
+                onTimelineMaterialClick(materialId, firstTimelineBlock);
+                
+                console.log('已自动选择第一个素材，ID:', materialId);
             } else {
                 console.log('未找到任何时间轴素材块');
             }
@@ -1246,6 +1746,9 @@
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
             console.log('草稿预览页面已加载');
+            
+            // 加载路径配置
+            loadCurrentPathConfig();
             
             // 延迟执行自动选择，确保DOM完全渲染
             setTimeout(function() {

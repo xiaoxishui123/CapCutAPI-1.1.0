@@ -20,8 +20,8 @@ def upload_to_oss(path):
     object_name = os.path.basename(path)
     bucket.put_object_from_file(object_name, path)
     
-    # Generate signed URL (valid for 24 hours) with v4 signature
-    url = bucket.sign_url('GET', object_name, 24 * 60 * 60, slash_safe=True)
+    # Generate public URL (since bucket is public-read-write)
+    url = f"https://{OSS_CONFIG['bucket_name']}.{OSS_CONFIG['endpoint']}/{object_name}"
     
     # Clean up temporary file
     os.remove(path)
@@ -34,14 +34,17 @@ def upload_mp4_to_oss(path):
     # Directly use credentials from the configuration file
     auth = oss2.AuthV4(MP4_OSS_CONFIG['access_key_id'], MP4_OSS_CONFIG['access_key_secret'])
     
+    # Use the correct OSS endpoint for bucket operations
+    oss_endpoint = f"https://oss-{MP4_OSS_CONFIG['region']}.aliyuncs.com"
+    
     # Create bucket instance with region
-    bucket = oss2.Bucket(auth, MP4_OSS_CONFIG['endpoint'], MP4_OSS_CONFIG['bucket_name'], region=MP4_OSS_CONFIG['region'])
+    bucket = oss2.Bucket(auth, oss_endpoint, MP4_OSS_CONFIG['bucket_name'], region=MP4_OSS_CONFIG['region'])
     
     # Upload file
     object_name = os.path.basename(path)
     bucket.put_object_from_file(object_name, path)
     
-    # Generate custom domain URL
+    # Generate custom domain URL (use the configured endpoint for public access)
     custom_domain = MP4_OSS_CONFIG['endpoint']
     url = f"{custom_domain}/{object_name}"
     
@@ -54,7 +57,7 @@ def get_signed_draft_url_if_exists(draft_id: str, expires_seconds: int = 24*60*6
     key = f"{draft_id}.zip"
     try:
         if bucket.object_exists(key):
-            url = bucket.sign_url('GET', key, expires_seconds, slash_safe=True)
+            url = f"https://{OSS_CONFIG['bucket_name']}.{OSS_CONFIG['endpoint']}/{key}"
             return url, True
         return "", False
     except Exception:

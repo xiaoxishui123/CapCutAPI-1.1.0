@@ -30,6 +30,7 @@ from urllib.parse import quote
 
 # ===== 第三方库导入 =====
 import requests
+import logging
 from flask import Flask, request, jsonify, Response, render_template, redirect
 
 # ===== pyJianYingDraft 相关导入 =====
@@ -89,10 +90,22 @@ from database import init_db
 
 app = Flask(__name__, template_folder='templates')
 
+# 配置logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler('logs/capcutapi.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('capcutapi')
+
 init_db()
 
 # ===== 全局变量和配置 =====
 draft_materials_cache = {}
+custom_download_path = ""  # 自定义下载路径
 
 # ===== 工具函数 =====
 
@@ -2670,6 +2683,214 @@ def download_draft_file(draft_id):
             'error': f'下载失败: {str(e)}'
         }), 500
 
+@app.route('/api/drafts/download/proxy/<draft_id>', methods=['GET'])
+def download_draft_proxy(draft_id):
+    """代理下载草稿文件 - 解决跨域问题"""
+    try:
+        # 直接使用已知的OSS链接格式
+        draft_url = f"https://zdaigfpt.oss-cn-wuhan-lr.aliyuncs.com/{draft_id}.zip"
+        
+        print(f"代理下载草稿: {draft_id}, OSS链接: {draft_url}")
+        
+        # 从OSS获取文件内容
+        import requests
+        
+        # 获取文件
+        file_response = requests.get(draft_url, stream=True)
+        if file_response.status_code == 200:
+            # 获取文件名
+            filename = f"draft_{draft_id}.zip"
+            if 'content-disposition' in file_response.headers:
+                content_disp = file_response.headers['content-disposition']
+                if 'filename=' in content_disp:
+                    filename = content_disp.split('filename=')[1].strip('"')
+            
+            # 创建响应
+            def generate():
+                for chunk in file_response.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+            
+            # 设置响应头
+            response = Response(generate(), mimetype='application/zip')
+            response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response.headers['Content-Type'] = 'application/zip'
+            
+            # 如果有内容长度，设置它
+            if 'content-length' in file_response.headers:
+                response.headers['Content-Length'] = file_response.headers['content-length']
+            
+            print(f"代理下载成功: {filename}")
+            return response
+        else:
+            print(f"OSS文件不存在或无法访问: {file_response.status_code}")
+            return jsonify({
+                'success': False,
+                'error': f'无法从OSS获取文件，状态码: {file_response.status_code}'
+            }), 404
+        
+    except Exception as e:
+        print(f"代理下载失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'代理下载失败: {str(e)}'
+        }), 500
+
+@app.route('/api/drafts/download/custom/<draft_id>', methods=['POST'])
+def download_draft_to_custom_path(draft_id):
+    """自定义路径下载草稿文件 - 实际下载到指定路径"""
+    try:
+        data = request.get_json() or {}
+        use_custom_path = data.get('use_custom_path', False)
+        custom_path = data.get('custom_path', '')
+        client_os = data.get('client_os', 'windows')
+        
+        # 检查草稿是否存在
+        materials = get_draft_materials(draft_id)
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': f'草稿 {draft_id} 不存在'
+            }), 404
+        
+        # 获取配置的下载路径
+        if not custom_path:
+            # 从全局配置中获取路径
+            global custom_download_path
+            if not custom_download_path:
+                # 尝试从文件加载配置
+                try:
+                    config_file = 'path_config.json'
+                    if os.path.exists(config_file):
+                        with open(config_file, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
+                            custom_download_path = config.get('custom_download_path', '')
+                except Exception as e:
+                    print(f"加载配置文件失败: {e}")
+            
+            custom_path = custom_download_path
+        
+        if not custom_path:
+            return jsonify({
+                'success': False,
+                'error': '请先配置下载路径'
+            }), 400
+        
+        # 如果使用自定义路径，生成自定义格式的压缩包
+        if use_custom_path:
+            try:
+                # 使用customize_zip模块生成自定义路径的压缩包
+                from customize_zip import get_customized_signed_url
+                
+                # 生成自定义压缩包的下载链接
+                download_url = get_customized_signed_url(
+                    draft_id=draft_id,
+                    client_os=client_os,
+                    draft_folder=custom_path
+                )
+                
+                if download_url:
+                    return jsonify({
+                        'success': True,
+                        'download_url': download_url,
+                        'draft_id': draft_id,
+                        'custom_path': custom_path,
+                        'client_os': client_os,
+                        'message': f'草稿已生成自定义路径版本，下载后解压到: {custom_path}',
+                        'source': 'customized_zip',
+                        'instructions': {
+                            'message': '下载完成后请按以下步骤操作：',
+                            'steps': [
+                                f'1. 下载完成后，将压缩包解压到: {custom_path}',
+                                '2. 确保解压后的文件夹结构正确',
+                                '3. 打开剪映应用',
+                                '4. 从草稿管理中导入或直接打开项目文件'
+                            ]
+                        }
+                    })
+                else:
+                    raise Exception("无法生成自定义压缩包下载链接")
+                    
+            except Exception as custom_error:
+                print(f"生成自定义压缩包失败: {custom_error}")
+                import traceback
+                traceback.print_exc()
+        
+        # 降级处理：生成普通下载链接
+        try:
+            # 直接调用本地的generate_draft_url_api函数
+            from flask import request as flask_request
+            
+            # 模拟请求数据
+            mock_data = {
+                'draft_id': draft_id,
+                'force_save': True,
+                'client_os': client_os
+            }
+            
+            # 创建模拟请求上下文
+            with app.test_request_context('/generate_draft_url', 
+                                        method='POST', 
+                                        json=mock_data):
+                response = generate_draft_url_api()
+                
+                if hasattr(response, 'get_json'):
+                    result = response.get_json()
+                    if result and result.get('success'):
+                        draft_url = result.get('output', {}).get('draft_url')
+                        if draft_url:
+                            return jsonify({
+                                'success': True,
+                                'download_url': draft_url,
+                                'draft_id': draft_id,
+                                'custom_path': custom_path,
+                                'client_os': client_os,
+                                'message': f'请手动下载并解压到: {custom_path}',
+                                'source': result.get('output', {}).get('source', 'unknown'),
+                                'instructions': {
+                                    'message': '下载完成后请按以下步骤操作：',
+                                    'steps': [
+                                        '1. 点击下载链接下载压缩包',
+                                        f'2. 将压缩包解压到: {custom_path}',
+                                        '3. 打开剪映应用',
+                                        '4. 从草稿管理中导入项目'
+                                    ]
+                                }
+                            })
+                
+        except Exception as url_error:
+            print(f"生成下载链接失败: {url_error}")
+        
+        # 最终降级处理：返回草稿信息和手动导入指引
+        return jsonify({
+            'success': True,
+            'message': f'草稿存在，请手动导入到路径: {custom_path}',
+            'draft_id': draft_id,
+            'custom_path': custom_path,
+            'client_os': client_os,
+            'materials_count': len(materials),
+            'instructions': {
+                'message': f'请在剪映中手动导入草稿ID: {draft_id}',
+                'steps': [
+                    '1. 打开剪映应用',
+                    '2. 进入草稿管理',
+                    f'3. 查找草稿ID: {draft_id}',
+                    f'4. 或从路径导入: {custom_path}'
+                ]
+            }
+        })
+        
+    except Exception as e:
+        print(f"自定义路径下载草稿失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': f'自定义路径下载失败: {str(e)}'
+        }), 500
+
 @app.route('/api/drafts/batch-download', methods=['POST'])
 def batch_download_drafts():
     """批量下载草稿"""
@@ -2781,24 +3002,95 @@ def get_os_info():
         }), 500
 
 # 草稿路径配置API
-@app.route('/api/draft/path/config', methods=['POST'])
-def update_draft_path_config():
-    """更新草稿路径配置"""
-    try:
-        data = request.get_json()
-        custom_path = data.get('custom_path', '')
-        
-        # 这里可以添加路径验证逻辑
-        if custom_path and not os.path.exists(custom_path):
+# 全局变量存储路径配置
+custom_download_path = ''
+
+@app.route('/api/draft/path/config', methods=['GET', 'POST'])
+def draft_path_config():
+    """获取或更新草稿路径配置"""
+    global custom_download_path
+    
+    if request.method == 'GET':
+        # 获取当前路径配置
+        try:
+            # 从文件读取配置
+            config_file = 'path_config.json'
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    current_path = config.get('custom_download_path', '')
+            else:
+                current_path = custom_download_path or ''
+            
+            return jsonify({
+                'success': True,
+                'custom_path': current_path
+            })
+        except Exception as e:
             return jsonify({
                 'success': False,
-                'error': '指定的路径不存在'
-            }), 400
+                'error': str(e)
+            }), 500
+    
+    elif request.method == 'POST':
+        # 更新路径配置
+        try:
+            data = request.get_json()
+            custom_path = data.get('custom_path', '')
             
+            # 路径验证逻辑
+            if custom_path:
+                # 尝试创建目录（如果不存在）
+                try:
+                    os.makedirs(custom_path, exist_ok=True)
+                except Exception as e:
+                    return jsonify({
+                        'success': False,
+                        'error': f'无法创建或访问路径: {str(e)}'
+                    }), 400
+            
+            # 保存配置到全局变量
+            custom_download_path = custom_path
+            
+            # 保存配置到文件
+            try:
+                config_file = 'path_config.json'
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    json.dump({'custom_download_path': custom_path}, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"保存配置文件失败: {e}")
+                
+            return jsonify({
+                'success': True,
+                'message': '路径配置已更新',
+                'custom_path': custom_path
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+@app.route('/api/draft/path/config', methods=['GET'])
+def get_draft_path_config():
+    """获取当前草稿路径配置"""
+    global custom_download_path
+    try:
+        # 如果全局变量为空，尝试从文件加载
+        if not custom_download_path:
+            try:
+                config_file = 'path_config.json'
+                if os.path.exists(config_file):
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                        custom_download_path = config.get('custom_download_path', '')
+            except Exception as e:
+                print(f"加载配置文件失败: {e}")
+        
         return jsonify({
             'success': True,
-            'message': '路径配置已更新',
-            'custom_path': custom_path
+            'custom_path': custom_download_path or '',
+            'message': '获取配置成功'
         })
     except Exception as e:
         return jsonify({
@@ -2841,6 +3133,7 @@ def draft_download_api():
         draft_id = data.get('draft_id')
         draft_folder = data.get('draft_folder', '')
         client_os = data.get('client_os', 'unknown')
+        use_custom_path = data.get('use_custom_path', False)
         
         if not draft_id:
             return jsonify({
@@ -2850,6 +3143,34 @@ def draft_download_api():
         
         # 检查草稿是否存在
         materials = get_draft_materials(draft_id)
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': '草稿不存在或无素材'
+            }), 404
+        
+        # 如果使用自定义路径下载
+        if use_custom_path and draft_folder:
+            try:
+                # 执行实际的文件下载到自定义路径
+                download_result = download_draft_to_custom_path(draft_id, draft_folder, materials)
+                if download_result['success']:
+                    return jsonify({
+                        'success': True,
+                        'message': '下载完成',
+                        'download_path': download_result['download_path'],
+                        'files_copied': download_result['files_copied']
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': download_result['error']
+                    }), 500
+            except Exception as download_error:
+                return jsonify({
+                    'success': False,
+                    'error': f'下载失败: {str(download_error)}'
+                }), 500
         
         # 生成下载链接或开始下载流程
         try:
@@ -2888,6 +3209,187 @@ def draft_download_api():
             'success': False,
             'error': str(e)
         }), 500
+
+def download_draft_to_custom_path(draft_id, custom_path, materials):
+    """将草稿文件下载到自定义路径"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        import shutil
+        
+        logger.info(f"开始自定义下载: draft_id={draft_id}, custom_path={custom_path}")
+        
+        # 确保自定义路径存在
+        if not os.path.exists(custom_path):
+            os.makedirs(custom_path, exist_ok=True)
+            logger.info(f"创建自定义路径: {custom_path}")
+        
+        # 创建草稿目录
+        draft_target_path = os.path.join(custom_path, draft_id)
+        if not os.path.exists(draft_target_path):
+            os.makedirs(draft_target_path, exist_ok=True)
+            logger.info(f"创建草稿目标目录: {draft_target_path}")
+        
+        # 查找草稿源目录
+        draft_source_path = None
+        possible_paths = [
+            f'/home/CapCutAPI-1.1.0/drafts/{draft_id}',
+            f'/home/CapCutAPI-1.1.0/output/{draft_id}',
+            f'/tmp/{draft_id}'
+        ]
+        
+        logger.info(f"查找草稿源目录，可能的路径: {possible_paths}")
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                draft_source_path = path
+                logger.info(f"找到草稿源目录: {draft_source_path}")
+                break
+        
+        if not draft_source_path:
+            # 如果找不到源目录，说明草稿只存在于缓存中，需要先保存
+            logger.info(f"草稿源目录不存在，尝试先保存草稿到临时目录")
+            
+            # 先保存草稿到临时目录
+            temp_draft_folder = '/tmp/capcut_temp_drafts'
+            if not os.path.exists(temp_draft_folder):
+                os.makedirs(temp_draft_folder, exist_ok=True)
+            
+            try:
+                # 调用save_draft_impl来保存草稿
+                from save_draft_impl import save_draft_impl
+                from database import get_draft_status
+                import time
+                
+                save_result = save_draft_impl(draft_id, temp_draft_folder)
+                
+                if save_result.get('success'):
+                    task_id = save_result.get('task_id')
+                    logger.info(f"草稿保存任务已启动，任务ID: {task_id}")
+                    
+                    # 等待保存完成
+                    max_wait_time = 300  # 最大等待5分钟
+                    wait_interval = 2    # 每2秒检查一次
+                    waited_time = 0
+                    
+                    while waited_time < max_wait_time:
+                        status_info = get_draft_status(draft_id)
+                        if status_info:
+                            status = status_info.get('status', '')
+                            logger.info(f"草稿状态: {status}")
+                            
+                            if status == 'completed':
+                                # 保存完成，更新源路径
+                                draft_source_path = os.path.join(temp_draft_folder, draft_id)
+                                logger.info(f"草稿保存完成，源路径: {draft_source_path}")
+                                break
+                            elif status == 'failed':
+                                error_msg = f'草稿保存失败: {status_info.get("message", "未知错误")}'
+                                logger.error(error_msg)
+                                return {
+                                    'success': False,
+                                    'error': error_msg
+                                }
+                        
+                        time.sleep(wait_interval)
+                        waited_time += wait_interval
+                    
+                    if waited_time >= max_wait_time:
+                        error_msg = '草稿保存超时'
+                        logger.error(error_msg)
+                        return {
+                            'success': False,
+                            'error': error_msg
+                        }
+                else:
+                    error_msg = f'启动草稿保存失败: {save_result.get("error", "未知错误")}'
+                    logger.error(error_msg)
+                    return {
+                        'success': False,
+                        'error': error_msg
+                    }
+            except Exception as save_error:
+                error_msg = f'保存草稿时发生异常: {str(save_error)}'
+                logger.error(error_msg)
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+        
+        # 检查源目录内容
+        source_files = []
+        for root, dirs, files in os.walk(draft_source_path):
+            for file in files:
+                source_files.append(os.path.join(root, file))
+        
+        logger.info(f"源目录文件列表: {source_files}")
+        
+        if not source_files:
+            # 如果源目录没有文件，尝试从素材列表复制文件
+            logger.info("源目录为空，尝试从素材列表复制文件")
+            files_copied = []
+            
+            # 复制draft_info.json（如果存在）
+            draft_info_file = os.path.join(draft_source_path, 'draft_info.json')
+            if os.path.exists(draft_info_file):
+                target_info_file = os.path.join(draft_target_path, 'draft_info.json')
+                shutil.copy2(draft_info_file, target_info_file)
+                files_copied.append('draft_info.json')
+                logger.info("复制了 draft_info.json")
+            
+            # 从素材列表复制文件
+            if materials:
+                assets_dir = os.path.join(draft_target_path, 'assets')
+                os.makedirs(assets_dir, exist_ok=True)
+                
+                for material in materials:
+                    if 'file_path' in material and os.path.exists(material['file_path']):
+                        filename = os.path.basename(material['file_path'])
+                        target_file = os.path.join(assets_dir, filename)
+                        shutil.copy2(material['file_path'], target_file)
+                        files_copied.append(f'assets/{filename}')
+                        logger.info(f"复制素材文件: {filename}")
+            
+            return {
+                'success': True,
+                'download_path': draft_target_path,
+                'files_copied': files_copied,
+                'note': '从素材列表复制文件'
+            }
+        
+        # 复制草稿文件
+        files_copied = []
+        for root, dirs, files in os.walk(draft_source_path):
+            for file in files:
+                source_file = os.path.join(root, file)
+                # 计算相对路径
+                rel_path = os.path.relpath(source_file, draft_source_path)
+                target_file = os.path.join(draft_target_path, rel_path)
+                
+                # 确保目标目录存在
+                target_dir = os.path.dirname(target_file)
+                if not os.path.exists(target_dir):
+                    os.makedirs(target_dir, exist_ok=True)
+                
+                # 复制文件
+                shutil.copy2(source_file, target_file)
+                files_copied.append(rel_path)
+                logger.info(f"复制文件: {rel_path}")
+        
+        logger.info(f"下载完成，共复制 {len(files_copied)} 个文件")
+        
+        return {
+            'success': True,
+            'download_path': draft_target_path,
+            'files_copied': files_copied
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e)
+        }
 
 # 添加缺失的 generate_draft_url 路由
 @app.route('/generate_draft_url', methods=['POST'])
@@ -2957,6 +3459,43 @@ def generate_draft_url_api():
                 })
         except Exception as custom_error:
             print(f"获取自定义URL失败: {custom_error}")
+        
+        # 检查是否有自定义下载路径配置
+        global custom_download_path
+        if custom_download_path and draft_folder:
+            try:
+                # 使用自定义路径进行文件复制
+                import shutil
+                source_path = f"Drafts/{draft_id}"
+                target_path = os.path.join(custom_download_path, draft_id)
+                
+                # 确保源路径存在
+                if os.path.exists(source_path):
+                    # 如果目标路径已存在，先删除
+                    if os.path.exists(target_path):
+                        shutil.rmtree(target_path)
+                    
+                    # 复制整个草稿文件夹到自定义路径
+                    shutil.copytree(source_path, target_path)
+                    
+                    return jsonify({
+                        'success': True,
+                        'output': {
+                            'draft_url': target_path,
+                            'source': 'custom_path'
+                        },
+                        'message': f'草稿已成功复制到: {target_path}',
+                        'custom_path': target_path
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'源草稿路径不存在: {source_path}'
+                    }), 404
+                    
+            except Exception as copy_error:
+                print(f"复制草稿到自定义路径失败: {copy_error}")
+                # 继续使用默认路径作为备选
         
         # 生成本地路径作为备选方案
         try:
@@ -3409,22 +3948,63 @@ def generate_timeline_html_for_template(materials, total_duration):
     
     # 定义轨道类型和对应的图标，按官方显示顺序排列
     track_types = {
-        'video': {'label': '视频', 'icon': '🎥', 'order': 1},
-        'image': {'label': '图片', 'icon': '🖼️', 'order': 2},
-        'text': {'label': '文本', 'icon': '📝', 'order': 3},
-        'subtitle': {'label': '字幕', 'icon': '💬', 'order': 4},
-        'effect': {'label': '特效', 'icon': '✨', 'order': 5},
-        'sticker': {'label': '贴纸', 'icon': '🏷️', 'order': 6},
-        'audio': {'label': '音频', 'icon': '🎵', 'order': 7},
-        'unknown': {'label': '其他', 'icon': '📄', 'order': 8}
+        'video': {'label': '视频', 'icon': '🎥', 'order': 1, 'color': '#4CAF50'},
+        'image': {'label': '图片', 'icon': '🖼️', 'order': 2, 'color': '#FF9800'},
+        'text': {'label': '文本', 'icon': '📝', 'order': 3, 'color': '#2196F3'},
+        'subtitle': {'label': '字幕', 'icon': '💬', 'order': 4, 'color': '#9C27B0'},
+        'effect': {'label': '特效', 'icon': '✨', 'order': 5, 'color': '#E91E63'},
+        'sticker': {'label': '贴纸', 'icon': '🏷️', 'order': 6, 'color': '#FF5722'},
+        'audio': {'label': '音频', 'icon': '🎵', 'order': 7, 'color': '#607D8B'},
+        'unknown': {'label': '其他', 'icon': '📄', 'order': 8, 'color': '#9E9E9E'}
     }
+    
+    # 标准化素材类型名称
+    def normalize_material_type(material_type):
+        """标准化素材类型名称"""
+        if not material_type:
+            return 'unknown'
+        
+        material_type = str(material_type).lower().strip()
+        
+        # 类型映射表
+        type_mapping = {
+            'video': 'video',
+            'videos': 'video',
+            'mp4': 'video',
+            'mov': 'video',
+            'avi': 'video',
+            'audio': 'audio',
+            'audios': 'audio',
+            'mp3': 'audio',
+            'wav': 'audio',
+            'aac': 'audio',
+            'image': 'image',
+            'images': 'image',
+            'img': 'image',
+            'jpg': 'image',
+            'jpeg': 'image',
+            'png': 'image',
+            'gif': 'image',
+            'text': 'text',
+            'texts': 'text',
+            'txt': 'text',
+            'subtitle': 'subtitle',
+            'subtitles': 'subtitle',
+            'srt': 'subtitle',
+            'effect': 'effect',
+            'effects': 'effect',
+            'sticker': 'sticker',
+            'stickers': 'sticker'
+        }
+        
+        return type_mapping.get(material_type, 'unknown')
     
     # 按类型分组素材
     materials_by_type = {}
     for material in materials:
-        material_type = material.get('type', 'unknown').lower()
-        if material_type not in track_types:
-            material_type = 'unknown'
+        # 获取并标准化素材类型
+        raw_type = material.get('type', material.get('material_type', 'unknown'))
+        material_type = normalize_material_type(raw_type)
         
         if material_type not in materials_by_type:
             materials_by_type[material_type] = []
@@ -3432,17 +4012,17 @@ def generate_timeline_html_for_template(materials, total_duration):
     
     # 按时间顺序排序每个类型的素材
     for material_type in materials_by_type:
-        materials_by_type[material_type].sort(key=lambda x: float(x.get('start', 0) or 0))
+        materials_by_type[material_type].sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
     
     # 生成多轨道HTML（官方风格）- 按类型分层
     timeline_html = []
     
     # 按官方顺序显示轨道（视频在上，音频在下）
-    sorted_types = sorted(materials_by_type.keys(), key=lambda x: track_types[x]['order'])
+    sorted_types = sorted(materials_by_type.keys(), key=lambda x: track_types.get(x, {'order': 999})['order'])
     
     for material_type in sorted_types:
         type_materials = materials_by_type[material_type]
-        track_info = track_types[material_type]
+        track_info = track_types.get(material_type, track_types['unknown'])
         
         # 轨道容器开始
         timeline_html.append(f'''
@@ -3456,54 +4036,76 @@ def generate_timeline_html_for_template(materials, total_duration):
         
         # 为该类型的所有素材生成时间块
         for i, material in enumerate(type_materials):
-            start = float(material.get('start', 0) or 0)
-            duration = float(material.get('duration', 30) or 30)
+            # 获取时间信息，支持多种字段名
+            start = float(material.get('start', material.get('start_time', 0)) or 0)
+            duration = float(material.get('duration', material.get('length', 30)) or 30)
+            
+            # 确保时长不为0
+            if duration <= 0:
+                duration = 30
             
             # 计算位置和宽度（百分比）
             if total_duration > 0:
                 left_percent = (start / total_duration) * 100
                 width_percent = (duration / total_duration) * 100
             else:
-                left_percent = i * 20
-                width_percent = 15
+                # 如果没有总时长，使用固定布局
+                left_percent = i * 25
+                width_percent = 20
             
             # 限制最小宽度和最大宽度
-            width_percent = max(2, min(width_percent, 100 - left_percent))
+            width_percent = max(3, min(width_percent, 100 - left_percent))
+            left_percent = max(0, min(left_percent, 97))
             
             # 生成素材名称
-            material_name = material.get('name', material.get('filename', f'{track_info["label"]}_{i+1}'))
-            if len(material_name) > 12:
-                display_name = material_name[:9] + '...'
+            material_name = material.get('name', material.get('filename', material.get('title', f'{track_info["label"]}_{i+1}')))
+            if len(material_name) > 15:
+                display_name = material_name[:12] + '...'
             else:
                 display_name = material_name
             
             # 将素材数据转换为JSON字符串，并进行HTML转义
-            material_json = html.escape(json.dumps(material, ensure_ascii=False))
+            try:
+                material_json = html.escape(json.dumps(material, ensure_ascii=False))
+            except Exception:
+                material_json = html.escape(json.dumps({'id': material.get('id', f'material_{i}'), 'type': material_type}, ensure_ascii=False))
+            
             material_id = material.get('id', f'material_{material_type}_{i}')
             
-            # 根据素材类型设置不同的样式
-            if material_type == 'video':
-                block_class = 'timeline-block video-block'
-                block_content = f'<div class="video-thumbnail">🎬</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'audio':
-                block_class = 'timeline-block audio-block'
-                block_content = f'<div class="audio-waveform">🎵</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'image':
-                block_class = 'timeline-block image-block'
-                block_content = f'<div class="image-thumbnail">🖼️</div><span class="material-name">{display_name}</span>'
-            else:
-                block_class = f'timeline-block {material_type}-block'
-                block_content = f'<span class="material-icon">{track_info["icon"]}</span><span class="material-name">{display_name}</span>'
+            # 根据素材类型设置不同的样式和内容
+            block_color = track_info.get('color', '#9E9E9E')
             
+            if material_type == 'video':
+                block_class = 'timeline-block official-block video-block'
+                block_content = f'<div class="material-icon">🎬</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'audio':
+                block_class = 'timeline-block official-block audio-block'
+                block_content = f'<div class="material-icon">🎵</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'image':
+                block_class = 'timeline-block official-block image-block'
+                block_content = f'<div class="material-icon">🖼️</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'text':
+                block_class = 'timeline-block official-block text-block'
+                block_content = f'<div class="material-icon">📝</div><span class="material-name">{display_name}</span>'
+            elif material_type == 'subtitle':
+                block_class = 'timeline-block official-block subtitle-block'
+                block_content = f'<div class="material-icon">💬</div><span class="material-name">{display_name}</span>'
+            else:
+                block_class = f'timeline-block official-block {material_type}-block'
+                block_content = f'<div class="material-icon">{track_info["icon"]}</div><span class="material-name">{display_name}</span>'
+            
+            # 生成时间块HTML
             timeline_html.append(f'''
                 <div class="{block_class}" 
-                     style="left: {left_percent:.2f}%; width: {width_percent:.2f}%;"
-                     onclick="onTimelineMaterialClick('{material_id}', '{material_json}')"
+                     style="left: {left_percent:.2f}%; width: {width_percent:.2f}%; background-color: {block_color}; border-left: 3px solid {block_color};"
+                     onclick="onTimelineMaterialClick('{material_id}', this)"
                      title="{track_info['label']}: {material_name}\n时间: {start:.2f}s - {start + duration:.2f}s\n时长: {duration:.2f}s"
                      data-start="{start}"
                      data-duration="{duration}"
-                     data-type="{material_type}">
+                     data-type="{material_type}"
+                     data-material='{material_json}'>
                     {block_content}
+                    <div class="material-time">{start:.1f}s</div>
                 </div>''')
         
         # 轨道容器结束
