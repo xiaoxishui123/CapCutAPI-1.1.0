@@ -3227,14 +3227,42 @@ def draft_download_api():
         # 如果使用自定义路径下载
         if use_custom_path and draft_folder:
             try:
-                # 执行实际的文件下载到自定义路径
+                # 优先生成自定义下载链接（推荐方式）
+                try:
+                    from customize_zip import get_customized_signed_url
+                    custom_download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+                    if custom_download_url:
+                        # 使用代理下载URL，这样可以控制文件名
+                        proxy_download_url = f"/api/draft/download/proxy/{draft_id}"
+                        return jsonify({
+                            'success': True,
+                            'message': f'已生成自定义下载链接，包含Windows路径配置',
+                            'download_url': proxy_download_url,
+                            'original_url': custom_download_url,
+                            'client_os': client_os,
+                            'custom_path': draft_folder,
+                            'instructions': {
+                                'message': '下载完成后请按以下步骤操作：',
+                                'steps': [
+                                    f'1. 下载完成后，将压缩包解压到: {draft_folder}',
+                                    '2. 确保解压后的文件夹结构正确',
+                                    '3. 打开剪映应用',
+                                    '4. 从草稿管理中导入或直接打开项目文件'
+                                ]
+                            }
+                        })
+                except Exception as custom_error:
+                    print(f"生成自定义下载链接失败: {custom_error}")
+                
+                # 降级方案：下载到服务器（不推荐，但作为后备）
                 download_result = download_draft_to_custom_path(draft_id, draft_folder, materials)
                 if download_result['success']:
                     return jsonify({
                         'success': True,
-                        'message': '下载完成',
+                        'message': '文件已下载到服务器，但建议使用自定义下载链接',
                         'download_path': download_result['download_path'],
-                        'files_copied': download_result['files_copied']
+                        'files_copied': download_result['files_copied'],
+                        'note': '⚠️ 此方式文件保存在服务器上，建议使用"直接下载"功能'
                     })
                 else:
                     return jsonify({
@@ -3632,7 +3660,123 @@ def get_draft_info(draft_id):
             'update_time': '未知'
         }
 
+# 代理下载路由 - 控制文件名
+@app.route('/api/draft/download/proxy/<draft_id>', methods=['GET'])
+def download_proxy(draft_id):
+    """代理下载 - 控制文件名"""
+    try:
+        # 获取存储的下载URL（这里需要一个临时存储机制）
+        # 为了简化，我们重新生成下载URL
+        from customize_zip import get_customized_signed_url
+        
+        # 从请求参数获取配置，或使用默认值
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
+        
+        # 如果没有提供draft_folder，尝试从配置文件读取
+        if not draft_folder:
+            try:
+                import json
+                config_path = '/home/CapCutAPI-1.1.0/path_config.json'
+                if os.path.exists(config_path):
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                        draft_folder = config.get('custom_download_path', '')
+            except:
+                pass
+        
+        # 生成下载URL
+        download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+        
+        if download_url:
+            # 使用requests获取文件并返回
+            import requests
+            response = requests.get(download_url, stream=True)
+            
+            if response.status_code == 200:
+                from flask import Response
+                
+                # 设置正确的文件名
+                filename = f"{draft_id}.zip"
+                
+                def generate():
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            yield chunk
+                
+                return Response(
+                    generate(),
+                    headers={
+                        'Content-Type': 'application/zip',
+                        'Content-Disposition': f'attachment; filename="{filename}"',
+                        'Content-Length': response.headers.get('Content-Length', '')
+                    }
+                )
+            else:
+                return "下载文件失败", 404
+        else:
+            return "无法生成下载链接", 404
+            
+    except Exception as e:
+        return f"下载代理失败: {str(e)}", 500
+
 # 草稿预览页面 - 完全按照官方文档风格设计
+@app.route('/download_guide', methods=['GET'])
+def download_guide():
+    """提供下载指导页面"""
+    try:
+        return render_template('download_guide.html')
+    except Exception as e:
+        return f"""
+        <html>
+        <head><title>下载指南</title></head>
+        <body>
+            <h1>📥 自定义下载指南</h1>
+            <h2>🔒 浏览器安全限制说明</h2>
+            <p>由于浏览器安全机制，无法直接下载到您指定的路径。</p>
+            
+            <h2>💡 解决方案</h2>
+            <h3>方案一：设置浏览器默认下载路径</h3>
+            <ol>
+                <li>打开浏览器设置</li>
+                <li>找到"下载"或"下载内容"设置</li>
+                <li>设置下载路径为：<code>F:\\jianying\\cgwz\\JianyingPro Drafts</code></li>
+                <li>点击"自定义下载"，文件会下载到设置的路径</li>
+            </ol>
+            
+            <h3>方案二：手动移动文件</h3>
+            <ol>
+                <li>下载文件到默认位置（通常是Downloads文件夹）</li>
+                <li>将ZIP文件移动到剪映目录</li>
+                <li>解压使用</li>
+            </ol>
+            
+            <h2>✅ 核心优势</h2>
+            <p>无论使用哪种方案，下载的草稿都包含正确的Windows路径格式，剪映可以自动识别所有素材！</p>
+            
+            <p><a href="javascript:history.back()">🔙 返回草稿预览</a></p>
+        </body>
+        </html>
+        """
+
+@app.route('/static/download_helper.bat', methods=['GET'])
+def download_helper_script():
+    """提供Windows自动移动脚本"""
+    try:
+        script_path = '/home/CapCutAPI-1.1.0/static/download_helper.bat'
+        if os.path.exists(script_path):
+            with open(script_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            from flask import Response
+            response = Response(content, mimetype='application/octet-stream')
+            response.headers['Content-Disposition'] = 'attachment; filename=download_helper.bat'
+            return response
+        else:
+            return "脚本文件不存在", 404
+    except Exception as e:
+        return f"下载脚本失败: {str(e)}", 500
+
 @app.route('/draft/preview/<draft_id>', methods=['GET'])
 def enhanced_draft_preview(draft_id):
     """草稿预览页面 - 符合官方文档设计风格"""

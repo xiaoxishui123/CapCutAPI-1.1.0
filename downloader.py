@@ -30,7 +30,7 @@ def download_video(video_url, draft_name, material_name):
     try:
         # Use ffmpeg to download video
         command = [
-            'ffmpeg',
+            '/usr/bin/ffmpeg',
             '-i', video_url,
             '-c', 'copy',  # Direct copy, no re-encoding
             local_path
@@ -63,7 +63,7 @@ def download_image(image_url, draft_name, material_name):
     try:
         # Use ffmpeg to download and convert image to PNG format
         command = [
-            'ffmpeg',
+            '/usr/bin/ffmpeg',
             '-headers', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36\r\nReferer: https://www.163.com/\r\n',
             '-i', image_url,
             '-vf', 'format=rgba',  # Convert to RGBA format to support transparency
@@ -99,7 +99,7 @@ def download_audio(audio_url, draft_name, material_name):
     try:
         # Use ffmpeg to download and transcode to MP3 (key modification: specify MP3 encoder)
         command = [
-            'ffmpeg',
+            '/usr/bin/ffmpeg',
             '-i', audio_url,          # Input URL
             '-c:a', 'libmp3lame',     # Force encode audio stream to MP3
             '-q:a', '2',              # Set audio quality (0-9, 0 is best, 2 balances quality and file size)

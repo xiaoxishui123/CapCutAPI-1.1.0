@@ -861,13 +861,9 @@
                     <button class="download-btn" onclick="startCustomDownload('{{ draft_id }}')">
                         📥 自定义下载
                     </button>
-                    
-                    <div class="progress-container" id="progressContainer">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <div class="progress-text" id="progressText">准备下载...</div>
-                    </div>
+                    <button class="download-btn" onclick="window.open('/download_guide', '_blank')" style="background: #28a745;">
+                        📖 下载指南
+                    </button>
                 </div>
             </div>
         </div>
@@ -893,6 +889,23 @@
     
     <script>
         // 全局变量
+        
+        /**
+         * 检测客户端操作系统
+         * @returns {string} 操作系统类型 ('windows', 'macos', 'linux', 'unknown')
+         */
+        function detectClientOS() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            if (userAgent.includes('win')) {
+                return 'windows';
+            } else if (userAgent.includes('mac')) {
+                return 'darwin';
+            } else if (userAgent.includes('linux')) {
+                return 'linux';
+            } else {
+                return 'windows'; // 默认为windows
+            }
+        }
         let downloadTaskId = null;
         let selectedMaterial = null;
         
@@ -1308,6 +1321,9 @@
                 
                 console.log('开始自定义路径下载草稿:', draftId);
                 
+                // 检测客户端操作系统
+                const clientOS = detectClientOS();
+                
                 // 调用后端API进行自定义路径下载
                 const response = await fetch(`/api/drafts/download/custom/${draftId}`, {
                     method: 'POST',
@@ -1315,7 +1331,8 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        use_custom_path: true
+                        use_custom_path: true,
+                        client_os: clientOS
                     })
                 });
                 const contentType = response.headers.get('content-type');
@@ -1591,17 +1608,6 @@
          * 自定义下载功能
          */
         function startCustomDownload(draftId) {
-            // 显示进度条
-            const progressContainer = document.getElementById('progressContainer');
-            const progressFill = document.querySelector('.progress-fill');
-            const progressText = document.querySelector('.progress-text');
-            
-            if (progressContainer) {
-                progressContainer.style.display = 'block';
-                progressFill.style.width = '0%';
-                progressText.textContent = '准备下载...';
-            }
-            
             // 先获取配置的路径
             fetch('/api/draft/path/config', {
                 method: 'GET'
@@ -1630,25 +1636,86 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 模拟下载进度，显示"下载完成"而不是API返回的消息
-                    simulateDownloadProgress('下载完成');
+                    // 检查是否有下载链接
+                    if (data.download_url) {
+                        // 有下载链接，直接触发下载
+                        triggerFileDownload(data.download_url, draftId);
+                    } else if (data.download_path) {
+                        // 文件已下载到服务器，显示提示
+                        showServerDownloadInfo(data);
+                    } else {
+                        // 降级处理
+                        console.log('处理完成，请检查下载');
+                    }
                 } else {
                     throw new Error(data.error || '下载失败');
                 }
             })
             .catch(error => {
                 console.error('下载失败:', error);
-                if (progressText) {
-                    progressText.textContent = '下载失败: ' + error.message;
-                }
                 alert('下载失败: ' + error.message);
-                // 隐藏进度条
-                setTimeout(() => {
-                    if (progressContainer) {
-                        progressContainer.style.display = 'none';
-                    }
-                }, 3000);
             });
+        }
+        
+        /**
+         * 触发文件下载
+         */
+        function triggerFileDownload(downloadUrl, draftId) {
+            try {
+                // 直接打开下载链接，现在使用代理下载，文件名已在服务端控制
+                window.open(downloadUrl, '_blank');
+                console.log('已触发文件下载:', downloadUrl);
+                
+            } catch (error) {
+                console.error('触发下载失败:', error);
+                alert('下载失败: ' + error.message);
+            }
+        }
+        
+        
+        
+        /**
+         * 显示服务器下载信息
+         */
+        function showServerDownloadInfo(data) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.querySelector('.progress-fill');
+            const progressText = document.querySelector('.progress-text');
+            
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '100%';
+                progressFill.style.background = '#ffc107'; // 黄色表示警告
+                progressText.innerHTML = `
+                    <div style="text-align: left; line-height: 1.4;">
+                        <strong>⚠️ 注意：文件保存在服务器</strong><br>
+                        <small>• 路径: ${data.download_path}<br>
+                        • 这不是最佳方案<br>
+                        • 建议使用"直接下载"功能</small>
+                    </div>
+                `;
+                
+                // 添加操作按钮
+                setTimeout(() => {
+                    const actionButtons = document.createElement('div');
+                    actionButtons.style.marginTop = '10px';
+                    actionButtons.innerHTML = `
+                        <button onclick="location.reload()" 
+                                style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-right: 8px; cursor: pointer;">
+                            🔄 重试下载
+                        </button>
+                        <button onclick="alert('请点击页面上的【📥 直接下载】按钮获得更好的下载体验')" 
+                                style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; margin-right: 8px; cursor: pointer;">
+                            💡 使用建议
+                        </button>
+                        <button onclick="hideDownloadProgress()" 
+                                style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                            ✕ 关闭
+                        </button>
+                    `;
+                    progressContainer.appendChild(actionButtons);
+                }, 1000);
+            }
         }
         
         /**

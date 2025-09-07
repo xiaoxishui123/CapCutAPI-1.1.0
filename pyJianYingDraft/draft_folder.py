@@ -2,10 +2,23 @@
 
 import os
 import shutil
+import sys
+import logging
 
 from typing import List
 
 from .script_file import Script_file
+
+# 添加项目根目录到路径，以便导入fix_draft_paths模块
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from fix_draft_paths import fix_draft_paths
+except ImportError:
+    # 如果导入失败，定义一个空函数
+    def fix_draft_paths(draft_path: str, client_os: str = "windows") -> bool:
+        logging.warning("fix_draft_paths模块未找到，跳过路径修复")
+        return True
 
 class Draft_folder:
     """管理一个文件夹及其内的一系列草稿"""
@@ -107,6 +120,18 @@ class Draft_folder:
 
         # 复制草稿文件夹
         shutil.copytree(template_path, new_draft_path, dirs_exist_ok=allow_replace)
+        
+        # 修复复制后草稿的路径配置
+        try:
+            # 默认假设客户端为Windows系统，可以根据需要调整
+            client_os = "windows"  # 可以从配置文件或环境变量中获取
+            fix_success = fix_draft_paths(new_draft_path, client_os)
+            if fix_success:
+                logging.info(f"成功修复草稿路径配置: {new_draft_name}")
+            else:
+                logging.warning(f"草稿路径配置修复失败: {new_draft_name}")
+        except Exception as e:
+            logging.error(f"修复草稿路径时发生错误: {e}")
 
         # 打开草稿
         return self.load_template(new_draft_name)

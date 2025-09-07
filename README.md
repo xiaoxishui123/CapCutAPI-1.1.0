@@ -289,6 +289,7 @@ cp config.json.example config.json
 - ✅ 返回可下载的云端URL
 - ✅ 自动清理本地临时文件，节省存储空间
 - ✅ 适合生产环境和多用户场景
+- ✅ 支持Windows客户端路径自动配置
 
 #### 本地保存模式
 ```json
@@ -300,6 +301,54 @@ cp config.json.example config.json
 - 📁 草稿保存在本地目录中
 - 💾 不会上传到云端
 - 🔧 适合开发测试和单机使用
+
+### Windows客户端路径配置 🪟
+
+#### 自动路径识别
+系统现已支持客户端操作系统自动识别，确保Windows客户端能正确识别素材路径：
+
+**客户端调用示例**：
+```json
+{
+  "draft_id": "your_draft_id",
+  "client_os": "windows"
+}
+```
+
+#### 自定义路径配置
+用户可以通过以下方式配置自定义下载路径：
+
+**1. 通过API配置**：
+```bash
+# 设置自定义路径
+curl -X POST http://8.148.70.18:9000/api/draft/path/config \
+  -H "Content-Type: application/json" \
+  -d '{"custom_path": "F:\\jianying\\cgwz\\JianyingPro Drafts"}'
+
+# 获取当前配置
+curl -X GET http://8.148.70.18:9000/api/draft/path/config
+```
+
+**2. 通过文件配置**：
+创建或修改 `path_config.json` 文件：
+```json
+{
+  "custom_download_path": "F:\\jianying\\cgwz\\JianyingPro Drafts"
+}
+```
+
+#### 路径优先级
+系统按以下优先级选择草稿路径：
+1. **API传入的 draft_folder 参数**（最高优先级）
+2. **用户自定义路径**（path_config.json 中的配置）
+3. **客户端操作系统默认路径**（根据 client_os 参数）
+4. **服务器操作系统默认路径**（兜底方案）
+
+#### Windows路径格式
+- ✅ 支持Windows标准路径格式：`F:\jianying\cgwz\JianyingPro Drafts`
+- ✅ 自动处理路径分隔符转换（`/` → `\`）
+- ✅ 确保草稿文件中的素材路径为Windows本地绝对路径
+- ✅ 剪映客户端可直接识别和链接素材
 
 ### Environment Configuration
 
