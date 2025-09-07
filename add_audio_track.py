@@ -22,7 +22,8 @@ def add_audio_track(
     sound_effects: Optional[List[Tuple[str, Optional[List[Optional[float]]]]]]=None,
     width: int = 1080,
     height: int = 1920,
-    duration: Optional[float] = None  # Added duration parameter
+    duration: Optional[float] = None,  # Added duration parameter
+    client_os: str = "windows"  # Added client_os parameter for path generation
 ) -> Dict[str, str]:
     """
     Add an audio track to the specified draft
@@ -78,8 +79,39 @@ def add_audio_track(
 
     material_name = f"audio_{url_to_hash(audio_url)}.mp3"  # Use original filename + timestamp + fixed mp3 extension
     
-    # Build draft_audio_path
+    # Build draft_audio_path - 自动配置路径以确保音频文件能被正确识别
     draft_audio_path = None
+    
+    # 如果没有提供draft_folder，自动获取配置路径
+    if not draft_folder:
+        from os_path_config import get_os_path_config
+        import json
+        
+        # 优先读取用户自定义路径配置
+        try:
+            config_file = 'path_config.json'
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    custom_path = config.get('custom_download_path', '')
+                    if custom_path:
+                        draft_folder = custom_path
+                        print(f'使用用户自定义音频路径: {draft_folder}')
+        except Exception as e:
+            print(f"读取自定义路径配置失败: {e}")
+        
+        # 如果还没有draft_folder，使用系统默认路径
+        if not draft_folder:
+            try:
+                os_config = get_os_path_config()
+                draft_folder = os_config.get_default_draft_path(client_os.lower())
+                print(f'使用{client_os}默认音频路径: {draft_folder}')
+            except Exception as e:
+                print(f"获取默认路径失败: {e}")
+                # 兜底路径
+                draft_folder = "F:\\jianying\\cgwz\\JianyingPro Drafts" if client_os.lower() == "windows" else "/tmp/JianyingPro Drafts"
+    
+    # 生成正确的音频路径
     if draft_folder:
         if is_windows_path(draft_folder):
             # Windows path processing

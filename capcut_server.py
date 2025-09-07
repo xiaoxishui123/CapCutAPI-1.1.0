@@ -562,7 +562,8 @@ def add_audio():
             'speed': data.get('speed', 1.0),
             'width': data.get('width', 1080),
             'height': data.get('height', 1920),
-            'duration': data.get('duration', None)
+            'duration': data.get('duration', None),
+            'client_os': data.get('client_os', 'windows')  # 添加客户端操作系统参数，默认为windows
         }
         
         # 处理音频效果参数
@@ -1126,9 +1127,11 @@ def save_draft():
         
         # 获取草稿文件夹参数
         draft_folder = data.get('draft_folder')
+        # 获取客户端操作系统信息，默认为windows
+        client_os = data.get('client_os', 'windows')
         
         # 调用保存实现方法，启动后台任务
-        draft_result = save_draft_impl(draft_id, draft_folder)
+        draft_result = save_draft_impl(draft_id, draft_folder, client_os)
         
         # 直接返回 save_draft_impl 的结果
         return jsonify(draft_result)
@@ -1250,7 +1253,7 @@ def generate_draft_url():
 
             # Not exists: if force_save requested, kick off background save now
             if force_save:
-                task_info = save_draft_impl(draft_id, draft_folder)
+                task_info = save_draft_impl(draft_id, draft_folder, client_os)
                 out = {
                     "status": "processing",
                     "task_id": task_info.get("task_id", draft_id),
@@ -2683,6 +2686,70 @@ def download_draft_file(draft_id):
             'error': f'下载失败: {str(e)}'
         }), 500
 
+def get_draft_title(draft_id):
+    """获取草稿的真实标题名称 - 按官方格式命名"""
+    try:
+        # 1. 优先从缓存中获取草稿名称
+        if draft_id in draft_materials_cache:
+            for material in draft_materials_cache[draft_id]:
+                if material.get('type') == 'draft_info':
+                    name = material.get('name', '') or material.get('title', '')
+                    if name and name != '未命名草稿':
+                        return name
+        
+        # 2. 尝试从本地草稿文件夹读取
+        draft_info_path = os.path.join(draft_id, 'draft_info.json')
+        if os.path.exists(draft_info_path):
+            with open(draft_info_path, 'r', encoding='utf-8') as f:
+                draft_data = json.load(f)
+                title = draft_data.get('title', '')
+                if title:
+                    return title
+        
+        # 3. 尝试从downloads目录读取
+        downloads_path = os.path.join('downloads', draft_id, 'draft_info.json')
+        if os.path.exists(downloads_path):
+            with open(downloads_path, 'r', encoding='utf-8') as f:
+                draft_data = json.load(f)
+                title = draft_data.get('title', '')
+                if title:
+                    return title
+        
+        # 4. 尝试从数据库读取
+        from database import get_draft_by_id
+        draft_info = get_draft_by_id(draft_id)
+        if draft_info and 'script_data' in draft_info and draft_info['script_data']:
+            script_data = draft_info['script_data']
+            if isinstance(script_data, dict):
+                title = script_data.get('title', '')
+                if title:
+                    return title
+        
+        # 5. 按照官方格式生成草稿名称
+        if draft_id.startswith('dfd_cat_'):
+            try:
+                # 从 draft_id 中提取时间戳 (如: dfd_cat_1756104121_cb774809)
+                parts = draft_id.split('_')
+                if len(parts) >= 3:
+                    timestamp = int(parts[2])
+                    from datetime import datetime
+                    dt = datetime.fromtimestamp(timestamp)
+                    # 按照官方格式：月日格式 (如: 1月15日)
+                    return f"{dt.month}月{dt.day}日"
+            except:
+                pass
+        
+        # 6. 最后的默认格式 - 使用当前日期
+        from datetime import datetime
+        now = datetime.now()
+        return f"{now.month}月{now.day}日"
+        
+    except Exception as e:
+        print(f"获取草稿标题失败: {e}")
+        from datetime import datetime
+        now = datetime.now()
+        return f"{now.month}月{now.day}日"
+
 @app.route('/api/drafts/download/proxy/<draft_id>', methods=['GET'])
 def download_draft_proxy(draft_id):
     """代理下载草稿文件 - 解决跨域问题"""
@@ -2698,12 +2765,20 @@ def download_draft_proxy(draft_id):
         # 获取文件
         file_response = requests.get(draft_url, stream=True)
         if file_response.status_code == 200:
-            # 获取文件名
-            filename = f"draft_{draft_id}.zip"
+            # 直接使用draft_id作为文件名，保持原始格式
+            filename = f"{draft_id}.zip"
+            
+            # 对中文文件名进行URL编码处理，确保HTTP头兼容性
+            from urllib.parse import quote
+            encoded_filename = quote(filename, safe='')
+            
+            # 如果响应头中有文件名，优先使用草稿标题
             if 'content-disposition' in file_response.headers:
                 content_disp = file_response.headers['content-disposition']
-                if 'filename=' in content_disp:
-                    filename = content_disp.split('filename=')[1].strip('"')
+                print(f"原始content-disposition: {content_disp}")
+            
+            print(f"使用草稿标题作为文件名: {filename}")
+            print(f"URL编码后的文件名: {encoded_filename}")
             
             # 创建响应
             def generate():
@@ -2713,7 +2788,7 @@ def download_draft_proxy(draft_id):
             
             # 设置响应头
             response = Response(generate(), mimetype='application/zip')
-            response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response.headers['Content-Disposition'] = f'attachment; filename="{encoded_filename}"'
             response.headers['Content-Type'] = 'application/zip'
             
             # 如果有内容长度，设置它
@@ -3262,7 +3337,7 @@ def download_draft_to_custom_path(draft_id, custom_path, materials):
                 from database import get_draft_status
                 import time
                 
-                save_result = save_draft_impl(draft_id, temp_draft_folder)
+                save_result = save_draft_impl(draft_id, temp_draft_folder, "windows")
                 
                 if save_result.get('success'):
                     task_id = save_result.get('task_id')
@@ -3420,7 +3495,7 @@ def generate_draft_url_api():
         if force_save:
             try:
                 # 调用保存草稿功能
-                save_result = save_draft_impl(draft_id)
+                save_result = save_draft_impl(draft_id, None, "windows")
                 if not save_result.get('success', False):
                     return jsonify({
                         'success': False,
