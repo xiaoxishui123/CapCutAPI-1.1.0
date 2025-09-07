@@ -7,7 +7,7 @@ from util import zip_draft, is_windows_path
 from oss import upload_to_oss
 from typing import Dict, Literal
 from draft_cache import DRAFT_CACHE, get_draft
-from downloader import download_file
+from downloader import download_file, download_audio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import imageio.v2 as imageio
 import subprocess
@@ -42,7 +42,7 @@ def build_asset_path(draft_folder: str, draft_id: str, asset_type: str, material
         draft_real_path = os.path.join(draft_folder, draft_id, "assets", asset_type, material_name)
     return draft_real_path
 
-def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
+def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client_os: str = "windows"):
     try:
         update_draft_status(draft_id, 'processing', 0, '开始保存草稿')
         
@@ -62,13 +62,38 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
         draft_folder_for_duplicate = draft.Draft_folder(current_dir)
         draft_folder_for_duplicate.duplicate_as_template(template_dir, draft_id)
 
-        # 使用操作系统路径配置获取默认路径
+        # 优先读取用户自定义路径配置
+        custom_path = None
+        try:
+            config_file = 'path_config.json'
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    custom_path = config.get('custom_download_path', '')
+                    if custom_path:
+                        logger.info(f"读取到用户自定义路径: {custom_path}")
+        except Exception as e:
+            logger.warning(f"读取自定义路径配置失败: {e}")
+
+        # 确定最终使用的草稿路径
         if not draft_folder:
-            os_config = get_os_path_config()
-            draft_folder = os_config.get_current_os_draft_path()
-            logger.info(f"使用默认草稿路径: {draft_folder} (操作系统: {os_config.os_type})")
+            if custom_path:
+                # 使用用户自定义路径
+                draft_folder = custom_path
+                logger.info(f"使用用户自定义草稿路径: {draft_folder}")
+            else:
+                # 根据客户端操作系统获取默认路径
+                os_config = get_os_path_config()
+                if client_os.lower() == "windows":
+                    # 强制使用Windows路径配置
+                    draft_folder = os_config.get_default_draft_path("windows")
+                    logger.info(f"使用Windows客户端默认草稿路径: {draft_folder}")
+                else:
+                    # 使用其他操作系统的路径配置
+                    draft_folder = os_config.get_default_draft_path(client_os.lower())
+                    logger.info(f"使用{client_os}客户端默认草稿路径: {draft_folder}")
         else:
-            logger.info(f"使用自定义草稿路径: {draft_folder}")
+            logger.info(f"使用传入的草稿路径: {draft_folder}")
         
         download_tasks = []
         materials_to_download = []
@@ -94,7 +119,11 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
                 material.replace_path = build_asset_path(draft_folder, draft_id, asset_type, material.material_name)
                 local_path = os.path.join(draft_path, "assets", asset_type, material.material_name)
                 
-                future = executor.submit(download_file, remote_url, local_path)
+                # 对于音频文件，使用ffmpeg下载以确保格式正确
+                if asset_type == 'audio':
+                    future = executor.submit(download_audio, remote_url, draft_path, material.material_name)
+                else:
+                    future = executor.submit(download_file, remote_url, local_path)
                 future_to_material[future] = material
 
             completed_count = 0
@@ -111,9 +140,10 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
 
         update_draft_status(draft_id, 'processing', 70, '正在保存草稿信息')
         
-        # Force local consumption
-        for material in materials_to_download:
-            material.remote_url = None
+        # Force local consumption - 但保留remote_url用于下载
+        # 注释掉这行，因为我们需要remote_url来下载文件
+        # for material in materials_to_download:
+        #     material.remote_url = None
 
         script.dump(os.path.join(draft_path, "draft_info.json"))
 
@@ -158,13 +188,13 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str):
         logger.error(f"Saving draft {draft_id} task {task_id} failed: {e}", exc_info=True)
         update_draft_status(draft_id, 'failed', message=str(e))
 
-def save_draft_impl(draft_id: str, draft_folder: str = None) -> Dict[str, str]:
-    logger.info(f"Received save draft request: draft_id={draft_id}, draft_folder={draft_folder}")
+def save_draft_impl(draft_id: str, draft_folder: str = None, client_os: str = "windows") -> Dict[str, str]:
+    logger.info(f"Received save draft request: draft_id={draft_id}, draft_folder={draft_folder}, client_os={client_os}")
     try:
         task_id = draft_id # Use draft_id as task_id for simplicity
         update_draft_status(draft_id, 'initialized', 0, '任务已创建')
         
-        thread = threading.Thread(target=save_draft_background, args=(draft_id, draft_folder, task_id))
+        thread = threading.Thread(target=save_draft_background, args=(draft_id, draft_folder, task_id, client_os))
         thread.start()
         
         return {"success": True, "task_id": task_id, "message": "Draft save task started successfully"}
