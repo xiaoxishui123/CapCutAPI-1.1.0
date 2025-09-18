@@ -175,6 +175,12 @@ tail -f logs/capcutapi.error.log
 - [☁️ OSS素材识别修复](docs/OSS_Material_Recognition_Fix_Report.md) - OSS云存储素材识别问题修复 | OSS cloud storage material recognition fixes
 - [🌐 浏览器工具测试](docs/BROWSER_TOOLS_TEST_REPORT.md) - 浏览器工具功能测试报告 | Browser tools functionality test report
 
+### MCP Bridge 文档 | MCP Bridge Documentation
+- [📋 实施指南](mcp_bridge/docs/实施指南.md) - 完整的MCP Bridge实施指南，包含快速开始和详细部署 | Complete MCP Bridge implementation guide with quick start and detailed deployment
+- [🔄 MCP部署方案对比](mcp_bridge/docs/MCP部署方案对比.md) - 官方简单方案vs企业级Bridge方案对比分析 | Comparison analysis between official simple solution and enterprise Bridge solution
+- [🗓️ 实施路线图](mcp_bridge/docs/实施路线图.md) - 8天部署优化路线图和详细时间表 | 8-day deployment optimization roadmap and detailed timeline
+- [🔗 Dify集成指南](mcp_bridge/docs/Dify集成指南.md) - Dify平台MCP服务器配置和工作流设计 | Dify platform MCP server configuration and workflow design
+
 ### 历史文档 | Archive
 - [📁 archive/](archive/) - 技术报告和历史文档 | Technical reports and historical documents
   - 数据流分析文档
@@ -522,6 +528,53 @@ export MP4_OSS_REGION="cn-xxx"
 1. 运行 `./diagnose.sh` 获取诊断信息
 2. 查看 [故障排除指南](docs/TROUBLESHOOTING.md)
 3. 在 [GitHub Issues](https://github.com/sun-guannan/CapCutAPI/issues) 提交问题
+
+## 🔧 MCP服务配置 | MCP Service Configuration
+
+### Todoist MCP 配置
+
+本项目已配置Todoist MCP服务，用于任务管理和待办事项集成。
+
+#### 🌍 全局配置（推荐）
+
+已为系统配置全局Todoist API令牌：
+
+```bash
+# 环境变量已添加到 ~/.bashrc
+export TODOIST_API_TOKEN="your_api_token_here"
+```
+
+#### ✅ 验证配置
+
+```bash
+# 检查环境变量是否正确设置
+echo $TODOIST_API_TOKEN
+
+# 重新加载配置（如果需要）
+source ~/.bashrc
+```
+
+#### 🔑 获取API令牌
+
+1. 访问 [Todoist设置页面](https://todoist.com/prefs/integrations)
+2. 在"集成"标签页找到"API令牌"
+3. 复制您的个人API令牌
+4. 按照上述步骤配置到环境变量中
+
+#### 📝 使用说明
+
+- **全局可用**: 配置后所有项目和终端会话都可以使用Todoist MCP
+- **安全性**: API令牌仅当前用户可访问
+- **持久性**: 重启系统后配置仍然有效
+- **兼容性**: 支持Trae IDE和其他MCP兼容工具
+
+#### ⚠️ 注意事项
+
+- 请妥善保管您的API令牌，不要分享给他人
+- 如需更换令牌，请编辑 `~/.bashrc` 文件
+- 配置更改后需要重新启动Trae IDE或重新加载环境变量
+
+---
 
 ## 进群交流 | Community
 

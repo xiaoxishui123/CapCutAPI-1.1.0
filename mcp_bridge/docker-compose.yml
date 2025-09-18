@@ -1,0 +1,180 @@
+# MCP Bridge Docker Compose 配置
+# 版本：v1.0.0
+# 更新时间：2025年1月14日
+
+version: '3.8'
+
+services:
+  # MCP Bridge 主服务
+  mcp-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-bridge
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis/home/CapCutAPI-1.1.0/mcp_bridge//redis:6379
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+    volumes:
+      - /home/CapCutAPI-1.1.0/mcp_bridge/config/home/CapCutAPI-1.1.0/mcp_bridge/ap/home/CapCutAPI-1.1.0/mcp_bridge/config:ro
+      - /home/CapCutAPI-1.1.0/mcp_bridge/logs/home/CapCutAPI-1.1.0/mcp_bridge/ap/home/CapCutAPI-1.1.0/mcp_bridge/logs
+    depends_on:
+      - redis
+      - prometheus
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http/home/CapCutAPI-1.1.0/mcp_bridge//localhost:808/home/CapCutAPI-1.1.0/mcp_bridge/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis 缓存服务
+  redis:
+    image: redis:7.2-alpine
+    container_name: mcp-bridge-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data/home/CapCutAPI-1.1.0/mcp_bridge/data
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/redis.conf/home/CapCutAPI-1.1.0/mcp_bridge/us/home/CapCutAPI-1.1.0/mcp_bridge/loca/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/redi/home/CapCutAPI-1.1.0/mcp_bridge/redis.conf:ro
+    command: redis-server/home/CapCutAPI-1.1.0/mcp_bridge/us/home/CapCutAPI-1.1.0/mcp_bridge/loca/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/redi/home/CapCutAPI-1.1.0/mcp_bridge/redis.conf
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Prometheus 监控服务
+  prometheus:
+    image: pro/home/CapCutAPI-1.1.0/mcp_bridge/prometheus:v2.48.0
+    container_name: mcp-bridge-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/prometheus.yml/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/prometheu/home/CapCutAPI-1.1.0/mcp_bridge/prometheus.yml:ro
+      - prometheus-data/home/CapCutAPI-1.1.0/mcp_bridge/prometheus
+    command:
+      - '--config.file/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/prometheu/home/CapCutAPI-1.1.0/mcp_bridge/prometheus.yml'
+      - '--storage.tsdb.path/home/CapCutAPI-1.1.0/mcp_bridge/prometheus'
+      - '--web.console.libraries/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/prometheu/home/CapCutAPI-1.1.0/mcp_bridge/console_libraries'
+      - '--web.console.templates/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/prometheu/home/CapCutAPI-1.1.0/mcp_bridge/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+
+  # Grafana 可视化服务
+  grafana:
+    image: grafan/home/CapCutAPI-1.1.0/mcp_bridge/grafana:10.2.0
+    container_name: mcp-bridge-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data/home/CapCutAPI-1.1.0/mcp_bridge/va/home/CapCutAPI-1.1.0/mcp_bridge/li/home/CapCutAPI-1.1.0/mcp_bridge/grafana
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/grafan/home/CapCutAPI-1.1.0/mcp_bridge/dashboards/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/grafan/home/CapCutAPI-1.1.0/mcp_bridge/provisionin/home/CapCutAPI-1.1.0/mcp_bridge/dashboards:ro
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/grafan/home/CapCutAPI-1.1.0/mcp_bridge/datasources/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/grafan/home/CapCutAPI-1.1.0/mcp_bridge/provisionin/home/CapCutAPI-1.1.0/mcp_bridge/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+
+  # Nginx 反向代理（可选）
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: mcp-bridge-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/ngin/home/CapCutAPI-1.1.0/mcp_bridge/nginx.conf/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/ngin/home/CapCutAPI-1.1.0/mcp_bridge/nginx.conf:ro
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/ngin/home/CapCutAPI-1.1.0/mcp_bridge/ssl/home/CapCutAPI-1.1.0/mcp_bridge/et/home/CapCutAPI-1.1.0/mcp_bridge/ngin/home/CapCutAPI-1.1.0/mcp_bridge/ssl:ro
+      - /home/CapCutAPI-1.1.0/mcp_bridge/log/home/CapCutAPI-1.1.0/mcp_bridge/nginx/home/CapCutAPI-1.1.0/mcp_bridge/va/home/CapCutAPI-1.1.0/mcp_bridge/lo/home/CapCutAPI-1.1.0/mcp_bridge/nginx
+    depends_on:
+      - mcp-bridge
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # CapCut HTTP 插件服务（外部服务引用）
+  capcut-plugin:
+    image: capcut-plugin:latest
+    container_name: capcut-plugin
+    ports:
+      - "9001:9001"
+    environment:
+      - CAPCUT_API_KEY=${CAPCUT_API_KEY}
+      - CAPCUT_API_SECRET=${CAPCUT_API_SECRET}
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+    profiles:
+      - with-capcut
+
+  # 日志收集服务（可选）
+  fluentd:
+    image: fluen/home/CapCutAPI-1.1.0/mcp_bridge/fluentd:v1.16-debian-1
+    container_name: mcp-bridge-fluentd
+    ports:
+      - "24224:24224"
+      - "24224:2422/home/CapCutAPI-1.1.0/mcp_bridge/udp"
+    volumes:
+      - /home/CapCutAPI-1.1.0/mcp_bridge/confi/home/CapCutAPI-1.1.0/mcp_bridge/fluentd/home/CapCutAPI-1.1.0/mcp_bridge/fluent/home/CapCutAPI-1.1.0/mcp_bridge/etc:ro
+      - /home/CapCutAPI-1.1.0/mcp_bridge/logs/home/CapCutAPI-1.1.0/mcp_bridge/fluent/home/CapCutAPI-1.1.0/mcp_bridge/log
+    networks:
+      - mcp-bridge-network
+    restart: unless-stopped
+    profiles:
+      - logging
+
+# 网络配置
+networks:
+  mcp-bridge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0./home/CapCutAPI-1.1.0/mcp_bridge/16
+
+# 数据卷配置
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# 环境变量配置（开发环境）
+# 生产环境请使用 .env 文件或外部配置管理
+x-common-variables: &common-variables
+  REDIS_URL: redis/home/CapCutAPI-1.1.0/mcp_bridge//redis:6379
+  PROMETHEUS_URL: http/home/CapCutAPI-1.1.0/mcp_bridge//prometheus:9090
+  LOG_LEVEL: INFO
+  ENVIRONMENT: development
+
+# 开发环境配置
+x-development: &development
+  <<: *common-variables
+  DEBUG: "true"
+  RELOAD: "true"
+
+# 生产环境配置  
+x-production: &production
+  <<: *common-variables
+  WORKERS: 4
+  MAX_REQUESTS: 10000
+  PRELOAD_APP: "true"

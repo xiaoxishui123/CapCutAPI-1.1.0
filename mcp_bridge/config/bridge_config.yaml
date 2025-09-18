@@ -1,0 +1,282 @@
+# MCP Bridge 配置文件
+# 版本：v1.0.0
+# 更新时间：2025年1月14日
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8082
+  workers: 1
+  log_level: "info"
+  
+# MCP服务配置
+mcp_services:
+  capcut_mcp:
+    name: "CapCut MCP Server"
+    url: "mcp://localhost:9002"
+    timeout: 30
+    retry_count: 3
+    priority: 1
+    enabled: true
+    health_check:
+      interval: 30
+      timeout: 5
+      endpoint: "/health"
+
+# HTTP服务配置  
+http_services:
+  capcut_plugin:
+    name: "CapCut HTTP Plugin"
+    url: "http://localhost:9001"
+    timeout: 30
+    retry_count: 3
+    priority: 2
+    enabled: true
+    health_check:
+      interval: 30
+      timeout: 5
+      endpoint: "/health"
+    
+    # HTTP端点映射
+    endpoint_mapping:
+      capcut_create_draft: "/api/draft/create"
+      capcut_upload_video: "/api/video/upload"
+      capcut_generate_subtitle: "/api/subtitle/generate"
+      capcut_export_video: "/api/video/export"
+      capcut_add_text: "/api/text/add"
+      capcut_add_music: "/api/music/add"
+      capcut_apply_template: "/api/template/apply"
+
+# 降级配置
+fallback:
+  enabled: true
+  
+  # 错误率阈值（超过此阈值触发降级）
+  error_threshold: 0.2
+  
+  # 超时阈值（秒）
+  timeout_threshold: 30
+  
+  # 熔断器配置
+  circuit_breaker:
+    failure_threshold: 5  # 连续失败次数阈值
+    recovery_timeout: 60  # 恢复尝试间隔（秒）
+    half_open_max_calls: 3  # 半开状态最大调用次数
+  
+  # 降级策略
+  strategy:
+    - service_type: "mcp"
+      fallback_to: "http"
+    - service_type: "http" 
+      fallback_to: "cache"
+    - service_type: "cache"
+      fallback_to: "default"
+
+# 缓存配置
+cache:
+  enabled: true
+  
+  # Redis配置
+  redis:
+    url: "redis://localhost:6379"
+    db: 0
+    password: null
+    ssl: false
+    
+  # 缓存策略
+  strategy:
+    default_ttl: 300  # 默认过期时间（秒）
+    max_size: 100     # 最大缓存大小（MB）
+    
+    # 方法级别TTL配置
+    method_ttl:
+      capcut_create_draft: 600
+      capcut_upload_video: 1800
+      capcut_generate_subtitle: 300
+      capcut_export_video: 3600
+  
+  # 缓存键前缀
+  key_prefix: "mcp_bridge"
+
+# 监控配置
+monitoring:
+  enabled: true
+  
+  # 指标收集
+  metrics:
+    enabled: true
+    collection_interval: 10  # 收集间隔（秒）
+    retention_period: 86400  # 保留时间（秒）
+    
+    # 收集的指标类型
+    types:
+      - "request_count"
+      - "response_time"
+      - "error_rate"
+      - "service_availability"
+      - "cache_hit_rate"
+  
+  # 健康检查
+  health_check:
+    enabled: true
+    interval: 30  # 检查间隔（秒）
+    timeout: 5    # 检查超时（秒）
+    
+    # 健康检查端点
+    endpoints:
+      - path: "/health"
+        method: "GET"
+        expected_status: 200
+  
+  # 告警配置
+  alerts:
+    enabled: true
+    
+    # 告警规则
+    rules:
+      - name: "high_error_rate"
+        condition: "error_rate > 0.1"
+        duration: 300  # 持续时间（秒）
+        severity: "warning"
+        
+      - name: "service_down"
+        condition: "service_availability < 0.5"
+        duration: 60
+        severity: "critical"
+        
+      - name: "high_response_time"
+        condition: "avg_response_time > 10"
+        duration: 180
+        severity: "warning"
+
+# 重试配置
+retry:
+  enabled: true
+  
+  # 默认重试策略
+  default_strategy:
+    max_attempts: 3
+    base_delay: 1.0      # 基础延迟（秒）
+    max_delay: 30.0      # 最大延迟（秒）
+    exponential_base: 2  # 指数退避基数
+    jitter: true         # 是否添加抖动
+  
+  # 方法级别重试配置
+  method_strategies:
+    capcut_create_draft:
+      max_attempts: 2
+      base_delay: 0.5
+    
+    capcut_upload_video:
+      max_attempts: 5
+      base_delay: 2.0
+      max_delay: 60.0
+  
+  # 可重试的错误类型
+  retryable_errors:
+    - "ConnectionError"
+    - "TimeoutError"
+    - "HTTPError:502"
+    - "HTTPError:503"
+    - "HTTPError:504"
+
+# 安全配置
+security:
+  # API密钥验证
+  api_key:
+    enabled: false
+    header_name: "X-API-Key"
+    
+  # 速率限制
+  rate_limit:
+    enabled: true
+    requests_per_minute: 1000
+    burst_size: 100
+    
+  # CORS配置
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+    allow_credentials: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 日志文件配置
+  file:
+    enabled: true
+    path: "/var/log/mcp_bridge"
+    max_size: "100MB"
+    backup_count: 5
+    rotation: "daily"
+  
+  # 结构化日志
+  structured:
+    enabled: true
+    format: "json"
+    
+  # 日志级别配置
+  loggers:
+    "mcp_bridge": "INFO"
+    "aiohttp": "WARNING"
+    "uvicorn": "INFO"
+    "redis": "WARNING"
+
+# 性能配置
+performance:
+  # 连接池配置
+  connection_pool:
+    max_connections: 100
+    max_keepalive_connections: 20
+    keepalive_expiry: 5
+    
+  # 并发控制
+  concurrency:
+    max_concurrent_requests: 1000
+    request_timeout: 60
+    
+  # 内存配置
+  memory:
+    max_memory_usage: "512MB"
+    gc_threshold: 0.8
+
+# 开发配置
+development:
+  debug: false
+  reload: false
+  
+  # 测试模式
+  test_mode:
+    enabled: false
+    mock_services: true
+    response_delay: 0.1
+
+# 生产配置
+production:
+  # 进程配置
+  workers: 4
+  worker_class: "uvicorn.workers.UvicornWorker"
+  
+  # 优化配置
+  optimization:
+    preload_app: true
+    max_requests: 10000
+    max_requests_jitter: 1000
+    
+  # 监控集成
+  monitoring_integration:
+    prometheus:
+      enabled: false
+      port: 9090
+      
+    grafana:
+      enabled: false
+      dashboard_url: ""
+      
+    elk:
+      enabled: false
+      elasticsearch_url: ""
