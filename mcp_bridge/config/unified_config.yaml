@@ -1,0 +1,151 @@
+# MCP Bridge 统一配置文件
+# 版本：v2.0.0 (合并版本)
+# 更新时间：2025年1月14日
+# 说明：整合了企业级MCP桥接、HTTP桥接和工作流管理功能
+
+# 全局服务器配置
+global:
+  environment: "production"  # development, staging, production
+  debug: false
+  timezone: "Asia/Shanghai"
+  
+# 核心MCP Bridge服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8082
+  workers: 1
+  log_level: "info"
+  
+# HTTP桥接服务配置
+http_bridge:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8083
+  timeout: 30
+  max_retries: 3
+  log_level: "INFO"
+  
+# 工作流管理配置
+workflow_management:
+  enabled: true
+  validation:
+    enabled: true
+    strict_mode: false
+    auto_fix: true
+  templates_path: "./workflows/templates"
+  configs_path: "./workflows/configs"
+  
+# MCP服务配置
+# 注意：当前架构已简化，MCP Bridge直接处理请求并转发到CapCutAPI
+# 无需独立的MCP服务器在9002端口
+mcp_services: {}
+
+# HTTP服务配置  
+http_services:
+  capcut_plugin:
+    name: "CapCut HTTP Plugin"
+    url: "http://localhost:9000"
+    timeout: 30
+    retry_count: 3
+    priority: 2
+    enabled: true
+    health_check:
+      interval: 30
+      timeout: 5
+      endpoint: "/"
+    
+    # HTTP端点映射
+    endpoint_mapping:
+      capcut_create_draft: "/api/draft/create"
+      capcut_upload_video: "/api/video/upload"
+      capcut_generate_subtitle: "/api/subtitle/generate"
+      capcut_export_video: "/api/video/export"
+      capcut_add_text: "/api/text/add"
+      capcut_add_music: "/api/music/add"
+      capcut_apply_template: "/api/template/apply"
+
+# 降级配置
+fallback:
+  enabled: true
+  strategy: "round_robin"  # round_robin, priority, random
+  max_failures: 3
+  recovery_time: 60
+  
+# 缓存配置
+cache:
+  enabled: true
+  type: "memory"  # memory, redis
+  ttl: 300
+  max_size: 1000
+  
+# 监控配置
+monitoring:
+  enabled: true
+  metrics:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  health_check:
+    enabled: true
+    port: 8084
+    path: "/health"
+  alerts:
+    enabled: false
+    webhook_url: ""
+    
+# 日志配置
+logging:
+  level: "info"
+  format: "json"
+  file:
+    enabled: true
+    path: "./logs/mcp_bridge.log"
+    max_size: "100MB"
+    max_files: 10
+  console:
+    enabled: true
+    
+# 安全配置
+security:
+  api_key:
+    enabled: false
+    header: "X-API-Key"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+  cors:
+    enabled: true
+    origins: ["*"]
+    
+# 集成配置
+integrations:
+  dify:
+    enabled: true
+    webhook_url: ""
+    api_key: ""
+  capcut:
+    api_url: "http://localhost:9000"
+    api_key: ""
+    timeout: 30
+    
+# 工作流验证规则
+workflow_validation:
+  rules:
+    basic_structure: true
+    node_validation: true
+    edge_validation: true
+    bgm_functionality: true
+    environment_variables: true
+    data_flow: true
+    code_syntax: true
+  auto_fix:
+    enabled: true
+    backup_original: true
+    
+# 性能配置
+performance:
+  connection_pool:
+    max_connections: 100
+    timeout: 30
+  request_timeout: 60
+  max_concurrent_requests: 50

@@ -276,19 +276,13 @@ class RouterManager:
     
     async def _load_service_config(self):
         """加载服务配置"""
-        # 默认服务配置
+        # 默认服务配置 - 简化架构，直接使用HTTP服务
         default_services = [
-            ServiceEndpoint(
-                name="capcut_mcp",
-                service_type=ServiceType.MCP,
-                url="mcp://localhost:9002",
-                priority=1
-            ),
             ServiceEndpoint(
                 name="capcut_http",
                 service_type=ServiceType.HTTP,
-                url="http://localhost:9001",
-                priority=2
+                url="http://localhost:9000",
+                priority=1  # 提升为最高优先级
             )
         ]
         
@@ -319,23 +313,52 @@ class RouterManager:
         try:
             if service.service_type == ServiceType.HTTP:
                 async with aiohttp.ClientSession() as session:
+                    # 对于capcut_http服务，使用根端点而不是/health端点
+                    health_endpoint = service.url
+                    if service.name == "capcut_http":
+                        # CapCutAPI使用根端点进行健康检查，并需要JSON Accept头
+                        headers = {"Accept": "application/json"}
+                    else:
+                        # 其他服务使用标准的/health端点
+                        health_endpoint = f"{service.url}/health"
+                        headers = {}
+                    
                     async with session.get(
-                        f"{service.url}/health",
+                        health_endpoint,
+                        headers=headers,
                         timeout=aiohttp.ClientTimeout(total=5)
                     ) as response:
                         if response.status == 200:
-                            service.status = ServiceStatus.HEALTHY
+                            # 对于capcut_http，还需要验证响应内容
+                            if service.name == "capcut_http":
+                                try:
+                                    data = await response.json()
+                                    if data.get("success") and "CapCutAPI" in data.get("output", {}).get("message", ""):
+                                        service.status = ServiceStatus.HEALTHY
+                                        service.success_count += 1
+                                    else:
+                                        service.status = ServiceStatus.DEGRADED
+                                        service.error_count += 1
+                                except:
+                                    service.status = ServiceStatus.DEGRADED
+                                    service.error_count += 1
+                            else:
+                                service.status = ServiceStatus.HEALTHY
+                                service.success_count += 1
                         else:
                             service.status = ServiceStatus.DEGRADED
+                            service.error_count += 1
             elif service.service_type == ServiceType.MCP:
                 # MCP服务健康检查（简化实现）
                 service.status = ServiceStatus.HEALTHY
+                service.success_count += 1
             
             service.last_check = time.time()
             
         except Exception as e:
             logger.warning(f"Health check failed for {service.name}: {e}")
             service.status = ServiceStatus.UNHEALTHY
+            service.error_count += 1
             service.last_check = time.time()
     
     def get_best_service(self, method: str) -> Optional[ServiceEndpoint]:
@@ -417,24 +440,48 @@ class RouterManager:
         http_endpoint = self._mcp_to_http_endpoint(request.method)
         url = f"{service.url}{http_endpoint}"
         
+        # 根据方法确定HTTP方法
+        http_method = self._get_http_method(request.method)
+        
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                json=request.params,
-                timeout=aiohttp.ClientTimeout(total=service.timeout)
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return MCPResponse(id=request.id, result=result)
-                else:
-                    error_text = await response.text()
-                    return MCPResponse(
-                        id=request.id,
-                        error={
-                            "code": response.status,
-                            "message": f"HTTP error: {error_text}"
-                        }
-                    )
+            if http_method == "GET":
+                # GET请求，参数作为查询参数
+                async with session.get(
+                    url,
+                    params=request.params,
+                    timeout=aiohttp.ClientTimeout(total=service.timeout)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return MCPResponse(id=request.id, result=result)
+                    else:
+                        error_text = await response.text()
+                        return MCPResponse(
+                            id=request.id,
+                            error={
+                                "code": response.status,
+                                "message": f"HTTP error: {error_text}"
+                            }
+                        )
+            else:
+                # POST请求，参数作为JSON body
+                async with session.post(
+                    url,
+                    json=request.params,
+                    timeout=aiohttp.ClientTimeout(total=service.timeout)
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return MCPResponse(id=request.id, result=result)
+                    else:
+                        error_text = await response.text()
+                        return MCPResponse(
+                            id=request.id,
+                            error={
+                                "code": response.status,
+                                "message": f"HTTP error: {error_text}"
+                            }
+                        )
     
     async def _call_mcp_service(self, service: ServiceEndpoint, request: MCPRequest) -> MCPResponse:
         """调用MCP服务"""
@@ -454,13 +501,36 @@ class RouterManager:
     def _mcp_to_http_endpoint(self, mcp_method: str) -> str:
         """将MCP方法名转换为HTTP端点"""
         method_mapping = {
-            "capcut_create_draft": "/api/draft/create",
-            "capcut_upload_video": "/api/video/upload",
-            "capcut_generate_subtitle": "/api/subtitle/generate",
-            "capcut_export_video": "/api/video/export"
+            "get_intro_animation_types": "/get_intro_animation_types",
+            "get_outro_animation_types": "/get_outro_animation_types",
+            "get_transition_types": "/get_transition_types",
+            "get_mask_types": "/get_mask_types",
+            "get_font_types": "/get_font_types",
+            "capcut_create_draft": "/create_draft",
+            "capcut_add_video": "/add_video",
+            "capcut_add_audio": "/add_audio",
+            "capcut_add_text": "/add_text",
+            "capcut_add_subtitle": "/add_subtitle",
+            "capcut_add_image": "/add_image",
+            "capcut_add_effect": "/add_effect",
+            "capcut_add_sticker": "/add_sticker",
+            "capcut_save_draft": "/save_draft"
         }
         
         return method_mapping.get(mcp_method, f"/api/{mcp_method}")
+    
+    def _get_http_method(self, mcp_method: str) -> str:
+        """确定MCP方法对应的HTTP方法"""
+        # GET方法的端点列表
+        get_methods = {
+            "get_intro_animation_types",
+            "get_outro_animation_types",
+            "get_transition_types",
+            "get_mask_types",
+            "get_font_types"
+        }
+        
+        return "GET" if mcp_method in get_methods else "POST"
     
     async def _try_fallback(self, request: MCPRequest, failed_service: ServiceEndpoint) -> MCPResponse:
         """尝试降级处理"""

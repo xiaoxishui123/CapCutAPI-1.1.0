@@ -250,9 +250,9 @@ test_service() {
     
     # 测试健康检查
     echo "1. 健康检查测试:"
-    if curl -s -f http://localhost:8080/health > /dev/null; then
+    if curl -s -f http://localhost:8082/health > /dev/null; then
         log_info "✓ 健康检查通过"
-        curl -s http://localhost:8080/health | python3 -m json.tool 2>/dev/null || curl -s http://localhost:8080/health
+        curl -s http://localhost:8082/health | python3 -m json.tool 2>/dev/null || curl -s http://localhost:8082/health
     else
         log_error "✗ 健康检查失败"
     fi
@@ -261,9 +261,9 @@ test_service() {
     
     # 测试指标监控
     echo "2. 指标监控测试:"
-    if curl -s -f http://localhost:8080/metrics > /dev/null; then
+    if curl -s -f http://localhost:8082/metrics > /dev/null; then
         log_info "✓ 指标监控正常"
-        curl -s http://localhost:8080/metrics | python3 -m json.tool 2>/dev/null || curl -s http://localhost:8080/metrics
+        curl -s http://localhost:8082/metrics | python3 -m json.tool 2>/dev/null || curl -s http://localhost:8082/metrics
     else
         log_error "✗ 指标监控失败"
     fi
@@ -274,9 +274,9 @@ test_service() {
     echo "3. MCP接口测试:"
     local test_data='{"jsonrpc": "2.0", "id": 1, "method": "capcut_create_draft", "params": {"title": "测试视频", "description": "这是一个测试视频"}}'
     
-    if curl -s -f -X POST -H "Content-Type: application/json" -d "$test_data" http://localhost:8080/mcp > /dev/null; then
+    if curl -s -f -X POST -H "Content-Type: application/json" -d "$test_data" http://localhost:8082/mcp > /dev/null; then
         log_info "✓ MCP接口正常"
-        curl -s -X POST -H "Content-Type: application/json" -d "$test_data" http://localhost:8080/mcp | python3 -m json.tool 2>/dev/null
+        curl -s -X POST -H "Content-Type: application/json" -d "$test_data" http://localhost:8082/mcp | python3 -m json.tool 2>/dev/null
     else
         log_error "✗ MCP接口失败"
     fi

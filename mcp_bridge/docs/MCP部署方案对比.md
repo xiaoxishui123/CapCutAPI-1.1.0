@@ -138,16 +138,8 @@ server:
   workers: 4
   log_level: "info"
 
-mcp_services:
-  capcut_mcp:
-    name: "CapCut MCP Server"
-    url: "mcp://localhost:9002"
-    timeout: 30
-    retry_count: 3
-    priority: 1
-    health_check:
-      interval: 30
-      timeout: 5
+# 注意：当前架构已简化，直接使用HTTP服务，无需独立MCP服务器
+# mcp_services: {}  # 已移除，使用简化架构
 
 http_services:
   capcut_plugin:
@@ -482,13 +474,8 @@ def convert_config(old_config_path, new_config_path):
             "port": old_config.get("port", 8080),
             "workers": 4
         },
-        "mcp_services": {
-            "capcut_mcp": {
-                "name": "CapCut MCP Server",
-                "url": f"mcp://localhost:{old_config.get('port', 8080)}",
-                "timeout": old_config.get("timeout", 30)
-            }
-        },
+        # 简化架构：移除MCP服务配置，直接使用HTTP服务
+        "mcp_services": {},
         "http_services": {
             "capcut_plugin": {
                 "name": "CapCut HTTP Plugin", 

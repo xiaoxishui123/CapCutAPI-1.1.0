@@ -1,0 +1,7 @@
+{
+  "capcut_api_url": "http://localhost:9000",
+  "timeout": 30,
+  "max_retries": 3,
+  "log_level": "INFO",
+  "http_port": 8083
+}

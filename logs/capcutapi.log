@@ -7266,3 +7266,958 @@ ERROR:werkzeug:35.203.211.35 - - [18/Sep/2025 13:25:16] code 400, message Bad re
 INFO:werkzeug:35.203.211.35 - - [18/Sep/2025 13:25:16] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03E\x8a<l\x09¹õ\x8ejæmp\x87BI\x00\x12\x7fÑ¬[\x81soB°\x8ahä+ßâ "Cë§^°CcÃ~xÌâ\x1cÑö\x81\x93}\x94DG]!X\x1d\x1fU\x8d #+\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
 ERROR:werkzeug:35.203.211.35 - - [18/Sep/2025 13:25:17] code 400, message Bad request version ('À(À$À\x14À')
 INFO:werkzeug:35.203.211.35 - - [18/Sep/2025 13:25:17] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03\x9aV\\\x8aK-\x10\x81\x0c#¿¿x©BÖÁçáwnî\x83·'\x02\x0dNÒLU\x14\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:198.235.24.2 - - [18/Sep/2025 14:53:57] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:01] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:01] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03\x189ü\x9f\x0e9\x87²x\x82ãSÚÛ\x1d\x91¥z\x1b}\x17Ç÷/U­­ \x02\x11\x19õ ïÖjNÔí¨\x91\x059)¶ÿé\x1f\x16\x17ØÀ;ø¼\x87ývz-Ç\x05ì\x87R\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:05] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:09] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:10] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:11] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:11] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:17] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:17] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:17] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:167.94.145.104 - - [18/Sep/2025 16:26:18] "[33mGET /wiki HTTP/1.1[0m" 404 -
+INFO:werkzeug:121.29.178.232 - - [18/Sep/2025 16:26:42] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:220.197.51.209 - - [18/Sep/2025 16:26:43] code 400, message Bad request syntax ('\x16\x03\x01\x01D\x01\x00\x01@\x03\x03\x16[p\x03^h\x8a0â')
+INFO:werkzeug:220.197.51.209 - - [18/Sep/2025 16:26:43] "[35m[1m\x16\x03\x01\x01D\x01\x00\x01@\x03\x03\x16[p\x03^h\x8a0â[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:06:44] "GET / HTTP/1.0" 200 -
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:06:48] "OPTIONS / HTTP/1.0" 200 -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:06:54] code 400, message Bad request version ('RTSP/1.0')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:06:54] "[35m[1mOPTIONS / RTSP/1.0[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:05] code 400, message Bad request version ('\x00\x01\x97|\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:05] "[35m[1m\x80\x00\x00(rþ\x1d\x13\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86 \x00\x01\x97|\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:12] code 400, message Bad HTTP/0.9 request type ('\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:12] "[35m[1m\x00\x1e\x00\x06\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x07version\x04bind\x00\x00\x10\x00\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:20] code 400, message Bad HTTP/0.9 request type ('\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:20] "[35m[1m\x00\x0c\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:22] code 400, message Bad request syntax ('EHLO')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:22] "[35m[1mEHLO[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:27] code 400, message Bad request syntax ('HELP')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:27] "[35m[1mHELP[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:32] code 400, message Bad request syntax ('\x16\x03\x00\x00S\x01\x00\x00O\x03\x00?G×÷º,îê²`~ó\x00ý\x82{¹Õ\x96Èw\x9bæÄÛ<=Ûoï\x10n\x00\x00(\x00\x16\x00\x13\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:32] "[35m[1m\x16\x03\x00\x00S\x01\x00\x00O\x03\x00?G×÷º,îê²`~ó\x00ý\x82{¹Õ\x96Èw\x9bæÄÛ<=Ûoï\x10n\x00\x00(\x00\x16\x00\x13\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:38] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00*%à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:38] "[35m[1m\x03\x00\x00*%à\x00\x00\x00\x00\x00Cookie: mstshash=nmap[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:43] code 400, message Bad request version ('\x00/\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:43] "[35m[1m\x16\x03\x00\x00i\x01\x00\x00e\x03\x03U\x1c§ärandom1random2random3random4\x00\x00\x0c\x00/\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:47] code 400, message Bad HTTP/0.9 request type ('\x80\x9e\x01\x03\x01\x00u\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:47] "[35m[1m\x80\x9e\x01\x03\x01\x00u\x00\x00\x00 \x00\x00f\x00\x00e\x00\x00d\x00\x00c\x00\x00b\x00\x00:\x00\x009\x00\x008\x00\x005\x00\x004\x00\x003\x00\x002\x00\x00/\x00\x00\x1b\x00\x00\x1a\x00\x00\x19\x00\x00\x18\x00\x00\x17\x00\x00\x16\x00\x00\x15\x00\x00\x14\x00\x00\x13\x00\x00\x12\x00\x00\x11\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:52] code 400, message Bad request syntax ('\x00\x00\x00qj\x81n0\x81k¡\x03\x02\x01\x05¢\x03\x02\x01')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:07:52] "[35m[1m\x00\x00\x00qj\x81n0\x81k¡\x03\x02\x01\x05¢\x03\x02\x01[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:04] code 400, message Bad request version ('0.12\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:04] "[35m[1m\x00\x00\x00¤ÿSMBr\x00\x00\x00\x00\x08\x01@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x06\x00\x00\x01\x00\x00\x81\x00\x02PC NETWORK PROGRAM 1.0\x00\x02MICROSOFT NETWORKS 1.03\x00\x02MICROSOFT NETWORKS 3.0\x00\x02LANMAN1.0\x00\x02LM1.2X002\x00\x02Samba\x00\x02NT LANMAN 1.0\x00\x02NT LM 0.12\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:12] code 400, message Bad HTTP/0.9 request type ('l\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:12] "[35m[1ml\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:13] "[33mGET /nice%20ports,/Trinity.txt.bak HTTP/1.0[0m" 404 -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:18] code 400, message Bad request syntax ('\x01default')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:18] "[35m[1m\x01default[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:23] code 400, message Bad request syntax ('0\x84\x00\x00\x00-\x02\x01\x07c\x84\x00\x00\x00$\x04\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:23] "[35m[1m0\x84\x00\x00\x00-\x02\x01\x07c\x84\x00\x00\x00$\x04\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:34] code 400, message Bad HTTP/0.9 request type ('0')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:34] "[35m[1m0\x0c\x02\x01\x01`\x07\x02\x01\x02\x04\x00\x80\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:35] code 400, message Bad request version ('SIP/2.0')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:35] "[35m[1mOPTIONS sip:nm SIP/2.0[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:45] code 400, message Bad request syntax ('TNMP\x04\x00\x00\x00TNME\x00\x00\x04\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:45] "[35m[1mTNMP\x04\x00\x00\x00TNME\x00\x00\x04\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:52] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:52] "[35m[1m\x03\x00\x00\x0b\x06à\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:58] code 400, message Bad request syntax ('DmdT\x00\x00\x00\x17\x00\x00\x00\x01\x00\x00\x00\x00\x11\x11\x00ÿ\x01ÿ\x13')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:08:58] "[35m[1mDmdT\x00\x00\x00\x17\x00\x00\x00\x01\x00\x00\x00\x00\x11\x11\x00ÿ\x01ÿ\x13[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:06] code 400, message Bad HTTP/0.9 request type (':\x00\x00\x00/\x00\x00\x00\x02\x00\x00@\x02\x0f\x00\x01\x00=\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00/\x00\x00\x00\x00\x00\x00\x00\x00\x00@')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:06] "[35m[1m:\x00\x00\x00/\x00\x00\x00\x02\x00\x00@\x02\x0f\x00\x01\x00=\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00/\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x1f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:12] code 400, message Bad request syntax ('DIST00000001ARGC00000005ARGV00000002ccARGV00000002-cARGV00000006nmap.cARGV00000002-oARGV00000006nmap.oDOTI00000000')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:12] "[35m[1mDIST00000001ARGC00000005ARGV00000002ccARGV00000002-cARGV00000006nmap.cARGV00000002-oARGV00000006nmap.oDOTI00000000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:18] code 400, message Bad request syntax ('JRMI\x00\x02K')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:18] "[35m[1mJRMI\x00\x02K[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:25] code 400, message Bad request syntax ('\x01\x00\x00\x00\x01\x00\x00\x00\x08\x08')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:25] "[35m[1m\x01\x00\x00\x00\x01\x00\x00\x00\x08\x08[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:27] code 400, message Bad request version ('>')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:27] "[35m[1m< NTP/1.0 >[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:37] code 400, message Bad request version ('\x00{\x000\x000\x000\x000\x00A\x00A\x000\x000\x00-\x000\x00A\x000\x000\x00-\x000\x000\x00a\x000\x00-\x00A\x00A\x000\x00A\x00-\x000\x000\x000\x000\x00A\x000\x00A\x00A\x000\x00A\x00A\x000\x00}\x00\x00\x00àmß_')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:37] "[35m[1m\x01\x00\x00ýÎú\x0b° \x00\x00\x00MMS\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x01\x00\x03\x00ðððð\x0b\x00\x04\x00\x1c\x00\x03\x00N\x00S\x00P\x00l\x00a\x00y\x00e\x00r\x00/\x009\x00.\x000\x00.\x000\x00.\x002\x009\x008\x000\x00;\x00 \x00{\x000\x000\x000\x000\x00A\x00A\x000\x000\x00-\x000\x00A\x000\x000\x00-\x000\x000\x00a\x000\x00-\x00A\x00A\x000\x00A\x00-\x000\x000\x000\x000\x00A\x000\x00A\x00A\x000\x00A\x00A\x000\x00}\x00\x00\x00àmß_[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:44] code 400, message Bad HTTP/0.9 request type ('\x00Z\x00\x00\x01\x00\x00\x00\x016\x01,\x00\x00\x08\x00\x7fÿ\x7f\x08\x00\x00\x00\x01\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:44] "[35m[1m\x00Z\x00\x00\x01\x00\x00\x00\x016\x01,\x00\x00\x08\x00\x7fÿ\x7f\x08\x00\x00\x00\x01\x00 \x00:\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x004æ\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00(CONNECT_DATA=(COMMAND=version))[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:45] code 400, message Bad request syntax ('Subscribe')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:45] "[35m[1mSubscribe[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:50] code 400, message Bad request syntax ('Query')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:50] "[35m[1mQuery[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:55] code 400, message Bad request syntax ('\x05\x04\x00\x01\x02\x80\x05\x01\x00\x03')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:09:55] "[35m[1m\x05\x04\x00\x01\x02\x80\x05\x01\x00\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:05] code 400, message Bad request syntax ('\x04\x01\x00\x16\x7f\x00\x00\x01root\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:05] "[35m[1m\x04\x01\x00\x16\x7f\x00\x00\x01root\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:12] code 400, message Bad request version ('\x03\x00(\x00\x04ÿ\x08\x00\x01U\x00\x00\x00MSSQLServer\x00H\x0f\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:12] "[35m[1m\x12\x01\x004\x00\x00\x00\x00\x00\x00\x15\x00\x06\x01\x00\x1b\x00\x01\x02\x00\x1c\x00\x0c\x03\x00(\x00\x04ÿ\x08\x00\x01U\x00\x00\x00MSSQLServer\x00H\x0f\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:14] code 400, message Bad request syntax ('HELP')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:14] "[35m[1mHELP[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:19] code 400, message Bad request syntax ('stats')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:19] "[35m[1mstats[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:23] code 400, message Bad request version ('\x06\x00\x00\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\x02\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:23] "[35m[1m\x00\x00\x00\x01\x00\x00\x00\x13\x00\x00\x00\x02\x00\x00\x00$\x00\x00\x00\x0bservice_mgr\x00\x00\x00\x00\x02\x00\x00\x00\x13\x01\x08scanner \x04\x05nmap \x06\x00\x00\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\x02\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:33] code 400, message Bad request version ('\x00\x00\x00\x04')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:33] "[35m[1m\x00\x00\x00\x00DB2DAS      \x01\x04\x00\x00\x00\x109z\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x0c\x00\x00\x00\x00\x00\x00\x0c\x00\x00\x00\x0c\x00\x00\x00\x04[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:40] code 400, message Bad request version ('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00ÿ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ä\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x7f')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:40] "[35m[1m\x01Â\x00\x00\x00\x04\x00\x00¶\x01\x00\x00SQLDB2RA\x00\x01\x00\x00\x04\x01\x01\x00\x05\x00\x1d\x00\x88\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x08\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x01\x00\x00@\x00\x00\x00@\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x02\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x03\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x03\x00\x00\x80\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x04\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x00        \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00ÿ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ä\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x7f[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:46] code 400, message Bad request version ('1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:46] "[35m[1mClient string for PARC version 1 Wire Encryption version 1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:47] code 400, message Bad HTTP/0.9 request type ('<\x00K\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:47] "[35m[1m<\x00K\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00ÿÿÿÿ\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:52] code 400, message Bad request syntax ('\x124\x00\x01')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:10:52] "[35m[1m\x124\x00\x01[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:03] code 400, message Bad request syntax ('\x00\x03\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x0f\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:03] "[35m[1m\x00\x03\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x0f\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:05] code 400, message Bad request syntax ('serverstatus')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:05] "[35m[1mserverstatus[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:15] code 400, message Bad HTTP/0.9 request type ('Âååå\x9e')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:15] "[35m[1mÂååå\x9e ×¤¦ÐÕÝÜÈÖÝ×ÕÈÑÖ\x83\x80ÈÝ¤Ñ¡È¤ÒÕ×Ý£¤¡Ý¦×Ý\x98å[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:17] code 400, message Bad request syntax ('#ST')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:17] "[35m[1m#ST[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:26] code 400, message Bad request version ('\x00\x00\x00\x03\x00\x05nmap\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00j\x00\x00\x00\x7f')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:26] "[35m[1m\x00\x94\x01<\x00\x00\x00d\x00e\x00\x00\x00=\x00\x06IEEEM\x00\x00lsqlexec\x00\x00\x00\x00\x00\x00\x069.280\x00\x00\x0cRDS#R000000\x00\x00\x05sqli\x00\x00\x00\x013\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x05nmap\x00\x00\x05nmap\x00ol\x00\x00\x00\x00\x00\x00\x00\x00\x00=tlitcp\x00\x00\x00\x00\x00\x01\x00h\x00\x0b\x00\x00\x00\x03\x00\x05nmap\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00j\x00\x00\x00\x7f[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:33] code 400, message Bad request syntax ('\x002Ð\x01\x00\x01\x00,\x10A\x00\x04\x11^\x00\x04\x11m\x00\x04\x11Z\x00\x18\x14\x04\x14\x03\x00\x07$\x07\x00\x08$\x0f\x00\x08\x14@\x00\x08\x14t\x00\x08\x00\x04\x11G')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:33] "[35m[1m\x002Ð\x01\x00\x01\x00,\x10A\x00\x04\x11^\x00\x04\x11m\x00\x04\x11Z\x00\x18\x14\x04\x14\x03\x00\x07$\x07\x00\x08$\x0f\x00\x08\x14@\x00\x08\x14t\x00\x08\x00\x04\x11G[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:34] code 400, message Bad HTTP/0.9 request type ('TSH')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:34] "[35m[1mTSH \x00\x00\x00ì\x01\x011\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x11\x04¸\x00\x00ID  [0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:39] "[33mGET /server-info HTTP/1.1[0m" 404 -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:49] code 400, message Bad request syntax ('A\x00\x00\x00:0\x00\x00ÿÿÿÿÔ\x07\x00\x00\x00\x00\x00\x00test.$cmd\x00\x00\x00\x00\x00ÿÿÿÿ\x1b\x00\x00\x00\x01serverStatus\x00\x00\x00\x00\x00\x00\x00ð?\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:49] "[35m[1mA\x00\x00\x00:0\x00\x00ÿÿÿÿÔ\x07\x00\x00\x00\x00\x00\x00test.$cmd\x00\x00\x00\x00\x00ÿÿÿÿ\x1b\x00\x00\x00\x01serverStatus\x00\x00\x00\x00\x00\x00\x00ð?\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:50] code 400, message Bad request syntax ('*1')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:11:50] "[35m[1m*1[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:00] code 400, message Bad request syntax ('\x00\x00\x00\x01\x07')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:00] "[35m[1m\x00\x00\x00\x01\x07[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:02] code 400, message Bad HTTP/0.9 request type ('show')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:02] "[35m[1mshow info[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:11] code 400, message Bad request syntax ('\x80\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15ðÑb\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:11] "[35m[1m\x80\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15ðÑb\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:18] code 400, message Bad request syntax ('\x00\x01n')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:18] "[35m[1m\x00\x01n[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:24] code 400, message Bad request syntax ('vp3')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:24] "[35m[1mvp3[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:30] code 400, message Bad request syntax ('\x94\x00ÍïÑa\x91\x03')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:30] "[35m[1m\x94\x00ÍïÑa\x91\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:36] code 400, message Bad request syntax ('þ\x01')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:36] "[35m[1mþ\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:37] "[33mGET /version HTTP/1.1[0m" 404 -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:45] code 400, message Bad request syntax ('\x00\x00\x07\x00\x08\x00\x03\x00\x04\x00\x05\x00\x06')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:45] "[35m[1m\x00\x00\x07\x00\x08\x00\x03\x00\x04\x00\x05\x00\x06[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:51] code 400, message Bad request syntax ('ÿû\x18ÿú\x18\x00IBM-3279-4-Eÿðÿû\x19ÿý\x19ÿû\x00ÿý\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:51] "[35m[1mÿû\x18ÿú\x18\x00IBM-3279-4-Eÿðÿû\x19ÿý\x19ÿû\x00ÿý\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:57] code 400, message Bad request syntax ('GIOP\x01\x00\x01\x00$\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00abcdef\x00\x00\x04\x00\x00\x00get\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:12:57] "[35m[1mGIOP\x01\x00\x01\x00$\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00abcdef\x00\x00\x04\x00\x00\x00get\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:02] code 400, message Bad request syntax ('VERSION')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:02] "[35m[1mVERSION[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:07] code 400, message Bad request syntax ('CNXN\x00\x00\x00\x01\x00\x10\x00\x00\x07\x00\x00\x002\x02\x00\x00¼±§±host::\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:07] "[35m[1mCNXN\x00\x00\x00\x01\x00\x10\x00\x00\x07\x00\x00\x002\x02\x00\x00¼±§±host::\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:13] code 400, message Bad HTTP/0.9 request type ('\x00\x00\x00\x10\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:13] "[35m[1m\x00\x00\x00\x10\x00\x00\x00\x0c{"code":106}[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:19] code 400, message Bad request syntax ('\x0c\x00\x01\x00\x00\x00ImYorDad0u\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:19] "[35m[1m\x0c\x00\x01\x00\x00\x00ImYorDad0u\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:25] code 400, message Bad HTTP/0.9 request type ('ÚÚ\x01\x00\x00\x00\x14\x00\x10\x03\x08\x00\x00\x00')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:13:25] "[35m[1mÚÚ\x01\x00\x00\x00\x14\x00\x10\x03\x08\x00\x00\x00\x0bM\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:16:31] code 400, message Bad request version ("\x00q\x00\x9c\x13\x02\x13\x03\x13\x01\x003\x009\x005\x00/À,À0\x00£\x00\x9fÌ©Ì¨ÌªÀ¯À\xadÀ£À\x9fÀ]ÀaÀWÀSÀ+À/\x00¢\x00\x9eÀ®À¬À¢À\x9eÀ\\À`ÀVÀRÀ$À(\x00k\x00jÀsÀw\x00Ä\x00ÃÀ#À'\x00g\x00@ÀrÀv\x00¾\x00½À")
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:16:31] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Ù¡\x93\x00!@Ä\x9b9Í\x1e\x95\x98·ï-WH\x05åî^aÇxi\x13¶\x8d\x02§ò dð\x1a\x17\x06\x85\x84¨÷Q\x97\x9c2\x8aÕÌAõ\x8fÙ|NÍ\x91èåà\x14¾\x09\x00q\x00\x9c\x13\x02\x13\x03\x13\x01\x003\x009\x005\x00/À,À0\x00£\x00\x9fÌ©Ì¨ÌªÀ¯À­À£À\x9fÀ]ÀaÀWÀSÀ+À/\x00¢\x00\x9eÀ®À¬À¢À\x9eÀ\\À`ÀVÀRÀ$À(\x00k\x00jÀsÀw\x00Ä\x00ÃÀ#À'\x00g\x00@ÀrÀv\x00¾\x00½À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.152.13 - - [18/Sep/2025 18:16:42] code 400, message Bad HTTP/0.9 request type ('\x80\x00\x00(\x05\x8fºÍ\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86')
+INFO:werkzeug:39.103.152.13 - - [18/Sep/2025 18:16:42] "[35m[1m\x80\x00\x00(\x05\x8fºÍ\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86 \x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:42] "[33mGET /Ri6k HTTP/1.1[0m" 404 -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:43] "[33mGET /Ldw6 HTTP/1.1[0m" 404 -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:44] "[33mGET /aab8 HTTP/1.1[0m" 404 -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:44] "[33mGET /jquery-3.3.1.slim.min.js HTTP/1.1[0m" 404 -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:45] "[33mGET /aab9 HTTP/1.1[0m" 404 -
+INFO:werkzeug:148.153.56.62 - - [18/Sep/2025 18:54:46] "[33mGET /jquery-3.3.2.slim.min.js HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:00] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:00] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03ñç­\x10ÉBr\x9e{®ÎÈËvK\x05BÈ\x98K\x91\x84\x16J\x14\x19ëÐÿ\x8dà\x83 EëJÎ\x0d/U\x83«¤-¾Ý#ßxÄ\x13ÿ÷|WÿO¿r~Þ@\x9a&Z\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:05] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:13] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:19] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:20] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:20] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:31] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:31] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:33] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.43 - - [18/Sep/2025 20:32:35] "[33mGET /robots.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:23] "[33mGET /explicit_not_exist_path HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:24] "[33mGET /admin/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:25] "[33mGET /robots.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:26] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:26] "[33mGET /v1/models HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:26] "[33mGET /logo.png HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:26] "[33mGET /cwbase/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:30] "[33mGET /cwbase/weblogin/index.aspx HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:33] "[33mGET /images/ofbiz.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:36] "[33mGET /nacos/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:37] "[33mGET /nacos/css/main.css HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:38] "[33mGET /weboffice/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:45] "[33mGET /v2/logging HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:45] "[33mGET /messages/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:46] "[33mGET /web/static/src/img/favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:46] "[33mGET /phpMyAdmin/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:48] "[33mGET /phpmyadmin/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:47.102.184.31 - - [18/Sep/2025 21:15:49] "[33mGET /wcm/ HTTP/1.1[0m" 404 -
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+🚀 启动 CapCutAPI 服务...
+🔗 访问地址: http://localhost:9000
+ * Serving Flask app 'capcut_server'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:9000
+ * Running on http://172.16.81.220:9000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+ERROR:werkzeug:20.29.49.244 - - [18/Sep/2025 22:43:35] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.29.49.244 - - [18/Sep/2025 22:43:35] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:101.133.147.20 - - [18/Sep/2025 23:05:02] code 400, message Bad request version ("\x17ó\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:101.133.147.20 - - [18/Sep/2025 23:05:02] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03 Ù`{\x0e1¥¤Pçf\x80ä\x01\x84\x97QÖ\x9eÔv{å&\x10\x1c9\x84\x87Äx\x1f \x0dÉ¯ó\x97£ù\x9c\x84 \x8ev\x18ÚK\x81\x10\x1c[£|\x9bºÃ\\ùÅ}à \x17ó\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:101.133.147.20 - - [18/Sep/2025 23:05:02] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:195.184.76.79 - - [18/Sep/2025 23:24:07] code 400, message Bad request version ('ãuô9Ñ´')
+INFO:werkzeug:195.184.76.79 - - [18/Sep/2025 23:24:07] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03E\x81_åÖ9ñ\x9a\x8f\x96jí\x1d\x91&\x15æß\x19\x8f0äæuùº²×[ó\x88v ãuô9Ñ´[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:195.184.76.154 - - [18/Sep/2025 23:24:07] code 400, message Bad request version ("TU©·\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:195.184.76.154 - - [18/Sep/2025 23:24:07] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Íÿ\x1b\x98ë AQ×ÿPbl\x01{c´,1Wª\x84\x1d\x96q°ñº\x1aaDH 4«ðK1\x80\x15\x08\x14Ú¦X\x0b×ëþèê\x14'Séº2¥¢q\x0dTU©·\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:13.86.116.162 - - [19/Sep/2025 00:54:22] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:13.86.116.162 - - [19/Sep/2025 00:54:22] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:13.86.116.162 - - [19/Sep/2025 00:54:22] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:91.196.152.152 - - [19/Sep/2025 01:24:38] code 400, message Bad request version ("Ãñ/\x8bN4\xad|?\x94\x9dßmÕ\x9fé¥½à\x0eªm.®\x9dñ\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:91.196.152.152 - - [19/Sep/2025 01:24:38] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03uÛw\x94Ô\x92!Pkhøß\x1c\x15µãCkQ«\x8d¤\x1c¸ÿÒF\x87É~Kd \x12£uH\x95 Ãñ/\x8bN4­|?\x94\x9dßmÕ\x9fé¥½à\x0eªm.®\x9dñ\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:91.196.152.230 - - [19/Sep/2025 01:24:38] code 400, message Bad request syntax ('\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Æ\x80\t')
+INFO:werkzeug:91.196.152.230 - - [19/Sep/2025 01:24:38] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03Æ\x80\x09[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:185.93.89.88 - - [19/Sep/2025 02:31:28] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:185.93.89.88 - - [19/Sep/2025 02:31:28] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:87.236.176.231 - - [19/Sep/2025 03:43:01] code 400, message Bad request syntax ('\x16\x03\x01\x01')
+INFO:werkzeug:87.236.176.231 - - [19/Sep/2025 03:43:01] "[35m[1m\x16\x03\x01\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:87.236.176.223 - - [19/Sep/2025 03:43:16] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:65.49.20.68 - - [19/Sep/2025 08:48:17] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:65.49.20.68 - - [19/Sep/2025 08:48:17] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03+5©F¥s¦¬À¤g\x0d\x8a_ã¤%~\x0e\x9fª\x86\x80\x95Tëã:§à3B\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:174.138.56.158 - - [19/Sep/2025 09:40:05] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.84.153.129 - - [19/Sep/2025 09:56:12] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:20.84.153.129 - - [19/Sep/2025 09:56:12] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:20.84.153.129 - - [19/Sep/2025 09:56:13] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.84.153.129 - - [19/Sep/2025 09:56:13] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:198.235.24.148 - - [19/Sep/2025 10:23:31] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:59.82.21.162 - - [19/Sep/2025 11:56:17] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:147.185.133.245 - - [19/Sep/2025 12:17:28] code 400, message Bad request version ('À\x13À')
+INFO:werkzeug:147.185.133.245 - - [19/Sep/2025 12:17:28] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03¿èÆiÜí\x98H2µ\x13Ú 2\x08\x96\x9e£õ¨îIw\x1e]2\x0cËój¿» Z\x8c\x8dh}<\x0bä©\x93K\x15HØfÝ©MIÌDgFbJÇ\x9dÓn¥ß¶\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:147.185.133.245 - - [19/Sep/2025 12:17:29] code 400, message Bad request version ('À(À$À\x14À')
+INFO:werkzeug:147.185.133.245 - - [19/Sep/2025 12:17:29] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03»½\x13\x0e3kéû\x1dêgy¶I8Í\x18r\x17±4´\x99"\x95¤\x8cÑÙ¢Å\x1f\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:44] code 400, message Bad HTTP/0.9 request type ("\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie:")
+INFO:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:44] "[35m[1m\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie: mstshash=Domain[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:45] code 400, message Bad HTTP/0.9 request type ("\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie:")
+INFO:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:45] "[35m[1m\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie: mstshash=Domain[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:45] code 400, message Bad HTTP/0.9 request type ("\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie:")
+INFO:werkzeug:185.243.96.105 - - [19/Sep/2025 12:22:45] "[35m[1m\x03\x00\x00,'à\x00\x00\x00\x00\x00Cookie: mstshash=Domain[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:3.130.96.91 - - [19/Sep/2025 12:38:46] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.130.96.91 - - [19/Sep/2025 12:40:23] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.130.96.91 - - [19/Sep/2025 12:40:23] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03!Á/Å³\x11\x15\x18oy\x1c_TÐ\x90æ\x09Ï{çF5\x85\x0c\x1d«\x195K¯\x86»\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.130.96.91 - - [19/Sep/2025 12:43:14] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:3.130.96.91 - - [19/Sep/2025 12:43:14] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.130.96.91 - - [19/Sep/2025 12:45:11] code 400, message Bad request version ('ÁÌ¸)»«¡ìÅÉ\x10.ß\x16%Ã')
+INFO:werkzeug:3.130.96.91 - - [19/Sep/2025 12:45:11] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03á)>\x9fÞoj\x87\x0bÈ Û¥\x8c\x1dÁÌ¸)»«¡ìÅÉ\x10.ß\x16%Ã[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:205.210.31.107 - - [19/Sep/2025 13:26:50] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:113.215.189.124 - - [19/Sep/2025 13:38:14] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.150.193.141 - - [19/Sep/2025 14:38:26] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:20.150.193.141 - - [19/Sep/2025 14:38:26] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:20.150.193.141 - - [19/Sep/2025 14:38:26] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.150.193.141 - - [19/Sep/2025 14:38:26] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.243.93.109 - - [19/Sep/2025 14:45:35] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x84p¬\x8e¾\x7fÁ\x00ñ\x08ÆNÀ\x8fõ¤\xadÌô{Ü\x17¨±~·ôBc§¤\x13\x00\x00\x1aÀ/À+À\x11À\x07À\x13À')
+INFO:werkzeug:162.243.93.109 - - [19/Sep/2025 14:45:35] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x84p¬\x8e¾\x7fÁ\x00ñ\x08ÆNÀ\x8fõ¤­Ìô{Ü\x17¨±~·ôBc§¤\x13\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.243.93.109 - - [19/Sep/2025 14:45:35] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:162.243.93.109 - - [19/Sep/2025 14:45:35] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x035I\x05ÝA \x02g»8ÿv\x0bÒ´BÄ¹\x0eC\x986p¦d \x026³rÉÒ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.243.93.109 - - [19/Sep/2025 14:45:35] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:196.251.69.43 - - [19/Sep/2025 16:56:47] code 400, message Bad request syntax ('\x05\x02\x00\x02')
+INFO:werkzeug:196.251.69.43 - - [19/Sep/2025 16:56:47] "[35m[1m\x05\x02\x00\x02[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:92.42.201.26 - - [19/Sep/2025 20:16:21] "[33mGET http://ip-api.com/json/ HTTP/1.1[0m" 404 -
+ERROR:werkzeug:92.42.201.26 - - [19/Sep/2025 20:45:54] code 400, message Bad request syntax ('\x04\x01\x00PÐ_p\x01\x00')
+INFO:werkzeug:92.42.201.26 - - [19/Sep/2025 20:45:54] "[35m[1m\x04\x01\x00PÐ_p\x01\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:92.42.201.26 - - [19/Sep/2025 20:45:54] code 400, message Bad request syntax ('\x05\x01\x00')
+INFO:werkzeug:92.42.201.26 - - [19/Sep/2025 20:45:54] "[35m[1m\x05\x01\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:45] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:45] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:45] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:54] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:54] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:55] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.113 - - [19/Sep/2025 20:59:56] "[33mGET /robots.txt HTTP/1.1[0m" 404 -
+ERROR:werkzeug:196.251.80.75 - - [19/Sep/2025 22:02:32] code 400, message Bad request syntax ('\x05\x02\x00\x02')
+INFO:werkzeug:196.251.80.75 - - [19/Sep/2025 22:02:32] "[35m[1m\x05\x02\x00\x02[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:16:59] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:16:59] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:02] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:02] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:04] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:04] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:06] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:06] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:08] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:08] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:11] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:11] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:14] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:14] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:17] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:17] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:19] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:19] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:22] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:22] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:25] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:25] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:27] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:27] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:29] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:29] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:32] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:32] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:34] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:34] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:37] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:37] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:40] code 400, message Bad request syntax ('SSH-2.0-libssh_0.11.2')
+INFO:werkzeug:196.251.81.30 - - [20/Sep/2025 00:17:40] "[35m[1mSSH-2.0-libssh_0.11.2[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:42] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:47] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:48] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:49] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:49] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:54] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:54] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:36:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:167.94.138.202 - - [20/Sep/2025 00:37:02] "[33mGET /login HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.216.149.61 - - [20/Sep/2025 04:06:54] code 400, message Bad request syntax ('\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03þ\x9fXÝjî\x92\x0fB\x89+oÜÕÊìêv\x8a\x87')
+INFO:werkzeug:162.216.149.61 - - [20/Sep/2025 04:06:54] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03þ\x9fXÝjî\x92\x0fB\x89+oÜÕÊìêv\x8a\x87[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.216.149.61 - - [20/Sep/2025 04:06:55] code 400, message Bad request version ('À(À$À\x14À')
+INFO:werkzeug:162.216.149.61 - - [20/Sep/2025 04:06:55] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03q\x17\x0c&:¾x\x9cuPÎ\x95»Ký÷\x88 `\x9dd\x02vU\x1d·`\x1b\x1dî"\x85\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:20.12.240.74 - - [20/Sep/2025 06:11:04] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.12.240.74 - - [20/Sep/2025 06:11:05] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.12.240.74 - - [20/Sep/2025 06:11:05] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:198.235.24.129 - - [20/Sep/2025 06:28:21] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:138.68.145.7 - - [20/Sep/2025 10:49:08] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:31] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:31] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03\x1fgûÛ§÷\x08\x1f\x8aü½Ôà-º\x00×Ì\x17\x90h}ç \x0b\x8f\x81ïñ#°e \x8bq\x0d\x9ag\x8fÊJ\x0e\x9f?\x19þ+£ZóSß\x9dzí\x17ó»íË4A¼<ä\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:34] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:38] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:39] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:39] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:43] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:43] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:44] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:199.45.154.117 - - [20/Sep/2025 11:08:44] "[33mGET /wiki HTTP/1.1[0m" 404 -
+INFO:werkzeug:1.83.125.203 - - [20/Sep/2025 11:08:56] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:116.172.201.247 - - [20/Sep/2025 11:09:12] code 400, message Bad request version ('{aB¥\x00b\x13\x02\x13\x03\x13\x01À,À0À+À/Ì©Ì¨\x00£\x00\x9f\x00¢\x00\x9eÌªÀ¯À\xadÀ$À(À')
+INFO:werkzeug:116.172.201.247 - - [20/Sep/2025 11:09:12] "[35m[1m\x16\x03\x01\x01D\x01\x00\x01@\x03\x03ø¦à\x14CdåDy0JÌ\x0d­ |\x0dâ\x9dúøn½v\x04]Ç\x91u\x83gg !(\x11\x8e\x0cÍ\x87\x06\x16¾ºÉ#s\x83¾J\x1b¾\x9dÔªU­¯ã°\x1e{aB¥\x00b\x13\x02\x13\x03\x13\x01À,À0À+À/Ì©Ì¨\x00£\x00\x9f\x00¢\x00\x9eÌªÀ¯À­À$À(À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:32] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:32] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03å,F\x97æU\x09üb÷Xû]\x95N0¿\x15R©1à/ñNÆ÷Ub\x15\x85ä \x04¸S\x10Lyã#\x82ïIê\x8aó|ä¦ø\x18'\x9fåû%hûcè\x14U\x84\x84\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:37] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:42] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:43] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:43] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:48] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:48] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:48] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.119 - - [20/Sep/2025 12:29:49] "[33mGET /wiki HTTP/1.1[0m" 404 -
+INFO:werkzeug:3.134.148.59 - - [20/Sep/2025 13:18:20] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.134.148.59 - - [20/Sep/2025 13:20:35] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.134.148.59 - - [20/Sep/2025 13:21:39] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.134.148.59 - - [20/Sep/2025 13:21:39] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03LGß¬\x19\x00±O\x97»\x0d>)íï`Þ²È\x07$9:v\x83DSòE\x8cÈà\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:205.210.31.68 - - [20/Sep/2025 13:47:54] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:185.93.89.88 - - [20/Sep/2025 13:52:11] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:185.93.89.88 - - [20/Sep/2025 13:52:11] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:3.132.23.201 - - [20/Sep/2025 14:09:03] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.132.23.201 - - [20/Sep/2025 14:09:03] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.132.23.201 - - [20/Sep/2025 14:10:18] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:3.132.23.201 - - [20/Sep/2025 14:10:18] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.132.23.201 - - [20/Sep/2025 14:12:57] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\\\x9cÑ\x0f|¯gR\x07¥¦\x83\x9e~i¯0fR\x00½¯<Ò\x15ø¹{\x16\x91\x11Ñ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À')
+INFO:werkzeug:3.132.23.201 - - [20/Sep/2025 14:12:57] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\\\x9cÑ\x0f|¯gR\x07¥¦\x83\x9e~i¯0fR\x00½¯<Ò\x15ø¹{\x16\x91\x11Ñ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:64.62.197.62 - - [20/Sep/2025 14:36:41] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:64.62.197.62 - - [20/Sep/2025 14:36:41] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03Ñ¢y\x891Ïqþ\x05I\x7f\x18\x85pÅº4ßwi¤gÏ\x19¿\x8dY,«Mçg\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:159.223.80.68 - - [20/Sep/2025 16:53:19] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:159.223.80.68 - - [20/Sep/2025 16:53:19] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03W\x1b.22¹\x85\x1b\x86\x8c\x152\x11k,RQ\x8cÍáÕµ\x8eßûÙ\x1c7\\ù\x16C\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:159.223.80.68 - - [20/Sep/2025 16:53:20] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:159.223.80.68 - - [20/Sep/2025 16:53:20] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03ª=Mú~ØøÎ/sÖ§`\x0d\x83àE°\x09®ç\x13æ\x1cw·\x8d\x1fVÁ; \x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:159.223.80.68 - - [20/Sep/2025 16:53:21] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:194.180.49.243 - - [20/Sep/2025 18:50:45] code 400, message Bad request syntax ('\x03\x00\x00\x13\x0eà\x00\x00\x00\x00\x00\x01\x00\x08\x00\x03\x00\x00\x00')
+INFO:werkzeug:194.180.49.243 - - [20/Sep/2025 18:50:45] "[35m[1m\x03\x00\x00\x13\x0eà\x00\x00\x00\x00\x00\x01\x00\x08\x00\x03\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:92.42.201.26 - - [20/Sep/2025 20:39:02] "[33mGET http://ip-api.com/json/ HTTP/1.1[0m" 404 -
+ERROR:werkzeug:135.237.125.132 - - [20/Sep/2025 20:49:22] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:135.237.125.132 - - [20/Sep/2025 20:49:22] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:135.237.125.132 - - [20/Sep/2025 20:49:23] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:135.237.125.132 - - [20/Sep/2025 20:49:23] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:71.6.146.186 - - [20/Sep/2025 21:09:43] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:71.6.146.186 - - [20/Sep/2025 21:09:48] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:92.42.201.26 - - [20/Sep/2025 21:18:15] code 400, message Bad request syntax ('\x04\x01\x00PÐ_p\x01\x00')
+INFO:werkzeug:92.42.201.26 - - [20/Sep/2025 21:18:15] "[35m[1m\x04\x01\x00PÐ_p\x01\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:92.42.201.26 - - [20/Sep/2025 21:18:15] code 400, message Bad request syntax ('\x05\x01\x00')
+INFO:werkzeug:92.42.201.26 - - [20/Sep/2025 21:18:15] "[35m[1m\x05\x01\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:18] code 400, message Bad request version ('\x00\x9eÌ¨Ìª\x003\x00=\x00\x16À')
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:18] "[35m[1m\x16\x03\x01\x01\x17\x01\x00\x01\x13\x03\x03å\x97'ÏÖÆ¯\x85ihô]\x93Ä+Âðs\x9bí]Z×ÚïRv¨\x0c^\x81\x99 ºúÈ¸ní\x98®qÀöïöú~\x1fb¥\x17û\x98^\x98áúì%¸ µ\x1e¢\x004Ì¨Ì©À/À0À+À,À\x09\x00\x9eÌ¨Ìª\x003\x00=\x00\x16À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:29] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:29] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:29] "[33mGET /robots.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:29] "[33mGET /sitemap.xml HTTP/1.1[0m" 404 -
+INFO:werkzeug:101.36.122.183 - - [20/Sep/2025 21:56:29] "[33mGET /config.json HTTP/1.1[0m" 404 -
+INFO:werkzeug:172.236.228.198 - - [20/Sep/2025 22:36:56] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:195.184.76.138 - - [21/Sep/2025 04:17:08] code 400, message Bad request version ("þf£\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:195.184.76.138 - - [21/Sep/2025 04:17:08] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03\x00\x0d¡\x09¬pé»\x1e\x85\x80FC\x99r7%\x08.¸³ÝÞ2¢· ä\x05p:\x06 $l{7Ï_î\x16GþdOp\x91X²2\x8a´hÀò\x09\x17&\x07Dc\x1dþf£\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:195.184.76.142 - - [21/Sep/2025 04:17:09] code 400, message Bad request version ("\x07\x07\x01ÚE\x9e¡aw,\x9d¶.\x04\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:195.184.76.142 - - [21/Sep/2025 04:17:09] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03\x9f@,\x0el|¬\x7f\x1f\x94?\x7fBbU¶Çë\x15\x9e\x1b©nÄ\x94ëÛ\x9a´\x8b\x87\x02 pê\x82ù¾\x9bªY,Ùsýea|\x96\x00\x0c\x07\x07\x01ÚE\x9e¡aw,\x9d¶.\x04\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:205.210.31.9 - - [21/Sep/2025 05:46:45] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:157.245.226.238 - - [21/Sep/2025 07:06:31] "GET / HTTP/1.0" 200 -
+ERROR:werkzeug:91.231.89.149 - - [21/Sep/2025 07:56:42] code 400, message Bad request version ("<\x80E²o\x01Æ\x9c\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:91.231.89.149 - - [21/Sep/2025 07:56:42] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03·]Ã¥ôAÐbý±½ø"¹æ6¹\x85\x95"\x86÷d\x80\x12\x0d\x8ajÕ-³\x87 ÐÒ¢\x02×^\x9aÃËr·î\x9fWóûn\x80\x00!$\x1cÕ <\x80E²o\x01Æ\x9c\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:91.231.89.144 - - [21/Sep/2025 07:56:42] code 400, message Bad request version ("û/~¸$#\x17ñ&\x80\x8e\x11ÞAs\x80©Ö\x1a½\x9fÓôð\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ")
+INFO:werkzeug:91.231.89.144 - - [21/Sep/2025 07:56:42] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03©{é±ÌßGw\x00áÍ&\x03¡\x90°[\x1cÉ\x02´÷\x9dN@|Î~\x8e¼\x08\x1c ´F®kÕ(S\x1eû/~¸$#\x17ñ&\x80\x8e\x11ÞAs\x80©Ö\x1a½\x9fÓôð\x00>\x13\x02\x13\x03\x13\x01À,À0\x00\x9fÌ©Ì¨ÌªÀ+À/\x00\x9eÀ$À(\x00kÀ#À'\x00gÀ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:80.82.77.202 - - [21/Sep/2025 08:06:52] code 400, message Bad request version ("¯nãY»bhlÿ(=':©\x82ÙoÈ¢×\x93\x98´ï\x80å¹\x90\x00(À")
+INFO:werkzeug:80.82.77.202 - - [21/Sep/2025 08:06:52] "[35m[1m\x16\x03\x02\x01o\x01\x00\x01k\x03\x02RHÅ\x1a#÷:Nßâ´\x82/ÿ\x09T\x9f§Äy°hÆ\x13\x8c¤\x1c="á\x1a\x98 \x84´,\x85¯nãY»bhlÿ(=':©\x82ÙoÈ¢×\x93\x98´ï\x80å¹\x90\x00(À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:94.102.49.155 - - [21/Sep/2025 08:07:26] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:94.102.49.155 - - [21/Sep/2025 08:07:31] code 400, message Bad request version ('¼©\x03\x07default\x07default\x00')
+INFO:werkzeug:94.102.49.155 - - [21/Sep/2025 08:07:31] "[35m[1m\x00-clickhouse-go/2.30.3 (lv:go/1.23.4; os:linux)\x02\x1e¼©\x03\x07default\x07default\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:74.82.47.5 - - [21/Sep/2025 08:51:03] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:74.82.47.5 - - [21/Sep/2025 08:51:03] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03´X$\x9bc¡*£\x1fu~\x80v¡º%\x0f\x7f\x13\x89&Óò\x92\x8fÚÉl\x86\x9cÞ}\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:139.177.201.59 - - [21/Sep/2025 10:17:35] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:185.93.89.88 - - [21/Sep/2025 10:18:24] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:185.93.89.88 - - [21/Sep/2025 10:18:24] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:138.197.131.7 - - [21/Sep/2025 10:21:59] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:165.22.84.71 - - [21/Sep/2025 10:47:28] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:165.22.84.71 - - [21/Sep/2025 10:47:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:198.235.24.219 - - [21/Sep/2025 11:40:26] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:20.83.27.89 - - [21/Sep/2025 12:15:12] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.83.27.89 - - [21/Sep/2025 12:15:12] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.83.27.89 - - [21/Sep/2025 12:15:12] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:35.203.210.70 - - [21/Sep/2025 12:55:53] code 400, message Bad request version ('À\x13À')
+INFO:werkzeug:35.203.210.70 - - [21/Sep/2025 12:55:53] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03ÕÍ@\x00êA\x98\x06\x8dw¶ô>1\x043Y_\x10í<¹\x07Øe3`k*\x9b\x13{ \x9anR5Ýn\x80ý\x07 Lrv+Âäcpèg\x09\x1a\x04H;ªY^ÒQ\x86¦\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:35.203.210.70 - - [21/Sep/2025 12:55:54] code 400, message Bad request version ('À(À$À\x14À')
+INFO:werkzeug:35.203.210.70 - - [21/Sep/2025 12:55:54] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03¦\x93ñ\x9c\x02\x9dÕÓ}ÇRã-\x11ï\x80\x0dYC\x8cÀ*. |\x8a\x8eù\x7f¶ÕF\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:07:59] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:00] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:02] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:02] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:09] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:09] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:10] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.127 - - [21/Sep/2025 13:08:11] "[33mGET /wiki HTTP/1.1[0m" 404 -
+INFO:werkzeug:116.167.203.241 - - [21/Sep/2025 13:13:02] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:116.167.203.241 - - [21/Sep/2025 13:13:02] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x01D\x01\x00\x01@\x03\x03ïÌ\x86cßQS\x8f>l\x17´\x07c®`³\x99y,ÔeÙýn¸þ|·µCÊ')
+INFO:werkzeug:116.167.203.241 - - [21/Sep/2025 13:13:02] "[35m[1m\x16\x03\x01\x01D\x01\x00\x01@\x03\x03ïÌ\x86cßQS\x8f>l\x17´\x07c®`³\x99y,ÔeÙýn¸þ|·µCÊ @Åøf\x12¡a\x8eìÆä<·\x90&î[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:3.132.23.201 - - [21/Sep/2025 14:00:03] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.132.23.201 - - [21/Sep/2025 14:01:13] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.132.23.201 - - [21/Sep/2025 14:03:00] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.132.23.201 - - [21/Sep/2025 14:03:00] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03G %ëiÂ\x13\x19\x8aíX¯"\x14[7\x15Òhþ¨;<FKEû\x81=\x08Ò½\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.132.23.201 - - [21/Sep/2025 14:04:02] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:3.132.23.201 - - [21/Sep/2025 14:04:02] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.132.23.201 - - [21/Sep/2025 14:05:48] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03¶ÂFìPÄÓÃ\x06Æ\x91øýÞRÎç&¤SüzÝ^W\x86À\x9e*Ròÿ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À')
+INFO:werkzeug:3.132.23.201 - - [21/Sep/2025 14:05:48] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03¶ÂFìPÄÓÃ\x06Æ\x91øýÞRÎç&¤SüzÝ^W\x86À\x9e*Ròÿ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:104.199.63.109 - - [21/Sep/2025 16:55:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:198.235.24.70 - - [21/Sep/2025 18:39:39] "[33mGET /.well-known/security.txt HTTP/1.1[0m" 404 -
+ERROR:werkzeug:196.251.80.153 - - [21/Sep/2025 18:46:59] code 400, message Bad request syntax ('\x05\x02\x00\x02')
+INFO:werkzeug:196.251.80.153 - - [21/Sep/2025 18:46:59] "[35m[1m\x05\x02\x00\x02[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:71.6.135.131 - - [21/Sep/2025 18:49:41] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:71.6.135.131 - - [21/Sep/2025 18:49:42] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:41] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:41] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03r\x8fÀýûù\x9a\x16\x8f]Â\x18\x9e\x90M¬îEß´(1àó\x047e\x17³\x89ï@ Y\x14\x9a\x1eh\x12]\x97M®g\x09\x04ð\x97E\x9cIg\x83¯©\x1fOg\x0d\x9cP\x14}pÙ\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:48] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:48] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:49] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:49] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:52] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:52] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:53] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:167.94.145.108 - - [21/Sep/2025 18:59:54] "[33mGET /security.txt HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.216.149.70 - - [21/Sep/2025 20:10:31] code 400, message Bad request version ('À\x13À')
+INFO:werkzeug:162.216.149.70 - - [21/Sep/2025 20:10:31] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03É\x00ñrgZG¶än\x13ßw\x8f\x9e\x9b\x83¸í\x84H$\x06>uæÓÛ\x8b¹¬¨ !¶icD\x9fóøL\x7f\x8e§àÒ->d\x956@z8yÔC`gU\x82x4V\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.216.149.70 - - [21/Sep/2025 20:10:31] code 400, message Bad request version ('À(À$À\x14À')
+INFO:werkzeug:162.216.149.70 - - [21/Sep/2025 20:10:31] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03\x89ß©Ù9\x92G»3C`\x8dÕ\x03RRf\x89U\x08U\x86\x1eÒÜ\x03·AÉ©\x1cw\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:165.154.125.179 - - [22/Sep/2025 01:30:46] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:86.54.31.40 - - [22/Sep/2025 01:47:43] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x03Æ±%@ä_Ë\x9575m4¿')
+INFO:werkzeug:86.54.31.40 - - [22/Sep/2025 01:47:43] "[35m[1m\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x03Æ±%@ä_Ë\x9575m4¿\x1c\x08ÆáË{ä:-¨­2c\x80t²Ôp\x14\x00\x00rÀ0À,À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:86.54.31.40 - - [22/Sep/2025 01:47:47] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:80.66.75.28 - - [22/Sep/2025 02:26:15] code 400, message Bad request syntax ('\x01\x01æ')
+INFO:werkzeug:80.66.75.28 - - [22/Sep/2025 02:26:15] "[35m[1m\x01\x01æ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:52.165.82.6 - - [22/Sep/2025 03:25:17] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:52.165.82.6 - - [22/Sep/2025 03:25:17] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:52.165.82.6 - - [22/Sep/2025 03:25:17] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:52.165.82.6 - - [22/Sep/2025 03:25:17] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:40.124.173.16 - - [22/Sep/2025 05:34:36] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:40.124.173.16 - - [22/Sep/2025 05:34:36] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:87.236.176.5 - - [22/Sep/2025 08:42:51] code 400, message Bad request syntax ('\x16\x03\x01\x01')
+INFO:werkzeug:87.236.176.5 - - [22/Sep/2025 08:42:51] "[35m[1m\x16\x03\x01\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:185.247.137.13 - - [22/Sep/2025 08:43:07] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:74.82.47.3 - - [22/Sep/2025 08:46:49] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:74.82.47.3 - - [22/Sep/2025 08:46:49] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03~[Eé%Ý©\x94æ\x15á\x08.ª'ý\x13µÖ\x1a\x09Ä&­_ã¼ÃÆ Æ?\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.216.149.183 - - [22/Sep/2025 09:50:10] code 400, message Bad request version ('À\x13À')
+INFO:werkzeug:162.216.149.183 - - [22/Sep/2025 09:50:10] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03¡¯zåM4ëÌ\x04J`\x9d\x92j\x88%YuÖi5\x95\x15\x00\x96w4Æý×ø¤ üoUßý8³\x9c.Zø\x10\x05ö\x15/©<\x92<\x1f²Àð=Ôãøðó\x97'\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:162.216.149.183 - - [22/Sep/2025 09:50:10] code 400, message Bad HTTP/0.9 request type ("\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03¾]ºOqÊÎ\x10!g\x02\x057ÉÜii\x9düS³\x16ÓÄ¯PÇú{±\x9fú\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À")
+INFO:werkzeug:162.216.149.183 - - [22/Sep/2025 09:50:10] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03¾]ºOqÊÎ\x10!g\x02\x057ÉÜii\x9düS³\x16ÓÄ¯PÇú{±\x9fú\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:198.235.24.100 - - [22/Sep/2025 12:45:57] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.134.148.59 - - [22/Sep/2025 13:48:35] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:198.235.24.154 - - [22/Sep/2025 13:50:20] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.134.148.59 - - [22/Sep/2025 13:51:34] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.134.148.59 - - [22/Sep/2025 13:52:51] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03¬¤\x89õ9\x848ªP÷\x05æ\x14\x93\x18pÀ]g\x82¢ªµ\x8dby\x0f!4\x81àñ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À')
+INFO:werkzeug:3.134.148.59 - - [22/Sep/2025 13:52:51] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03¬¤\x89õ9\x848ªP÷\x05æ\x14\x93\x18pÀ]g\x82¢ªµ\x8dby\x0f!4\x81àñ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.134.148.59 - - [22/Sep/2025 13:55:27] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03²¸}O®âÓ\x1aÞÃ7wÜ*\x16áñÒ\xadÍ¬*\x91æV\x9b>c!L\x96¡\x00\x00\x1aÀ/À+À\x11À\x07À\x13À')
+INFO:werkzeug:3.134.148.59 - - [22/Sep/2025 13:55:27] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03²¸}O®âÓ\x1aÞÃ7wÜ*\x16áñÒ­Í¬*\x91æV\x9b>c!L\x96¡\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:138.68.94.43 - - [22/Sep/2025 14:20:19] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:59.82.21.87 - - [22/Sep/2025 14:56:26] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:64.23.199.25 - - [22/Sep/2025 15:15:06] "GET / HTTP/0.9" 200 -
+INFO:werkzeug:34.79.192.229 - - [22/Sep/2025 15:55:00] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:20.118.216.147 - - [22/Sep/2025 17:35:52] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.118.216.147 - - [22/Sep/2025 17:35:52] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.118.216.147 - - [22/Sep/2025 17:35:52] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:146.148.26.145 - - [22/Sep/2025 18:21:14] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:185.93.89.88 - - [22/Sep/2025 19:24:48] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:185.93.89.88 - - [22/Sep/2025 19:24:48] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:53:54] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:53:55] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.138.179 - - [22/Sep/2025 19:53:56] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:53:56] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:167.94.138.179 - - [22/Sep/2025 19:54:34] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:54:34] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:54:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:167.94.138.179 - - [22/Sep/2025 19:54:36] "[33mGET /.well-known/security.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:111.224.219.8 - - [22/Sep/2025 20:50:15] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:216.180.246.35 - - [22/Sep/2025 20:50:53] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:216.180.246.35 - - [22/Sep/2025 20:50:53] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x031Ë^ ¶>§\x83µSNL*\x95\x15¾é\x98fG&ü7|&o$ù [Ö÷ )S\x06\x92~\x0e>\x83À>D©Ø÷æ\x97ùS°[\x9f\x1e\x87Ý@\x120v\x91'læ\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:216.180.246.35 - - [22/Sep/2025 20:51:17] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:182.138.158.77 - - [22/Sep/2025 20:53:17] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:139.226.161.222 - - [22/Sep/2025 20:53:19] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:216.180.246.35 - - [22/Sep/2025 20:56:17] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x00ú\x01\x00\x00ö\x03\x033[\x0f/÷\x88^\x83\x12\x03\x06')
+INFO:werkzeug:216.180.246.35 - - [22/Sep/2025 20:56:17] "[35m[1m\x16\x03\x01\x00ú\x01\x00\x00ö\x03\x033[\x0f/÷\x88^\x83\x12\x03\x06 J¿Ì\x0f?à\x1f[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:216.180.246.35 - - [22/Sep/2025 20:56:19] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:05:56] "GET / HTTP/1.0" 200 -
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:05:58] "OPTIONS / HTTP/1.0" 200 -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:04] code 400, message Bad request version ('RTSP/1.0')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:04] "[35m[1mOPTIONS / RTSP/1.0[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:14] code 400, message Bad request version ('\x00\x01\x97|\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:14] "[35m[1m\x80\x00\x00(rþ\x1d\x13\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86 \x00\x01\x97|\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:20] code 400, message Bad HTTP/0.9 request type ('\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:20] "[35m[1m\x00\x1e\x00\x06\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x07version\x04bind\x00\x00\x10\x00\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:28] code 400, message Bad HTTP/0.9 request type ('\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:29] "[35m[1m\x00\x0c\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:30] code 400, message Bad request syntax ('EHLO')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:30] "[35m[1mEHLO[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:36] code 400, message Bad request syntax ('HELP')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:36] "[35m[1mHELP[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:40] code 400, message Bad request syntax ('\x16\x03\x00\x00S\x01\x00\x00O\x03\x00?G×÷º,îê²`~ó\x00ý\x82{¹Õ\x96Èw\x9bæÄÛ<=Ûoï\x10n\x00\x00(\x00\x16\x00\x13\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:40] "[35m[1m\x16\x03\x00\x00S\x01\x00\x00O\x03\x00?G×÷º,îê²`~ó\x00ý\x82{¹Õ\x96Èw\x9bæÄÛ<=Ûoï\x10n\x00\x00(\x00\x16\x00\x13\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:45] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00*%à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:45] "[35m[1m\x03\x00\x00*%à\x00\x00\x00\x00\x00Cookie: mstshash=nmap[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:49] code 400, message Bad request version ('\x00/\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:49] "[35m[1m\x16\x03\x00\x00i\x01\x00\x00e\x03\x03U\x1c§ärandom1random2random3random4\x00\x00\x0c\x00/\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:55] code 400, message Bad HTTP/0.9 request type ('\x80\x9e\x01\x03\x01\x00u\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:06:55] "[35m[1m\x80\x9e\x01\x03\x01\x00u\x00\x00\x00 \x00\x00f\x00\x00e\x00\x00d\x00\x00c\x00\x00b\x00\x00:\x00\x009\x00\x008\x00\x005\x00\x004\x00\x003\x00\x002\x00\x00/\x00\x00\x1b\x00\x00\x1a\x00\x00\x19\x00\x00\x18\x00\x00\x17\x00\x00\x16\x00\x00\x15\x00\x00\x14\x00\x00\x13\x00\x00\x12\x00\x00\x11\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:00] code 400, message Bad request syntax ('\x00\x00\x00qj\x81n0\x81k¡\x03\x02\x01\x05¢\x03\x02\x01')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:00] "[35m[1m\x00\x00\x00qj\x81n0\x81k¡\x03\x02\x01\x05¢\x03\x02\x01[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:10] code 400, message Bad request version ('0.12\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:10] "[35m[1m\x00\x00\x00¤ÿSMBr\x00\x00\x00\x00\x08\x01@\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x06\x00\x00\x01\x00\x00\x81\x00\x02PC NETWORK PROGRAM 1.0\x00\x02MICROSOFT NETWORKS 1.03\x00\x02MICROSOFT NETWORKS 3.0\x00\x02LANMAN1.0\x00\x02LM1.2X002\x00\x02Samba\x00\x02NT LANMAN 1.0\x00\x02NT LM 0.12\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:18] code 400, message Bad HTTP/0.9 request type ('l\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:18] "[35m[1ml\x00\x0b\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:19] "[33mGET /nice%20ports,/Trinity.txt.bak HTTP/1.0[0m" 404 -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:24] code 400, message Bad request syntax ('\x01default')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:24] "[35m[1m\x01default[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:29] code 400, message Bad request syntax ('0\x84\x00\x00\x00-\x02\x01\x07c\x84\x00\x00\x00$\x04\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:29] "[35m[1m0\x84\x00\x00\x00-\x02\x01\x07c\x84\x00\x00\x00$\x04\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:38] code 400, message Bad HTTP/0.9 request type ('0')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:38] "[35m[1m0\x0c\x02\x01\x01`\x07\x02\x01\x02\x04\x00\x80\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:39] code 400, message Bad request version ('SIP/2.0')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:39] "[35m[1mOPTIONS sip:nm SIP/2.0[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:49] code 400, message Bad request syntax ('TNMP\x04\x00\x00\x00TNME\x00\x00\x04\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:49] "[35m[1mTNMP\x04\x00\x00\x00TNME\x00\x00\x04\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:56] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:07:56] "[35m[1m\x03\x00\x00\x0b\x06à\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:04] code 400, message Bad request syntax ('DmdT\x00\x00\x00\x17\x00\x00\x00\x01\x00\x00\x00\x00\x11\x11\x00ÿ\x01ÿ\x13')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:04] "[35m[1mDmdT\x00\x00\x00\x17\x00\x00\x00\x01\x00\x00\x00\x00\x11\x11\x00ÿ\x01ÿ\x13[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:10] code 400, message Bad HTTP/0.9 request type (':\x00\x00\x00/\x00\x00\x00\x02\x00\x00@\x02\x0f\x00\x01\x00=\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00/\x00\x00\x00\x00\x00\x00\x00\x00\x00@')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:10] "[35m[1m:\x00\x00\x00/\x00\x00\x00\x02\x00\x00@\x02\x0f\x00\x01\x00=\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00/\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x1f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:18] code 400, message Bad request syntax ('DIST00000001ARGC00000005ARGV00000002ccARGV00000002-cARGV00000006nmap.cARGV00000002-oARGV00000006nmap.oDOTI00000000')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:18] "[35m[1mDIST00000001ARGC00000005ARGV00000002ccARGV00000002-cARGV00000006nmap.cARGV00000002-oARGV00000006nmap.oDOTI00000000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:25] code 400, message Bad request syntax ('JRMI\x00\x02K')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:25] "[35m[1mJRMI\x00\x02K[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:32] code 400, message Bad request syntax ('\x01\x00\x00\x00\x01\x00\x00\x00\x08\x08')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:32] "[35m[1m\x01\x00\x00\x00\x01\x00\x00\x00\x08\x08[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:34] code 400, message Bad request version ('>')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:34] "[35m[1m< NTP/1.0 >[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:44] code 400, message Bad request version ('\x00{\x000\x000\x000\x000\x00A\x00A\x000\x000\x00-\x000\x00A\x000\x000\x00-\x000\x000\x00a\x000\x00-\x00A\x00A\x000\x00A\x00-\x000\x000\x000\x000\x00A\x000\x00A\x00A\x000\x00A\x00A\x000\x00}\x00\x00\x00àmß_')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:44] "[35m[1m\x01\x00\x00ýÎú\x0b° \x00\x00\x00MMS\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x00\x00\x00\x01\x00\x03\x00ðððð\x0b\x00\x04\x00\x1c\x00\x03\x00N\x00S\x00P\x00l\x00a\x00y\x00e\x00r\x00/\x009\x00.\x000\x00.\x000\x00.\x002\x009\x008\x000\x00;\x00 \x00{\x000\x000\x000\x000\x00A\x00A\x000\x000\x00-\x000\x00A\x000\x000\x00-\x000\x000\x00a\x000\x00-\x00A\x00A\x000\x00A\x00-\x000\x000\x000\x000\x00A\x000\x00A\x00A\x000\x00A\x00A\x000\x00}\x00\x00\x00àmß_[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:52] code 400, message Bad HTTP/0.9 request type ('\x00Z\x00\x00\x01\x00\x00\x00\x016\x01,\x00\x00\x08\x00\x7fÿ\x7f\x08\x00\x00\x00\x01\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:52] "[35m[1m\x00Z\x00\x00\x01\x00\x00\x00\x016\x01,\x00\x00\x08\x00\x7fÿ\x7f\x08\x00\x00\x00\x01\x00 \x00:\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x004æ\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00(CONNECT_DATA=(COMMAND=version))[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:54] code 400, message Bad request syntax ('Subscribe')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:54] "[35m[1mSubscribe[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:59] code 400, message Bad request syntax ('Query')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:08:59] "[35m[1mQuery[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:04] code 400, message Bad request syntax ('\x05\x04\x00\x01\x02\x80\x05\x01\x00\x03')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:04] "[35m[1m\x05\x04\x00\x01\x02\x80\x05\x01\x00\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:14] code 400, message Bad request syntax ('\x04\x01\x00\x16\x7f\x00\x00\x01root\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:14] "[35m[1m\x04\x01\x00\x16\x7f\x00\x00\x01root\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:21] code 400, message Bad request version ('\x03\x00(\x00\x04ÿ\x08\x00\x01U\x00\x00\x00MSSQLServer\x00H\x0f\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:21] "[35m[1m\x12\x01\x004\x00\x00\x00\x00\x00\x00\x15\x00\x06\x01\x00\x1b\x00\x01\x02\x00\x1c\x00\x0c\x03\x00(\x00\x04ÿ\x08\x00\x01U\x00\x00\x00MSSQLServer\x00H\x0f\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:23] code 400, message Bad request syntax ('HELP')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:23] "[35m[1mHELP[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:28] code 400, message Bad request syntax ('stats')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:28] "[35m[1mstats[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:32] code 400, message Bad request version ('\x06\x00\x00\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\x02\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:32] "[35m[1m\x00\x00\x00\x01\x00\x00\x00\x13\x00\x00\x00\x02\x00\x00\x00$\x00\x00\x00\x0bservice_mgr\x00\x00\x00\x00\x02\x00\x00\x00\x13\x01\x08scanner \x04\x05nmap \x06\x00\x00\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x03\x00\x00\x00\x02\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:42] code 400, message Bad request version ('\x00\x00\x00\x04')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:42] "[35m[1m\x00\x00\x00\x00DB2DAS      \x01\x04\x00\x00\x00\x109z\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x0c\x00\x00\x00\x00\x00\x00\x0c\x00\x00\x00\x0c\x00\x00\x00\x04[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:49] code 400, message Bad request version ('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00ÿ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ä\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x7f')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:49] "[35m[1m\x01Â\x00\x00\x00\x04\x00\x00¶\x01\x00\x00SQLDB2RA\x00\x01\x00\x00\x04\x01\x01\x00\x05\x00\x1d\x00\x88\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x08\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x01\x00\x00@\x00\x00\x00@\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x02\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x03\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00\x80\x00\x00\x00\x01\x08\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x10\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x04\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x09\x00\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x04\x00\x00\x00\x03\x00\x00\x80\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x04\x00\x00\x01\x00\x00\x80\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x01\x00\x00\x00\x00\x01\x00\x00@\x00\x00\x00\x00        \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00ÿ\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ä\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x7f[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:56] code 400, message Bad request version ('1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:56] "[35m[1mClient string for PARC version 1 Wire Encryption version 1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:58] code 400, message Bad HTTP/0.9 request type ('<\x00K\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:09:58] "[35m[1m<\x00K\x00\x00\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00ÿÿÿÿ\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:02] code 400, message Bad request syntax ('\x124\x00\x01')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:02] "[35m[1m\x124\x00\x01[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:11] code 400, message Bad request syntax ('\x00\x03\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x0f\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:11] "[35m[1m\x00\x03\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x0f\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:13] code 400, message Bad request syntax ('serverstatus')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:13] "[35m[1mserverstatus[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:23] code 400, message Bad HTTP/0.9 request type ('Âååå\x9e')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:23] "[35m[1mÂååå\x9e ×¤¦ÐÕÝÜÈÖÝ×ÕÈÑÖ\x83\x80ÈÝ¤Ñ¡È¤ÒÕ×Ý£¤¡Ý¦×Ý\x98å[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:24] code 400, message Bad request syntax ('#ST')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:24] "[35m[1m#ST[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:34] code 400, message Bad request version ('\x00\x00\x00\x03\x00\x05nmap\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00j\x00\x00\x00\x7f')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:34] "[35m[1m\x00\x94\x01<\x00\x00\x00d\x00e\x00\x00\x00=\x00\x06IEEEM\x00\x00lsqlexec\x00\x00\x00\x00\x00\x00\x069.280\x00\x00\x0cRDS#R000000\x00\x00\x05sqli\x00\x00\x00\x013\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x05nmap\x00\x00\x05nmap\x00ol\x00\x00\x00\x00\x00\x00\x00\x00\x00=tlitcp\x00\x00\x00\x00\x00\x01\x00h\x00\x0b\x00\x00\x00\x03\x00\x05nmap\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00j\x00\x00\x00\x7f[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:41] code 400, message Bad request syntax ('\x002Ð\x01\x00\x01\x00,\x10A\x00\x04\x11^\x00\x04\x11m\x00\x04\x11Z\x00\x18\x14\x04\x14\x03\x00\x07$\x07\x00\x08$\x0f\x00\x08\x14@\x00\x08\x14t\x00\x08\x00\x04\x11G')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:41] "[35m[1m\x002Ð\x01\x00\x01\x00,\x10A\x00\x04\x11^\x00\x04\x11m\x00\x04\x11Z\x00\x18\x14\x04\x14\x03\x00\x07$\x07\x00\x08$\x0f\x00\x08\x14@\x00\x08\x14t\x00\x08\x00\x04\x11G[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:43] code 400, message Bad HTTP/0.9 request type ('TSH')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:43] "[35m[1mTSH \x00\x00\x00ì\x01\x011\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x11\x04¸\x00\x00ID  [0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:47] "[33mGET /server-info HTTP/1.1[0m" 404 -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:57] code 400, message Bad request syntax ('A\x00\x00\x00:0\x00\x00ÿÿÿÿÔ\x07\x00\x00\x00\x00\x00\x00test.$cmd\x00\x00\x00\x00\x00ÿÿÿÿ\x1b\x00\x00\x00\x01serverStatus\x00\x00\x00\x00\x00\x00\x00ð?\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:57] "[35m[1mA\x00\x00\x00:0\x00\x00ÿÿÿÿÔ\x07\x00\x00\x00\x00\x00\x00test.$cmd\x00\x00\x00\x00\x00ÿÿÿÿ\x1b\x00\x00\x00\x01serverStatus\x00\x00\x00\x00\x00\x00\x00ð?\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:59] code 400, message Bad request syntax ('*1')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:10:59] "[35m[1m*1[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:09] code 400, message Bad request syntax ('\x00\x00\x00\x01\x07')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:09] "[35m[1m\x00\x00\x00\x01\x07[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:10] code 400, message Bad HTTP/0.9 request type ('show')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:10] "[35m[1mshow info[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:20] code 400, message Bad request syntax ('\x80\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15ðÑb\x00\x00\x00\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:20] "[35m[1m\x80\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15ðÑb\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:26] code 400, message Bad request syntax ('\x00\x01n')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:26] "[35m[1m\x00\x01n[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:33] code 400, message Bad request syntax ('vp3')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:33] "[35m[1mvp3[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:40] code 400, message Bad request syntax ('\x94\x00ÍïÑa\x91\x03')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:40] "[35m[1m\x94\x00ÍïÑa\x91\x03[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:47] code 400, message Bad request syntax ('þ\x01')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:47] "[35m[1mþ\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:48] "[33mGET /version HTTP/1.1[0m" 404 -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:56] code 400, message Bad request syntax ('\x00\x00\x07\x00\x08\x00\x03\x00\x04\x00\x05\x00\x06')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:11:56] "[35m[1m\x00\x00\x07\x00\x08\x00\x03\x00\x04\x00\x05\x00\x06[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:02] code 400, message Bad request syntax ('ÿû\x18ÿú\x18\x00IBM-3279-4-Eÿðÿû\x19ÿý\x19ÿû\x00ÿý\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:02] "[35m[1mÿû\x18ÿú\x18\x00IBM-3279-4-Eÿðÿû\x19ÿý\x19ÿû\x00ÿý\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:09] code 400, message Bad request syntax ('GIOP\x01\x00\x01\x00$\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00abcdef\x00\x00\x04\x00\x00\x00get\x00\x00\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:09] "[35m[1mGIOP\x01\x00\x01\x00$\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x06\x00\x00\x00abcdef\x00\x00\x04\x00\x00\x00get\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:14] code 400, message Bad request syntax ('VERSION')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:14] "[35m[1mVERSION[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:20] code 400, message Bad request syntax ('CNXN\x00\x00\x00\x01\x00\x10\x00\x00\x07\x00\x00\x002\x02\x00\x00¼±§±host::\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:20] "[35m[1mCNXN\x00\x00\x00\x01\x00\x10\x00\x00\x07\x00\x00\x002\x02\x00\x00¼±§±host::\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:25] code 400, message Bad HTTP/0.9 request type ('\x00\x00\x00\x10\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:25] "[35m[1m\x00\x00\x00\x10\x00\x00\x00\x0c{"code":106}[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:30] code 400, message Bad request syntax ('\x0c\x00\x01\x00\x00\x00ImYorDad0u\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:30] "[35m[1m\x0c\x00\x01\x00\x00\x00ImYorDad0u\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:35] code 400, message Bad HTTP/0.9 request type ('ÚÚ\x01\x00\x00\x00\x14\x00\x10\x03\x08\x00\x00\x00')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:12:35] "[35m[1mÚÚ\x01\x00\x00\x00\x14\x00\x10\x03\x08\x00\x00\x00\x0bM\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:15:37] code 400, message Bad request version ('^\x8bh¶u\x07ª«W¥júÏT,Tõå{ÝØ£]"\x05')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:15:37] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03I\x1a\x8d\x86IîDÂ³\x9cÛÓ\x99þf¶7\x06\x09Ò\x99_ÿ\x19ÂÜ(E\x00\x93úq 8\x85^\x8bh¶u\x07ª«W¥júÏT,Tõå{ÝØ£]"\x05[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:39.103.163.218 - - [22/Sep/2025 21:16:07] code 400, message Bad HTTP/0.9 request type ('\x80\x00\x00(\x16îlg\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86')
+INFO:werkzeug:39.103.163.218 - - [22/Sep/2025 21:16:07] "[35m[1m\x80\x00\x00(\x16îlg\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86 \x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:206.168.34.56 - - [23/Sep/2025 04:42:44] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:206.168.34.56 - - [23/Sep/2025 04:42:44] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03\x11Ö\x9efm\x1a\x92Û«ðø'9\x19c8.\x08Ï\x94É\x11*@U[\x97JÅô¦, ÆýI%a²Ë^$ÈØ\x07Pùu\x1c£l?\x8f/\x94\x14\x12\x01X\x17Î,Ûð5\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:206.168.34.56 - - [23/Sep/2025 04:43:20] code 400, message Bad request syntax ('ZG\x00\x00\x00\x05\x00+\x0e\x01\x00')
+INFO:werkzeug:206.168.34.56 - - [23/Sep/2025 04:43:20] "[35m[1mZG\x00\x00\x00\x05\x00+\x0e\x01\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:20.65.194.6 - - [23/Sep/2025 07:50:13] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:20.65.194.6 - - [23/Sep/2025 07:50:13] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:20.65.194.6 - - [23/Sep/2025 07:50:14] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.65.194.6 - - [23/Sep/2025 07:50:14] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:113.215.189.221 - - [23/Sep/2025 08:21:26] code 400, message Bad request syntax ("\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03ÇÆ&½T±ØÑ^d¤À¹Kèüíèe®ù\x0eÚ?¾¼ã\x17è\x95[¹\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À")
+INFO:werkzeug:113.215.189.221 - - [23/Sep/2025 08:21:26] "[35m[1m\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03ÇÆ&½T±ØÑ^d¤À¹Kèüíèe®ù\x0eÚ?¾¼ã\x17è\x95[¹\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:113.215.189.203 - - [23/Sep/2025 08:44:36] code 400, message Bad HTTP/0.9 request type ('\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03\x87·Å1Ô±^\x91\x14{¯°Í\x89\x92HîÚx\x82')
+INFO:werkzeug:113.215.189.203 - - [23/Sep/2025 08:44:36] "[35m[1m\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03\x87·Å1Ô±^\x91\x14{¯°Í\x89\x92HîÚx\x82 }E³¿ÍY\x14è´¿×\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:147.185.132.45 - - [23/Sep/2025 09:08:22] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:167.71.123.123 - - [23/Sep/2025 10:26:35] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:167.71.123.123 - - [23/Sep/2025 10:26:35] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03Gm<¢\x89¹\x88/zÌ"ÁíXO\x1cÅ[Ç£^Ä\x9fHö¾VÄÄMµ~\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:167.71.123.123 - - [23/Sep/2025 10:26:36] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:167.71.123.123 - - [23/Sep/2025 10:26:36] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03ôZõ»ßÜËä\x1eYþ\x06\x83üÿ\\!JË\x8e2\x06\x94Ic_*sÆH\x18C\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.71.123.123 - - [23/Sep/2025 10:26:36] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:138.68.91.125 - - [23/Sep/2025 13:12:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.134.148.59 - - [23/Sep/2025 13:37:51] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.134.148.59 - - [23/Sep/2025 13:39:01] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.134.148.59 - - [23/Sep/2025 13:40:24] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.134.148.59 - - [23/Sep/2025 13:40:24] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x18:\x94í\x86<S\x93S×ø3\x9bGsc \x9a\x87nk\x143\x94¤4½SWÜTÊ\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.134.148.59 - - [23/Sep/2025 13:41:26] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:3.134.148.59 - - [23/Sep/2025 13:41:26] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.134.148.59 - - [23/Sep/2025 13:43:06] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.134.148.59 - - [23/Sep/2025 13:43:06] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x0d\x8f{;|¼Ù\x94©-(%/O\x05$\x85\x07\x83\x800\x99(Rì¨\x0ft®\x98\x9a5\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:216.218.206.68 - - [23/Sep/2025 14:29:03] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:216.218.206.68 - - [23/Sep/2025 14:29:03] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03.V¸^\x91ãæ\x9a«3Â\x1c\x94bÍï9ëÞÜ\x8bí\x0cë-wg%4Ñgx\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:80.66.75.28 - - [23/Sep/2025 14:34:21] code 400, message Bad request syntax ('\x01\x01æ')
+INFO:werkzeug:80.66.75.28 - - [23/Sep/2025 14:34:21] "[35m[1m\x01\x01æ[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:103.203.57.26 - - [23/Sep/2025 14:42:14] "[33mGET http://clientapi.ipip.net/echo.php?info=20250923064213 HTTP/1.1[0m" 404 -
+ERROR:werkzeug:103.203.57.26 - - [23/Sep/2025 14:42:19] code 400, message Bad request syntax ('\x05\x02\x00\x02')
+INFO:werkzeug:103.203.57.26 - - [23/Sep/2025 14:42:19] "[35m[1m\x05\x02\x00\x02[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:205.210.31.8 - - [23/Sep/2025 14:50:39] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:71.6.146.186 - - [23/Sep/2025 16:46:19] code 400, message Bad request syntax ('\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x03Uqn¯.a\x84\x9a);÷Ôé;\x83HÒÅ²Ç\x00ÐðYEõ\x9ba>¬3m\x00\x00rÀ0À,À(À$À\x14À')
+INFO:werkzeug:71.6.146.186 - - [23/Sep/2025 16:46:19] "[35m[1m\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x03Uqn¯.a\x84\x9a);÷Ôé;\x83HÒÅ²Ç\x00ÐðYEõ\x9ba>¬3m\x00\x00rÀ0À,À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:71.6.146.186 - - [23/Sep/2025 16:46:23] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:93.174.95.106 - - [23/Sep/2025 20:08:40] code 400, message Bad request syntax ('\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x031û|½\x82móý®\x144\x18íiÒ¾\x99ÿ\x82óXjp"Òc\x05QdO\x15Ê\x00\x00rÀ0À,À(À$À\x14À')
+INFO:werkzeug:93.174.95.106 - - [23/Sep/2025 20:08:40] "[35m[1m\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x031û|½\x82móý®\x144\x18íiÒ¾\x99ÿ\x82óXjp"Òc\x05QdO\x15Ê\x00\x00rÀ0À,À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:93.174.95.106 - - [23/Sep/2025 20:08:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:56:58] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:56:59] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:00] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:00] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:12] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:12] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:15] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.118 - - [23/Sep/2025 20:57:16] "[33mGET /.well-known/security.txt HTTP/1.1[0m" 404 -
+ERROR:werkzeug:195.154.42.158 - - [23/Sep/2025 23:00:24] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:195.154.42.158 - - [23/Sep/2025 23:00:24] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03¶ÔÃ\x8f\x17\x8csàjN§× \x1bN¸NÂ\x81&3O©\x93¨ä\x091S\x7f0´ ¿,\x8dñ²´L\x06\x19ê¨\x9fëÒÓdì$vë%#|\x0f\x8f:ÆÍ/\x95ù\x1f\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:122.96.28.82 - - [23/Sep/2025 23:43:51] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:119.164.107.30 - - [23/Sep/2025 23:44:16] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:22] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:22] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03\x18>¤â\x85ï&\x18M*ínÌ£'=ûY\x02]@Ï\x8cÃÆ8ÞÕº\x7f\x04\x9f ¾`\x9f½Z|\x1fQ\x91Ì>Veoù,g\x87²¿\x9ak\\\x1fF|f$\x06ÿyt\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:26] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:33] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:35] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:35] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:39] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:39] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:162.142.125.118 - - [24/Sep/2025 01:18:42] "[33mGET /wiki HTTP/1.1[0m" 404 -
+ERROR:werkzeug:93.123.109.72 - - [24/Sep/2025 01:50:53] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:93.123.109.72 - - [24/Sep/2025 01:50:53] "[35m[1m\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie: mstshash=Administr[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:62.60.131.129 - - [24/Sep/2025 02:09:23] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:62.60.131.129 - - [24/Sep/2025 02:09:23] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:45.227.254.152 - - [24/Sep/2025 03:24:10] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:45.227.254.152 - - [24/Sep/2025 03:24:10] "[35m[1m\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie: mstshash=Administr[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:20.65.193.225 - - [24/Sep/2025 04:57:55] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.65.193.225 - - [24/Sep/2025 04:57:56] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.65.193.225 - - [24/Sep/2025 04:57:56] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:198.235.24.150 - - [24/Sep/2025 06:26:20] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:18.97.26.119 - - [24/Sep/2025 08:40:17] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:137.184.238.238 - - [24/Sep/2025 09:18:37] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:59.82.21.88 - - [24/Sep/2025 09:27:31] code 400, message Bad request version ("<µz¦â[«\x8ex·%\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À")
+INFO:werkzeug:59.82.21.88 - - [24/Sep/2025 09:27:31] "[35m[1m\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03þ\x84i+ü\x94BªÑô\x91Xµ\x80nû@\x00\x0d_\x1f<µz¦â[«\x8ex·%\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:59.82.21.177 - - [24/Sep/2025 09:38:06] code 400, message Bad request version ("\x07KbÞ>PóÄ'gÇµÎð\x0f\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À")
+INFO:werkzeug:59.82.21.177 - - [24/Sep/2025 09:38:06] "[35m[1m\x16\x03\x03\x01\x02\x01\x00\x00þ\x03\x03n ¢Ú1dÿ\x8a\x88r\x9a×E\x9eP\x9b\x1c\x07KbÞ>PóÄ'gÇµÎð\x0f\x00\x00VÀ,À+À0À/\x00\x9f\x00£\x00\x9e\x00¢À$À(À#À'\x00k\x00j\x00g\x00@À.À2À-À1À&À*À%À)À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:13:42] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:13:42] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:13:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:13:57] "GET /draft/preview/sample_draft HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:13:57] "GET /api/draft/path/config HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:14] "GET /download_guide HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:23] "GET /api/drafts/dashboard HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:23] "GET /api/drafts/list HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:35] "[32mGET /api/draft/preview/dfd_cat_1758170967_430377fb HTTP/1.1[0m" 302 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:35] "GET /draft/preview/dfd_cat_1758170967_430377fb HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:35] "GET /api/draft/path/config HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:42] "[32mGET /api/draft/preview/dfd_cat_1756908456_d91f6603 HTTP/1.1[0m" 302 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:42] "GET /draft/preview/dfd_cat_1756908456_d91f6603 HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:14:42] "GET /api/draft/path/config HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:15:06] "[32mGET /api/draft/preview/dfd_cat_1756911991_c96b2b73 HTTP/1.1[0m" 302 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:15:06] "GET /draft/preview/dfd_cat_1756911991_c96b2b73 HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:15:06] "GET /api/draft/path/config HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:20:29] "GET /api/drafts/dashboard HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:20:29] "GET /api/drafts/list HTTP/1.1" 200 -
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:20:45] "[33mGET /api/drafts/download/dfd_cat_1758170891_066a0306 HTTP/1.1[0m" 404 -
+INFO:flask_video_generator:Received save draft request: draft_id=dfd_cat_1757258119_1bafc9b8, draft_folder=None, client_os=windows
+INFO:flask_video_generator:Task dfd_cat_1757258119_1bafc9b8: Successfully retrieved draft dfd_cat_1757258119_1bafc9b8 from cache.
+INFO:werkzeug:114.246.182.8 - - [24/Sep/2025 14:20:48] "GET /api/drafts/download/dfd_cat_1757258119_1bafc9b8 HTTP/1.1" 200 -
+ERROR:flask_video_generator:Error updating metadata for image_82776a0a8014b8beab9aefcb2faa13d5.png: HTTP Error 403: Forbidden
+INFO:fix_draft_paths:开始修复草稿路径配置: /home/CapCutAPI-1.1.0/dfd_cat_1757258119_1bafc9b8
+INFO:fix_draft_paths:使用用户自定义路径: F:\jianyin\cgwz\JianyingPro Drafts
+INFO:fix_draft_paths:成功更新草稿元数据路径:
+INFO:fix_draft_paths:  draft_root_path: F:\jianyin\cgwz\JianyingPro Drafts
+INFO:fix_draft_paths:  draft_fold_path: F:\jianyin\cgwz\JianyingPro Drafts\dfd_cat_1757258119_1bafc9b8
+INFO:fix_draft_paths:未发现需要修复的音频路径配置
+INFO:fix_draft_paths:草稿路径配置修复完成: /home/CapCutAPI-1.1.0/dfd_cat_1757258119_1bafc9b8
+INFO:root:成功修复草稿路径配置: dfd_cat_1757258119_1bafc9b8
+INFO:flask_video_generator:读取到用户自定义路径: F:\jianyin\cgwz\JianyingPro Drafts
+INFO:flask_video_generator:使用用户自定义草稿路径: F:\jianyin\cgwz\JianyingPro Drafts
+ERROR:flask_video_generator:Task dfd_cat_1757258119_1bafc9b8: Failed to download audio_2374f866b73ac0c9da257bcf737cf3ec.mp3: Failed to download audio:
+ffmpeg version 4.2.10 Copyright (c) 2000-2024 the FFmpeg developers
+  built with gcc 8 (GCC)
+  configuration: --prefix=/usr --bindir=/usr/bin --datadir=/usr/share/ffmpeg --docdir=/usr/share/doc/ffmpeg --incdir=/usr/include/ffmpeg --libdir=/usr/lib64 --mandir=/usr/share/man --arch=x86_64 --optflags='-O2 -g -pipe -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fexceptions -fstack-protector-strong -grecord-gcc-switches -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 -m64 -mtune=generic -fasynchronous-unwind-tables -fstack-clash-protection -fcf-protection' --extra-ldflags='-Wl,-z,relro -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld ' --extra-cflags=' ' --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libvo-amrwbenc --enable-version3 --enable-bzlib --disable-crystalhd --enable-fontconfig --enable-frei0r --enable-gcrypt --enable-gnutls --enable-ladspa --enable-libaom --enable-libdav1d --enable-libass --enable-libbluray --enable-libcdio --enable-libdrm --enable-libjack --enable-libfreetype --enable-libfribidi --enable-libgsm --enable-libmp3lame --enable-nvenc --enable-openal --enable-opencl --enable-opengl --enable-libopenjpeg --enable-libopus --enable-libpulse --enable-librsvg --enable-libsrt --enable-libsoxr --enable-libspeex --enable-libssh --enable-libtheora --enable-libvorbis --enable-libv4l2 --enable-libvidstab --enable-libvmaf --enable-version3 --enable-vapoursynth --enable-libvpx --enable-libx264 --enable-libx265 --enable-libxvid --enable-libzimg --enable-libzvbi --enable-avfilter --enable-avresample --enable-libmodplug --enable-postproc --enable-pthreads --disable-static --enable-shared --enable-gpl --disable-debug --disable-stripping --shlibdir=/usr/lib64 --enable-libmfx --enable-runtime-cpudetect
+  libavutil      56. 31.100 / 56. 31.100
+  libavcodec     58. 54.100 / 58. 54.100
+  libavformat    58. 29.100 / 58. 29.100
+  libavdevice    58.  8.100 / 58.  8.100
+  libavfilter     7. 57.100 /  7. 57.100
+  libavresample   4.  0.  0 /  4.  0.  0
+  libswscale      5.  5.100 /  5.  5.100
+  libswresample   3.  5.100 /  3.  5.100
+  libpostproc    55.  5.100 / 55.  5.100
+[http @ 0x556cac52a7c0] HTTP error 404 Not Found
+http://8.148.70.18:3006/audio/1757258127_zh_male_dongfanghaoran_moon_bigtts.mp3: Server returned 404 Not Found
+
+INFO:flask_video_generator:Task dfd_cat_1757258119_1bafc9b8 completed, draft URL: https://zdaigfpt.oss-cn-wuhan-lr.aliyuncs.com/dfd_cat_1757258119_1bafc9b8.zip
+ERROR:werkzeug:20.168.13.53 - - [24/Sep/2025 14:46:21] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:20.168.13.53 - - [24/Sep/2025 14:46:21] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:20.168.13.53 - - [24/Sep/2025 14:46:22] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.168.13.53 - - [24/Sep/2025 14:46:22] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:207.90.244.28 - - [24/Sep/2025 15:03:33] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:207.90.244.28 - - [24/Sep/2025 15:03:36] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:147.185.133.176 - - [24/Sep/2025 15:23:42] code 400, message Bad request syntax ('\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03tÑ\x1aÃõ¨\x0f,»d_3Ó#«Ä"o÷±{\x07Õ')
+INFO:werkzeug:147.185.133.176 - - [24/Sep/2025 15:23:42] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03tÑ\x1aÃõ¨\x0f,»d_3Ó#«Ä"o÷±{\x07Õ[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:147.185.133.176 - - [24/Sep/2025 15:23:43] code 400, message Bad HTTP/0.9 request type ("\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03â)Ýbúà\x7fçÊq'Ám:c±Ç\x05\x0e\x11\x9e¤øÈôêö\x11[\x84(\x18\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À")
+INFO:werkzeug:147.185.133.176 - - [24/Sep/2025 15:23:43] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03â)Ýbúà\x7fçÊq'Ám:c±Ç\x05\x0e\x11\x9e¤øÈôêö\x11[\x84(\x18\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:127.0.0.1 - - [24/Sep/2025 17:04:25] "GET /get_intro_animation_types HTTP/1.1" 200 -
+INFO:werkzeug:198.235.24.202 - - [24/Sep/2025 17:12:14] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:65.49.1.132 - - [24/Sep/2025 17:19:46] code 400, message Bad request syntax ('\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x17@H\x8cY¢³\x08åb¯\x17<')
+INFO:werkzeug:65.49.1.132 - - [24/Sep/2025 17:19:46] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x17@H\x8cY¢³\x08åb¯\x17<[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:172.236.228.245 - - [24/Sep/2025 17:42:31] code 400, message Bad request syntax ('\x16\x03\x01\x01')
+INFO:werkzeug:172.236.228.245 - - [24/Sep/2025 17:42:31] "[35m[1m\x16\x03\x01\x01[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:172.236.228.245 - - [24/Sep/2025 17:42:31] code 400, message Bad request syntax ('\x16\x03\x01\x01')
+INFO:werkzeug:172.236.228.245 - - [24/Sep/2025 17:42:31] "[35m[1m\x16\x03\x01\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:172.104.11.51 - - [24/Sep/2025 18:21:59] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:104.199.63.109 - - [24/Sep/2025 21:36:37] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:35.233.95.0 - - [24/Sep/2025 21:40:32] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [24/Sep/2025 23:15:33] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [24/Sep/2025 23:15:40] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:87.236.176.21 - - [25/Sep/2025 02:04:10] code 400, message Bad request syntax ('\x16\x03\x01\x01')
+INFO:werkzeug:87.236.176.21 - - [25/Sep/2025 02:04:10] "[35m[1m\x16\x03\x01\x01[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:87.236.176.32 - - [25/Sep/2025 02:04:26] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:62.60.131.129 - - [25/Sep/2025 02:53:54] code 400, message Bad request version ('SCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00')
+INFO:werkzeug:62.60.131.129 - - [25/Sep/2025 02:53:54] "[35m[1m\x01\x01\x00\x01\x00\x08\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x01\x04\x00\x01\x00G\x01\x00\x0b\x0bSCRIPT_NAME/AAAAAAAAAA\x0f\x0bSCRIPT_FILENAME/AAAAAAAAAA\x0e\x03REQUEST_METHODGET\x00\x01\x04\x00\x01\x00\x00\x00\x00\x01\x05\x00\x01\x00\x00\x00\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:14] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:17] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:22] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:22] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:27] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:27] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:28] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:206.168.34.58 - - [25/Sep/2025 02:56:30] "[33mGET /login HTTP/1.1[0m" 404 -
+ERROR:werkzeug:147.185.132.136 - - [25/Sep/2025 04:44:54] code 400, message Bad request version ('À\x13À')
+INFO:werkzeug:147.185.132.136 - - [25/Sep/2025 04:44:54] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03?ØY\x0b\x80¼5Óë¸7\x89Úx\x8d\x03h±\x8dís\x91¯¥áâg!òÜ<´ õ.\x81ÜÝ0\x95\x12Æ<ó\x18nçÕ\x83§"ÍÞ)\x1b\x91åi\x7fªhL\x83$Y\x00&À+À/À,À0Ì©Ì¨À\x09À\x13À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:147.185.132.136 - - [25/Sep/2025 04:44:55] code 400, message Bad HTTP/0.9 request type ("\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03\xadãÔ\x83\x1að\x84oç\x9b@\x89¡/¾\x03oY5\x9dg.Q-²¿¸6vlVp\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À")
+INFO:werkzeug:147.185.132.136 - - [25/Sep/2025 04:44:55] "[35m[1m\x16\x03\x01\x00Ê\x01\x00\x00Æ\x03\x03­ãÔ\x83\x1að\x84oç\x9b@\x89¡/¾\x03oY5\x9dg.Q-²¿¸6vlVp\x00\x00hÌ\x14Ì\x13À/À+À0À,À\x11À\x07À'À#À\x13À\x09À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:207.90.244.14 - - [25/Sep/2025 04:54:43] code 400, message Bad request version ('\x96%~¥m\x00\x00rÀ0À,À(À$À\x14À')
+INFO:werkzeug:207.90.244.14 - - [25/Sep/2025 04:54:43] "[35m[1m\x16\x03\x01\x00ô\x01\x00\x00ð\x03\x03\x9b/Y\x9c!\x1eðF_Á\x09\x9ao-8ddRÿ\x0e\x17Úë×9r\x0b\x96%~¥m\x00\x00rÀ0À,À(À$À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:207.90.244.14 - - [25/Sep/2025 04:54:48] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:205.210.31.91 - - [25/Sep/2025 05:00:25] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:205.210.31.10 - - [25/Sep/2025 05:33:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:144.86.173.73 - - [25/Sep/2025 06:40:25] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:205.210.31.123 - - [25/Sep/2025 08:38:56] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:104.197.69.115 - - [25/Sep/2025 08:42:46] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:104.197.69.115 - - [25/Sep/2025 08:42:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:15] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:52] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:53] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:55] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:55] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:56] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:18:58] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:30:09] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:35:01] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:35:02] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:35:04] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 10:47:44] "[33mGET /health HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:27] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:27] "[35m[1m\x16\x03\x01\x00î\x01\x00\x00ê\x03\x03\x1cÏ\x0f²\x8e\x0b¦\x88i9Dÿ\x98cKEV\x1aSHV\x8dÙ\x95"²¾\x01\x8d³\x18, ÌÖ/\x02\x8aq\x97"&÷\x9a$\x0e\x96H\x0bX\x88±}\x1bmL\x03ÃÚ\x08áÔ\x98\x91\x12\x00&Ì¨Ì©À/À0À+À,À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:30] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:34] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+ERROR:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:35] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:35] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+ERROR:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:38] code 505, message Invalid HTTP version (2.0)
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:38] "[35m[1mPRI * HTTP/2.0[0m" HTTPStatus.HTTP_VERSION_NOT_SUPPORTED -
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:39] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:167.94.145.106 - - [25/Sep/2025 10:53:39] "[33mGET /.well-known/security.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:143.198.30.148 - - [25/Sep/2025 11:13:08] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 11:17:52] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:20.102.116.62 - - [25/Sep/2025 11:30:00] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:20.102.116.62 - - [25/Sep/2025 11:30:00] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:20.102.116.62 - - [25/Sep/2025 11:30:00] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 11:37:19] "[33mGET /health HTTP/1.1[0m" 404 -
+ERROR:werkzeug:216.218.206.66 - - [25/Sep/2025 11:41:55] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:216.218.206.66 - - [25/Sep/2025 11:41:55] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x0dª\x8caÛ\x12Ñv4Þ\x06+.¡±\\8\x9cX\x1c\x8aÍèz*¿Ð;&à$\x86\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 11:42:42] "[33mGET /health HTTP/1.1[0m" 404 -
+ERROR:werkzeug:52.165.82.6 - - [25/Sep/2025 12:56:38] code 400, message Bad request syntax ('MGLNDD_8.148.70.18_9000')
+INFO:werkzeug:52.165.82.6 - - [25/Sep/2025 12:56:38] "[35m[1mMGLNDD_8.148.70.18_9000[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:45.227.254.156 - - [25/Sep/2025 13:31:08] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:45.227.254.156 - - [25/Sep/2025 13:31:08] "[35m[1m\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie: mstshash=Administr[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:219.138.41.132 - - [25/Sep/2025 13:52:20] "GET / HTTP/1.0" 200 -
+INFO:werkzeug:219.138.41.132 - - [25/Sep/2025 13:52:24] "HEAD / HTTP/1.1" 200 -
+ERROR:werkzeug:219.138.41.132 - - [25/Sep/2025 13:52:34] code 400, message Bad request version ('7\x15×]æ¤ð\x00®\x13\x02\x13\x03\x13\x01\x00\x05\x00\x16\x003\x009\x005\x00')
+INFO:werkzeug:219.138.41.132 - - [25/Sep/2025 13:52:34] "[35m[1m\x16\x03\x01\x02\x00\x01\x00\x01ü\x03\x03t¯$\x0f¡Lp\x98ö10¸g\x87\x06(«þõØ\x83ÍA­\x0b×\x1b\x91e¾¦\x83 è4CÚ½.\x18A¾&\x13­4Í£sjxXêê\x0b.° 7\x15×]æ¤ð\x00®\x13\x02\x13\x03\x13\x01\x00\x05\x00\x16\x003\x009\x005\x00[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:3.131.215.38 - - [25/Sep/2025 14:08:32] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:3.131.215.38 - - [25/Sep/2025 14:09:41] "GET / HTTP/1.1" 200 -
+ERROR:werkzeug:3.131.215.38 - - [25/Sep/2025 14:11:11] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.131.215.38 - - [25/Sep/2025 14:11:11] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x031ö¬Mi\x0bÿ\x1e\x14Ö\x01¹Ó\x02ú\x1e=qä8ÂâO\x08k±ÏaCÚHW\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.131.215.38 - - [25/Sep/2025 14:13:00] code 400, message Bad request syntax ('SSH-2.0-Go')
+INFO:werkzeug:3.131.215.38 - - [25/Sep/2025 14:13:00] "[35m[1mSSH-2.0-Go[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:3.131.215.38 - - [25/Sep/2025 14:14:36] code 400, message Bad request version ('À\x14À')
+INFO:werkzeug:3.131.215.38 - - [25/Sep/2025 14:14:36] "[35m[1m\x16\x03\x01\x00{\x01\x00\x00w\x03\x03\x8f\x92^y_Æ\x94ô\x9bT¶Ã@\x7fh\x9fz¢\x83\x1dÏ¢\x90\x83\x10ÂäK9¶Éz\x00\x00\x1aÀ/À+À\x11À\x07À\x13À\x09À\x14À[0m" HTTPStatus.BAD_REQUEST -
+ERROR:werkzeug:45.140.17.52 - - [25/Sep/2025 15:42:47] code 400, message Bad HTTP/0.9 request type ('\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie:')
+INFO:werkzeug:45.140.17.52 - - [25/Sep/2025 15:42:47] "[35m[1m\x03\x00\x00/*à\x00\x00\x00\x00\x00Cookie: mstshash=Administr[0m" HTTPStatus.BAD_REQUEST -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:12:28] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:12:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:13:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:13:20] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:13:26] "[33mGET /docs HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:13:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:14:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:14:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:15:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:15:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:16:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:16:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:17:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:17:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:18:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:18:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:19:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:19:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:20:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:20:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:21:09] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:21:16] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:21:16] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:21:46] "[33mGET /health HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:21:51] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:22:10] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:22:40] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:22:48] "[33mPOST /api/get_intro_animation_types HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:23:08] "GET /get_intro_animation_types HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:23:10] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:23:39] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:23:46] "[33mPOST /api/get_intro_animation_types HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:24:09] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:24:39] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:24:56] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:25:05] "[31m[1mPOST /get_intro_animation_types HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:25:12] "GET /get_intro_animation_types HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:25:26] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:25:36] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:25:50] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:07] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:16] "GET /get_intro_animation_types HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:33] "[33mPOST /api/draft/create HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:37] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:41] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:26:55] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:27:05] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:27:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:27:32] "POST /create_draft HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:27:40] "GET /get_font_types HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:27:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:28:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:28:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:29:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:29:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:30:22] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:30:53] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:31:23] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:31:53] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:32:23] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:32:53] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [25/Sep/2025 16:33:23] "GET / HTTP/1.1" 200 -

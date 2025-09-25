@@ -21,13 +21,13 @@ mcp_services:
     health_check:
       interval: 30
       timeout: 5
-      endpoint: "/health"
+      endpoint: "/"
 
 # HTTP服务配置  
 http_services:
   capcut_plugin:
     name: "CapCut HTTP Plugin"
-    url: "http://localhost:9001"
+    url: "http://localhost:9000"
     timeout: 30
     retry_count: 3
     priority: 2
@@ -35,10 +35,11 @@ http_services:
     health_check:
       interval: 30
       timeout: 5
-      endpoint: "/health"
+      endpoint: "/"
     
     # HTTP端点映射
     endpoint_mapping:
+      get_intro_animation_types: "/get_intro_animation_types"
       capcut_create_draft: "/api/draft/create"
       capcut_upload_video: "/api/video/upload"
       capcut_generate_subtitle: "/api/subtitle/generate"
