@@ -48,13 +48,6 @@ from pyJianYingDraft.metadata.animation_meta import Text_intro, Text_outro, Text
 from pyJianYingDraft.metadata.capcut_text_animation_meta import CapCut_Text_intro, CapCut_Text_outro, CapCut_Text_loop_anim
 from pyJianYingDraft.metadata.video_effect_meta import Video_scene_effect_type, Video_character_effect_type
 from pyJianYingDraft.metadata.capcut_effect_meta import CapCut_Video_scene_effect_type, CapCut_Video_character_effect_type
-import random
-import uuid
-import json
-import codecs
-import time
-import sqlite3
-import html
 from add_audio_track import add_audio_track
 from add_video_track import add_video_track
 from add_text_impl import add_text_impl
@@ -68,7 +61,6 @@ from add_sticker_impl import add_sticker_impl
 from create_draft import create_draft, get_or_create_draft
 from util import generate_draft_url as utilgenerate_draft_url, hex_to_rgb, normalize_path_by_os
 from pyJianYingDraft.text_segment import TextStyleRange, Text_style, Text_border
-from urllib.parse import quote
 
 from settings.local import IS_CAPCUT_ENV, DRAFT_DOMAIN, PREVIEW_ROUTER, PORT, IS_UPLOAD_DRAFT
 from oss import get_signed_draft_url_if_exists
@@ -3058,8 +3050,6 @@ def long_poll_draft_status():
 
 # 操作系统检测API
 @app.route('/api/os/info', methods=['GET'])
-# 操作系统检测API
-@app.route('/api/os/info', methods=['GET'])
 def get_os_info():
     """获取操作系统信息和默认路径配置"""
     try:
@@ -3077,8 +3067,6 @@ def get_os_info():
         }), 500
 
 # 草稿路径配置API
-# 全局变量存储路径配置
-custom_download_path = ''
 
 @app.route('/api/draft/path/config', methods=['GET', 'POST'])
 def draft_path_config():
@@ -3146,32 +3134,7 @@ def draft_path_config():
                 'error': str(e)
             }), 500
 
-@app.route('/api/draft/path/config', methods=['GET'])
-def get_draft_path_config():
-    """获取当前草稿路径配置"""
-    global custom_download_path
-    try:
-        # 如果全局变量为空，尝试从文件加载
-        if not custom_download_path:
-            try:
-                config_file = 'path_config.json'
-                if os.path.exists(config_file):
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                        custom_download_path = config.get('custom_download_path', '')
-            except Exception as e:
-                print(f"加载配置文件失败: {e}")
-        
-        return jsonify({
-            'success': True,
-            'custom_path': custom_download_path or '',
-            'message': '获取配置成功'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+
 
 # 草稿下载进度API
 @app.route('/api/draft/download/progress/<task_id>', methods=['GET'])
@@ -3255,7 +3218,7 @@ def draft_download_api():
                     print(f"生成自定义下载链接失败: {custom_error}")
                 
                 # 降级方案：下载到服务器（不推荐，但作为后备）
-                download_result = download_draft_to_custom_path(draft_id, draft_folder, materials)
+                download_result = _download_draft_to_custom_path_impl(draft_id, draft_folder, materials)
                 if download_result['success']:
                     return jsonify({
                         'success': True,
@@ -3313,8 +3276,8 @@ def draft_download_api():
             'error': str(e)
         }), 500
 
-def download_draft_to_custom_path(draft_id, custom_path, materials):
-    """将草稿文件下载到自定义路径"""
+def _download_draft_to_custom_path_impl(draft_id, custom_path, materials):
+    """将草稿文件下载到自定义路径的内部实现"""
     import logging
     logger = logging.getLogger(__name__)
     
