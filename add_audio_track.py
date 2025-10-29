@@ -60,10 +60,11 @@ def add_audio_track(
     # If duration parameter is provided, prioritize it; otherwise use default audio duration of 0 seconds, real duration will be obtained during download
     if duration is not None:
         # Use the provided duration, skip duration retrieval and checking
-        audio_duration = duration
+        # 🔧 修复：duration参数是秒，需要转换为微秒 (Audio_material期望微秒)
+        audio_duration = int(duration * 1000000)  # 秒 → 微秒
     else:
         # Use default audio duration of 0 seconds, real duration will be obtained when downloading the draft
-        audio_duration = 0.0  # Default audio duration is 0 seconds
+        audio_duration = 0  # Default audio duration is 0 microseconds
         # duration_result = get_video_duration(audio_url)  # Reuse video duration retrieval function
         # if not duration_result["success"]:
         #     print(f"Failed to get audio duration: {duration_result['error']}")

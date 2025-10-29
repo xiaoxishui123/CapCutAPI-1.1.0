@@ -1171,16 +1171,56 @@ def mirror_to_oss():
         r = requests.get(src_url, timeout=20, stream=True)
         r.raise_for_status()
         content_type = r.headers.get('Content-Type', '')
-        ext = '.png'
-        if 'jpeg' in content_type or 'jpg' in content_type:
-            ext = '.jpg'
-        elif 'webp' in content_type:
-            ext = '.webp'
-        elif 'gif' in content_type:
-            ext = '.gif'
+        
+        # 🔧 修复：标准化 MIME 类型和扩展名映射
+        mime_to_ext = {
+            # 图片
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/gif': '.gif',
+            'image/webp': '.webp',
+            # 音频
+            'audio/mpeg': '.mp3',
+            'audio/mp3': '.mp3',  # 非标准但需支持
+            'audio/wav': '.wav',
+            'audio/ogg': '.ogg',
+            'audio/flac': '.flac',
+            'audio/mp4': '.m4a',
+        }
+        
+        # 优先使用映射表
+        ext = mime_to_ext.get(content_type.lower())
+        if not ext:
+            # 降级为关键词匹配
+            ct_lower = content_type.lower()
+            if 'jpeg' in ct_lower or 'jpg' in ct_lower:
+                ext = '.jpg'
+            elif 'png' in ct_lower:
+                ext = '.png'
+            elif 'webp' in ct_lower:
+                ext = '.webp'
+            elif 'gif' in ct_lower:
+                ext = '.gif'
+            elif 'mpeg' in ct_lower or 'mp3' in ct_lower:
+                ext = '.mp3'
+            elif 'wav' in ct_lower:
+                ext = '.wav'
+            else:
+                ext = '.bin'  # 默认
+        
+        # 标准化 Content-Type
+        if content_type.lower() == 'audio/mp3':
+            content_type = 'audio/mpeg'
+        
         object_name = f"{prefix}/{_uuid.uuid4().hex}{ext}" if prefix else f"{_uuid.uuid4().hex}{ext}"
         bucket = _ensure_bucket_v4()
-        bucket.put_object(object_name, r.raw)
+        
+        # 🔧 修复：上传时设置 Content-Type 头部
+        headers = {'Content-Type': content_type} if content_type else {}
+        logger.info(f"📦 镜像到OSS - 对象名: {object_name}, MIME: {content_type}")
+        
+        bucket.put_object(object_name, r.raw, headers=headers)
         signed = bucket.sign_url('GET', object_name, 24*60*60, slash_safe=True)
         return jsonify({"success": True, "oss_url": signed, "object": object_name})
     except Exception as e:
@@ -2263,7 +2303,7 @@ def get_video_character_effect_types():
 def upload_to_oss_route():
     """Upload binary content to OSS and return signed url.
     Accepts:
-    - multipart/form-data: file=<binary>, prefix
+    - multipart/form-data: file=<binary>, prefix, content_type (optional)
     - application/json: {"filename":"a.png","data_base64":"...","prefix":"capcut/images"}
     Return: {success, oss_url, object}
     """
@@ -2271,13 +2311,18 @@ def upload_to_oss_route():
         prefix = (request.form.get('prefix') or request.args.get('prefix') or 'capcut').strip().strip('/')
         data = None
         filename = None
+        content_type = None
+        
         if 'file' in request.files:
             f = request.files['file']
             data = f.read()
             filename = f.filename or 'upload.bin'
+            # 获取 Content-Type（优先使用表单字段，其次使用文件对象）
+            content_type = request.form.get('content_type') or f.content_type
         else:
             js = request.get_json(silent=True) or {}
             filename = js.get('filename') or 'upload.bin'
+            content_type = js.get('content_type')
             b64 = js.get('data_base64') or ''
             if b64:
                 import base64
@@ -2285,25 +2330,56 @@ def upload_to_oss_route():
                     data = base64.b64decode(b64)
                 except Exception:
                     return jsonify({"success": False, "error": "invalid base64"}), 400
+        
         if not data:
             return jsonify({"success": False, "error": "no file provided"}), 400
-        # guess extension
+        
+        # 🔧 修复：智能推断扩展名和 MIME 类型
         ext = '.bin'
         lower = (filename or '').lower()
-        if lower.endswith('.png'):
-            ext = '.png'
-        elif lower.endswith('.jpg') or lower.endswith('.jpeg'):
-            ext = '.jpg'
-        elif lower.endswith('.webp'):
-            ext = '.webp'
-        elif lower.endswith('.gif'):
-            ext = '.gif'
+        
+        # 扩展名到 MIME 类型映射
+        ext_to_mime = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.mp3': 'audio/mpeg',
+            '.wav': 'audio/wav',
+            '.ogg': 'audio/ogg',
+            '.m4a': 'audio/mp4',
+            '.flac': 'audio/flac',
+        }
+        
+        # 从文件名推断扩展名
+        for file_ext, mime in ext_to_mime.items():
+            if lower.endswith(file_ext):
+                ext = file_ext
+                if not content_type:  # 如果没有提供 Content-Type，使用映射
+                    content_type = mime
+                break
+        
+        # 标准化 Content-Type
+        if content_type and content_type.lower() == 'audio/mp3':
+            content_type = 'audio/mpeg'
+        
+        # 如果还没有 Content-Type，设置默认值
+        if not content_type:
+            content_type = 'application/octet-stream'
+        
         object_name = f"{prefix}/{_uuid.uuid4().hex}{ext}" if prefix else f"{_uuid.uuid4().hex}{ext}"
         bucket = _ensure_bucket_v4()
-        bucket.put_object(object_name, data)
+        
+        # 🔧 修复：上传时设置 Content-Type 头部
+        headers = {'Content-Type': content_type}
+        logger.info(f"📦 上传到OSS - 文件名: {filename}, 对象名: {object_name}, MIME: {content_type}")
+        
+        bucket.put_object(object_name, data, headers=headers)
         signed = bucket.sign_url('GET', object_name, 24*60*60, slash_safe=True)
         return jsonify({"success": True, "oss_url": signed, "object": object_name})
     except Exception as e:
+        logger.error(f"上传到OSS失败: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # 草稿管理相关路由

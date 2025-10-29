@@ -76,12 +76,13 @@ def download_image(image_url, draft_name, material_name):
     except subprocess.CalledProcessError as e:
         raise Exception(f"Failed to download image: {e.stderr.decode('utf-8')}")
 
-def download_audio(audio_url, draft_name, material_name):
+def download_audio(audio_url, draft_name, material_name, max_retries=3):
     """
-    Download audio and transcode to MP3 format to specified directory
-    :param audio_url: Audio URL
+    Download audio using requests (more reliable than ffmpeg for remote URLs)
+    :param audio_url: Audio URL  
     :param draft_name: Draft name
     :param material_name: Material name
+    :param max_retries: Maximum retry attempts
     :return: Local audio path
     """
     # Ensure directory exists
@@ -91,25 +92,67 @@ def download_audio(audio_url, draft_name, material_name):
     # Generate local filename (keep .mp3 extension)
     local_path = f"{audio_dir}/{material_name}"
     
-    # Check if file already exists
-    if os.path.exists(local_path):
+    # Check if file already exists and is not empty
+    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
         print(f"Audio file already exists: {local_path}")
         return local_path
     
-    try:
-        # Use ffmpeg to download and transcode to MP3 (key modification: specify MP3 encoder)
-        command = [
-            '/usr/bin/ffmpeg',
-            '-i', audio_url,          # Input URL
-            '-c:a', 'libmp3lame',     # Force encode audio stream to MP3
-            '-q:a', '2',              # Set audio quality (0-9, 0 is best, 2 balances quality and file size)
-            '-y',                     # Overwrite existing files (optional)
-            local_path                # Output path
-        ]
-        subprocess.run(command, check=True, capture_output=True, text=True)
-        return local_path
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to download audio:\n{e.stderr}")
+    # 🔧 修复：使用requests替代ffmpeg，更稳定可靠
+    import requests
+    import time
+    
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            print(f"Downloading audio (attempt {attempt+1}/{max_retries}): {audio_url[:80]}...")
+            
+            # 使用requests下载，支持重定向和各种HTTP特性
+            response = requests.get(
+                audio_url, 
+                timeout=60,  # 60秒超时
+                stream=True,  # 流式下载，节省内存
+                allow_redirects=True,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            )
+            response.raise_for_status()  # 检查HTTP错误
+            
+            # 写入文件
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            # 验证文件已下载且不为空
+            if not os.path.exists(local_path):
+                raise Exception(f"File was not created: {local_path}")
+            
+            file_size = os.path.getsize(local_path)
+            if file_size == 0:
+                raise Exception(f"Downloaded file is empty: {local_path}")
+            
+            print(f"✅ Audio downloaded successfully: {material_name} ({file_size} bytes)")
+            return local_path
+            
+        except requests.Timeout:
+            last_error = f"Download timeout after 60 seconds"
+            print(f"⚠️  {last_error}")
+        except requests.RequestException as e:
+            last_error = f"HTTP error: {str(e)}"
+            print(f"⚠️  {last_error}")
+        except Exception as e:
+            last_error = f"Download error: {str(e)}"
+            print(f"⚠️  {last_error}")
+        
+        # 重试前等待（指数退避）
+        if attempt < max_retries - 1:
+            wait_time = 2 ** attempt  # 1s, 2s, 4s...
+            print(f"Retrying in {wait_time} seconds...")
+            time.sleep(wait_time)
+    
+    # 所有重试都失败
+    raise Exception(f"Failed to download audio after {max_retries} attempts: {last_error}")
 
 def download_file(url:str, local_filename, max_retries=3, timeout=180):
     # 检查是否是本地文件路径
