@@ -1554,79 +1554,6 @@
         }
         
         /**
-         * 自定义路径下载功能
-         * 通过后端API下载到自定义客户端路径
-         * @param {string} draftId - 草稿ID
-         */
-        async function customPathDownload(draftId) {
-            const downloadBtn = document.querySelector('.download-btn');
-            
-            try {
-                // 更新按钮状态
-                if (downloadBtn) {
-                    downloadBtn.innerHTML = '📦 准备下载...';
-                    downloadBtn.disabled = true;
-                }
-                
-                console.log('开始自定义路径下载草稿:', draftId);
-                
-                // 检测客户端操作系统
-                const clientOS = detectClientOS();
-                
-                // 调用后端API进行自定义路径下载
-                const response = await fetch(`/api/drafts/download/custom/${draftId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        use_custom_path: true,
-                        client_os: clientOS
-                    })
-                });
-                const contentType = response.headers.get('content-type');
-                
-                if (response.ok && contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-                    console.log('自定义下载API响应:', data);
-                    
-                    if (data.success) {
-                        // 更新按钮状态为成功
-                        if (downloadBtn) {
-                            downloadBtn.innerHTML = '✅ 下载完成';
-                            setTimeout(() => {
-                                downloadBtn.innerHTML = '📦 自定义下载';
-                                downloadBtn.disabled = false;
-                            }, 2000);
-                        }
-                        
-                        alert(`文件已下载到: ${data.download_path || '自定义路径'}`);
-                        console.log('自定义路径下载完成:', data.download_path);
-                        return;
-                    } else {
-                        throw new Error(data.error || '自定义路径下载失败');
-                    }
-                } else {
-                    throw new Error('服务器响应格式错误');
-                }
-                
-            } catch (error) {
-                console.error('自定义路径下载失败:', error);
-                
-                // 恢复按钮状态
-                if (downloadBtn) {
-                    downloadBtn.innerHTML = '❌ 下载失败';
-                    downloadBtn.disabled = false;
-                    setTimeout(() => {
-                        downloadBtn.innerHTML = '📦 自定义下载';
-                    }, 2000);
-                }
-                
-                alert(`自定义路径下载失败: ${error.message}`);
-            }
-        }
-        
-        /**
          * 创建路径配置模态框
          * @param {string} currentPath - 当前路径
          * @returns {HTMLElement} 模态框元素
@@ -1695,13 +1622,17 @@
                 return;
             }
             
+            // 检测客户端操作系统
+            const clientOS = detectClientOS();
+            
             fetch('/api/draft/path/config', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    custom_path: newPath
+                    custom_path: newPath,
+                    client_os: clientOS
                 })
             })
             .then(response => response.json())
@@ -1854,23 +1785,36 @@
         }
         
         /**
-         * 自定义下载功能
+         * 自定义下载功能（带进度条）
          */
-        function startCustomDownload(draftId) {
-            // 先获取配置的路径
-            fetch('/api/draft/path/config', {
-                method: 'GET'
-            })
-            .then(response => response.json())
-            .then(pathData => {
+        async function startCustomDownload(draftId) {
+            try {
+                // 显示进度条
+                showProgressBar(true);
+                updateProgress(5, '正在获取路径配置...');
+                console.log('🎬 开始自定义下载:', draftId);
+                
+                // 先获取配置的路径
+                const pathResponse = await fetch('/api/draft/path/config', {
+                    method: 'GET'
+                });
+                const pathData = await pathResponse.json();
                 const customPath = pathData.success ? pathData.custom_path : '';
                 
                 if (!customPath) {
                     throw new Error('请先配置下载路径');
                 }
                 
+                updateProgress(15, '路径配置已加载...');
+                console.log('📁 自定义路径:', customPath);
+                
+                // 检测客户端操作系统
+                const clientOS = detectClientOS();
+                updateProgress(20, '正在生成自定义下载包...');
+                console.log('💻 客户端系统:', clientOS);
+                
                 // 调用自定义下载API
-                return fetch('/api/draft/download', {
+                const response = await fetch('/api/draft/download', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1878,32 +1822,114 @@
                     body: JSON.stringify({
                         draft_id: draftId,
                         use_custom_path: true,
-                        draft_folder: customPath
+                        draft_folder: customPath,
+                        client_os: clientOS
                     })
                 });
-            })
-            .then(response => response.json())
-            .then(data => {
+                
+                updateProgress(60, '正在处理自定义下载包...');
+                
+                const data = await response.json();
+                
                 if (data.success) {
+                    updateProgress(80, '下载包已准备就绪...');
+                    
                     // 检查是否有下载链接
                     if (data.download_url) {
-                        // 有下载链接，直接触发下载
-                        triggerFileDownload(data.download_url, draftId);
+                        updateProgress(90, '正在开始下载...');
+                        console.log('📥 下载URL:', data.download_url);
+                        console.log('🎯 目标路径:', data.custom_path);
+                        console.log('🖥️ 系统类型:', data.client_os);
+                        
+                        // 有下载链接，使用增强的下载方法
+                        await triggerCustomDownloadWithProgress(data.download_url, draftId, data);
+                        
                     } else if (data.download_path) {
                         // 文件已下载到服务器，显示提示
+                        updateProgress(100, '⚠️ 文件已保存到服务器');
+                        updateProgressButton('关闭', '#ffc107');
                         showServerDownloadInfo(data);
                     } else {
                         // 降级处理
+                        updateProgress(100, '✅ 处理完成');
+                        updateProgressButton('关闭', '#28a745');
                         console.log('处理完成，请检查下载');
+                        
+                        setTimeout(() => {
+                            closeProgressBar();
+                        }, 2000);
                     }
                 } else {
                     throw new Error(data.error || '下载失败');
                 }
-            })
-            .catch(error => {
-                console.error('下载失败:', error);
-                alert('下载失败: ' + error.message);
-            });
+            } catch (error) {
+                console.error('❌ 自定义下载失败:', error);
+                
+                // 显示错误状态
+                updateProgress(0, '❌ 下载失败: ' + error.message);
+                updateProgressButton('关闭', '#dc3545');
+            }
+        }
+        
+        /**
+         * 带进度提示的自定义下载触发
+         */
+        async function triggerCustomDownloadWithProgress(downloadUrl, draftId, data) {
+            try {
+                updateProgress(95, '正在下载文件到浏览器...');
+                
+                // 创建一个隐藏的下载链接
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `${draftId}.zip`;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                
+                // 触发下载
+                link.click();
+                
+                // 清理
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                }, 100);
+                
+                // 显示成功信息
+                updateProgress(100, '✅ 下载完成！');
+                
+                // 显示详细说明
+                const statusTextElement = document.getElementById('downloadStatusText');
+                if (statusTextElement) {
+                    statusTextElement.innerHTML = `
+                        <div style="text-align: left; line-height: 1.8;">
+                            <strong>✅ 自定义下载完成</strong><br>
+                            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                                <strong style="color: #856404;">📋 重要提示（请按步骤操作）：</strong><br>
+                                <small style="color: #856404;">
+                                    1️⃣ 文件已下载到：<strong>浏览器默认下载文件夹</strong><br>
+                                    2️⃣ 请手动将ZIP解压到：<br>
+                                    <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; display: inline-block; margin: 5px 0;">${data.custom_path || '未指定'}</code><br>
+                                    3️⃣ 解压后在剪映中打开即可自动识别所有素材
+                                </small>
+                            </div>
+                            <small style="color: #666;">
+                                • 目标系统: ${data.client_os || 'unknown'}<br>
+                                • 下载文件: ${draftId}.zip<br>
+                                • 💡 提示：ZIP内部路径已自动配置为${data.client_os}格式
+                            </small>
+                        </div>
+                    `;
+                }
+                
+                updateProgressButton('关闭', '#28a745');
+                
+                console.log('✅ 自定义下载已触发');
+                console.log('📋 使用说明:', data.instructions);
+                
+            } catch (error) {
+                console.error('触发下载失败:', error);
+                updateProgress(0, '❌ 下载触发失败: ' + error.message);
+                updateProgressButton('关闭', '#dc3545');
+            }
         }
         
         /**

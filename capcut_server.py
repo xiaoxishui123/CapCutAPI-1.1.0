@@ -3194,17 +3194,31 @@ def draft_path_config():
         try:
             data = request.get_json()
             custom_path = data.get('custom_path', '')
+            client_os = data.get('client_os', 'unknown')
             
             # 路径验证逻辑
             if custom_path:
-                # 尝试创建目录（如果不存在）
-                try:
-                    os.makedirs(custom_path, exist_ok=True)
-                except Exception as e:
-                    return jsonify({
-                        'success': False,
-                        'error': f'无法创建或访问路径: {str(e)}'
-                    }), 400
+                # 检查是否为跨平台路径（例如：在Linux服务器上配置Windows路径）
+                import re
+                is_cross_platform = False
+                
+                # 检测Windows路径特征（盘符开头，如 C:\, D:\, F:\）
+                if client_os == 'windows' and re.match(r'^[A-Za-z]:\\', custom_path):
+                    is_cross_platform = True
+                    print(f"检测到跨平台路径配置: Windows路径 '{custom_path}' 在 Linux 服务器上")
+                
+                # 如果不是跨平台路径，才进行物理验证
+                if not is_cross_platform:
+                    try:
+                        os.makedirs(custom_path, exist_ok=True)
+                    except Exception as e:
+                        return jsonify({
+                            'success': False,
+                            'error': f'无法创建或访问路径: {str(e)}'
+                        }), 400
+                else:
+                    # 跨平台路径只做格式验证，不进行物理验证
+                    print(f"跳过跨平台路径的物理验证: {custom_path}")
             
             # 保存配置到全局变量
             custom_download_path = custom_path
@@ -3290,10 +3304,16 @@ def draft_download_api():
                     custom_download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
                     if custom_download_url:
                         # 使用代理下载URL，这样可以控制文件名
-                        proxy_download_url = f"/api/draft/download/proxy/{draft_id}"
+                        # 添加必要的参数到URL，确保代理能正确处理
+                        from urllib.parse import urlencode
+                        params = urlencode({
+                            'client_os': client_os,
+                            'draft_folder': draft_folder
+                        })
+                        proxy_download_url = f"/api/draft/download/proxy/{draft_id}?{params}"
                         return jsonify({
                             'success': True,
-                            'message': f'已生成自定义下载链接，包含Windows路径配置',
+                            'message': f'已生成自定义下载链接，包含{client_os}路径配置',
                             'download_url': proxy_download_url,
                             'original_url': custom_download_url,
                             'client_os': client_os,
