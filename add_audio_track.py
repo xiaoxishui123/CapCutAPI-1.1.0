@@ -125,11 +125,16 @@ def add_audio_track(
             # macOS/Linux path processing
             draft_audio_path = os.path.join(draft_folder, draft_id, "assets", "audio", material_name)
     
-    # Set default value for audio end time
-    audio_end = end if end is not None else audio_duration
-    
-    # Calculate audio duration
-    duration = audio_end - start
+    # 🔧 修复：计算正确的 segment duration（时间轴上的持续时长，单位：秒）
+    if end is not None:
+        # 如果提供了 end 参数，使用 end - start
+        segment_duration = end - start
+    elif duration is not None:
+        # 如果提供了 duration 参数（工作流使用），直接使用
+        segment_duration = duration
+    else:
+        # 都没有提供，使用音频文件的总时长（从微秒转为秒）
+        segment_duration = audio_duration / 1000000.0 if audio_duration > 0 else 3.0
     
     # Create audio segment
     if draft_audio_path:
@@ -139,8 +144,8 @@ def add_audio_track(
         audio_material = draft.Audio_material(remote_url=audio_url, material_name=material_name, duration=audio_duration)
     audio_segment = draft.Audio_segment(
         audio_material,  # Pass material object
-        target_timerange=trange(f"{target_start}s", f"{duration}s"),  # Use target_start and duration
-        source_timerange=trange(f"{start}s", f"{duration}s"),
+        target_timerange=trange(f"{target_start}s", f"{segment_duration}s"),  # Use target_start and segment_duration
+        source_timerange=trange(f"{start}s", f"{segment_duration}s"),
         speed=speed,  # Set playback speed
         volume=volume  # Set volume
     )

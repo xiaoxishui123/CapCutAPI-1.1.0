@@ -106,14 +106,17 @@ def download_audio(audio_url, draft_name, material_name, max_retries=3):
         try:
             print(f"Downloading audio (attempt {attempt+1}/{max_retries}): {audio_url[:80]}...")
             
-            # 使用requests下载，支持重定向和各种HTTP特性
+            # 🔧 改进：使用requests下载，支持重定向和各种HTTP特性，增强请求头
             response = requests.get(
                 audio_url, 
                 timeout=60,  # 60秒超时
                 stream=True,  # 流式下载，节省内存
                 allow_redirects=True,
                 headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                    'Accept': '*/*',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Accept-Encoding': 'identity'  # 避免压缩，直接下载原始音频
                 }
             )
             response.raise_for_status()  # 检查HTTP错误

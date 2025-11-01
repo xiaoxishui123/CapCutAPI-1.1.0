@@ -881,7 +881,16 @@ def add_image():
     width = data.get('width', 1080)
     height = data.get('height', 1920)
     start = data.get('start', 0)
-    end = data.get('end', 3.0)  # Default display 3 seconds
+    
+    # 🔧 修复：支持 duration 参数（工作流使用）或 end 参数（直接调用）
+    duration = data.get('duration')
+    if duration is not None:
+        # 如果传递了 duration，计算 end = start + duration
+        end = start + duration
+    else:
+        # 否则使用 end 参数（向后兼容）
+        end = data.get('end', start + 3.0)  # 默认持续3秒
+    
     draft_id = data.get('draft_id')
     transform_y = data.get('transform_y', 0)
     scale_x = data.get('scale_x', 1)
@@ -2854,10 +2863,19 @@ def download_draft_proxy(draft_id):
                     if chunk:
                         yield chunk
             
-            # 设置响应头
+            # 设置响应头（增强版 - 防止浏览器阻止下载）
             response = Response(generate(), mimetype='application/zip')
             response.headers['Content-Disposition'] = f'attachment; filename="{encoded_filename}"'
             response.headers['Content-Type'] = 'application/zip'
+            
+            # 添加安全相关响应头，防止浏览器阻止下载
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['Content-Security-Policy'] = "default-src 'none'"
+            
+            # 允许跨域访问（如果需要）
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
             
             # 如果有内容长度，设置它
             if 'content-length' in file_response.headers:
@@ -3743,14 +3761,25 @@ def download_proxy(draft_id):
                         if chunk:
                             yield chunk
                 
-                return Response(
-                    generate(),
-                    headers={
-                        'Content-Type': 'application/zip',
-                        'Content-Disposition': f'attachment; filename="{filename}"',
-                        'Content-Length': response.headers.get('Content-Length', '')
-                    }
-                )
+                # 创建响应并添加安全相关响应头，防止浏览器阻止下载
+                flask_response = Response(generate())
+                flask_response.headers['Content-Type'] = 'application/zip'
+                flask_response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+                
+                # 添加安全相关响应头
+                flask_response.headers['X-Content-Type-Options'] = 'nosniff'
+                flask_response.headers['Content-Security-Policy'] = "default-src 'none'"
+                
+                # 允许跨域访问
+                flask_response.headers['Access-Control-Allow-Origin'] = '*'
+                flask_response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                flask_response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+                
+                # 设置内容长度
+                if response.headers.get('Content-Length'):
+                    flask_response.headers['Content-Length'] = response.headers.get('Content-Length')
+                
+                return flask_response
             else:
                 return "下载文件失败", 404
         else:

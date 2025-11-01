@@ -1226,81 +1226,330 @@
         }
         
         /**
-         * 直接浏览器下载功能
-         * 直接跳转到草稿链接，由浏览器下载到默认路径
+         * 检查草稿状态
+         * @param {string} draftId - 草稿ID
+         * @returns {Promise<Object>} 草稿状态信息
+         */
+        async function checkDraftStatus(draftId) {
+            try {
+                const response = await fetch('/query_draft_status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ task_id: draftId })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('无法查询草稿状态');
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('查询草稿状态失败:', error);
+                return { success: false, status: 'unknown' };
+            }
+        }
+
+        /**
+         * 显示下载进度条
+         * @param {boolean} show - 是否显示
+         */
+        function showProgressBar(show) {
+            let progressContainer = document.getElementById('downloadProgressContainer');
+            
+            if (!progressContainer && show) {
+                // 创建进度条容器
+                progressContainer = document.createElement('div');
+                progressContainer.id = 'downloadProgressContainer';
+                progressContainer.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    min-width: 400px;
+                    text-align: center;
+                `;
+                
+                progressContainer.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 15px;">📦</div>
+                    <div id="downloadStatusText" style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 20px;">准备下载...</div>
+                    <div style="background: #e9ecef; border-radius: 10px; overflow: hidden; height: 12px; margin-bottom: 15px;">
+                        <div id="downloadProgressBar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div id="downloadProgressText" style="font-size: 14px; color: #666; margin-bottom: 15px;">0%</div>
+                    <button id="progressActionButton" onclick="cancelDownload()" style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">取消下载</button>
+                `;
+                
+                document.body.appendChild(progressContainer);
+            }
+            
+            if (progressContainer) {
+                progressContainer.style.display = show ? 'block' : 'none';
+            }
+        }
+        
+        /**
+         * 更新进度条按钮状态
+         * @param {string} buttonText - 按钮文本
+         * @param {string} buttonColor - 按钮颜色
+         */
+        function updateProgressButton(buttonText, buttonColor) {
+            const button = document.getElementById('progressActionButton');
+            if (button) {
+                button.textContent = buttonText;
+                button.style.background = buttonColor;
+                button.onclick = closeProgressBar;
+            }
+        }
+        
+        /**
+         * 关闭进度条（用于手动关闭）
+         */
+        function closeProgressBar() {
+            showProgressBar(false);
+            const downloadBtn = document.querySelector('.btn.primary');
+            if (downloadBtn) {
+                downloadBtn.innerHTML = '📥 直接下载';
+                downloadBtn.disabled = false;
+            }
+        }
+
+        /**
+         * 更新进度条
+         * @param {number} percent - 进度百分比 (0-100)
+         * @param {string} statusText - 状态文本
+         */
+        function updateProgress(percent, statusText) {
+            const progressBar = document.getElementById('downloadProgressBar');
+            const progressText = document.getElementById('downloadProgressText');
+            const statusTextElement = document.getElementById('downloadStatusText');
+            
+            if (progressBar) {
+                progressBar.style.width = percent + '%';
+            }
+            if (progressText) {
+                progressText.textContent = Math.round(percent) + '%';
+            }
+            if (statusTextElement && statusText) {
+                statusTextElement.textContent = statusText;
+            }
+        }
+
+        // 全局变量用于取消下载
+        let downloadCancelled = false;
+        let pollInterval = null;
+
+        /**
+         * 取消下载
+         */
+        function cancelDownload() {
+            console.log('用户取消下载');
+            downloadCancelled = true;
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            closeProgressBar();
+        }
+
+        /**
+         * 直接浏览器下载功能（改进版-带状态检查和进度条）
          * @param {string} draftId - 草稿ID
          */
         async function directDownload(draftId) {
             const downloadBtn = document.querySelector('.btn.primary');
+            downloadCancelled = false;
             
             try {
                 // 更新按钮状态
                 if (downloadBtn) {
-                    downloadBtn.innerHTML = '📥 准备下载...';
+                    downloadBtn.innerHTML = '📥 检查状态...';
                     downloadBtn.disabled = true;
                 }
                 
-                console.log('开始直接下载草稿:', draftId);
+                console.log('🚀 开始下载流程，草稿ID:', draftId);
                 
-                // 调用后端API获取下载链接
+                // 步骤1：检查草稿状态
+                showProgressBar(true);
+                updateProgress(10, '正在检查草稿状态...');
+                
+                const statusData = await checkDraftStatus(draftId);
+                console.log('📊 草稿状态:', statusData);
+                
+                if (!statusData.success) {
+                    throw new Error('无法获取草稿状态');
+                }
+                
+                // 步骤2：如果草稿未准备好，等待完成
+                if (statusData.status === 'processing' || statusData.status === 'pending') {
+                    console.log('⏳ 草稿正在处理中，开始轮询状态...');
+                    updateProgress(20, '草稿正在处理中，请稍候...');
+                    
+                    // 轮询检查状态
+                    const maxAttempts = 60; // 最多等待60秒
+                    let attempts = 0;
+                    
+                    const waitForCompletion = async () => {
+                        while (attempts < maxAttempts && !downloadCancelled) {
+                            attempts++;
+                            const progress = 20 + (attempts / maxAttempts) * 60; // 20%-80%
+                            updateProgress(progress, `正在处理草稿... (${attempts}/${maxAttempts}秒)`);
+                            
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            
+                            const currentStatus = await checkDraftStatus(draftId);
+                            console.log(`📊 状态检查 #${attempts}:`, currentStatus.status);
+                            
+                            if (currentStatus.success && currentStatus.status === 'completed') {
+                                console.log('✅ 草稿处理完成！');
+                                return true;
+                            }
+                            
+                            if (currentStatus.status === 'failed') {
+                                throw new Error('草稿处理失败');
+                            }
+                        }
+                        
+                        if (attempts >= maxAttempts) {
+                            throw new Error('等待超时，请稍后重试');
+                        }
+                        
+                        return false;
+                    };
+                    
+                    const completed = await waitForCompletion();
+                    if (!completed && !downloadCancelled) {
+                        throw new Error('草稿未准备完成');
+                    }
+                }
+                
+                if (downloadCancelled) {
+                    return;
+                }
+                
+                // 步骤3：草稿已准备好，获取下载链接
+                updateProgress(85, '正在生成下载链接...');
+                console.log('📥 草稿已准备好，获取下载链接...');
+                
                 const response = await fetch(`/api/drafts/download/${draftId}`);
                 const contentType = response.headers.get('content-type');
                 
-                if (response.ok && contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-                    console.log('下载API响应:', data);
+                if (!response.ok || !contentType || !contentType.includes('application/json')) {
+                    throw new Error('无法获取下载链接');
+                }
+                
+                const data = await response.json();
+                console.log('📦 下载API响应:', data);
+                
+                if (!data.success || !data.download_url || data.download_url.length === 0) {
+                    throw new Error(data.error || '下载链接无效');
+                }
+                
+                // 步骤4：开始下载
+                updateProgress(85, '正在准备下载文件...');
+                console.log('🎯 开始下载文件...');
+                
+                const proxyUrl = `/api/drafts/download/proxy/${draftId}`;
+                
+                // 使用更可靠的下载方式
+                try {
+                    // 方式1：尝试直接下载（推荐）
+                    const downloadResponse = await fetch(proxyUrl);
                     
-                    if (data.success && data.download_url && data.download_url.length > 0) {
-                        // 使用更安全的下载方式，避免ERR_ABORTED错误
-                        // 使用代理端点下载，避免跨域问题
-                        const proxyUrl = `/api/drafts/download/proxy/${draftId}`;
-                        
-                        // 创建隐藏的a标签进行下载
-                        const link = document.createElement('a');
-                        link.href = proxyUrl;
-                        link.download = `draft_${draftId}.zip`; // 设置下载文件名
-                        link.style.display = 'none';
-                        document.body.appendChild(link);
-                        
-                        // 触发下载
-                        link.click();
-                        
-                        // 清理DOM
-                        setTimeout(() => {
-                            document.body.removeChild(link);
-                        }, 100);
-                        
-                        // 更新按钮状态为成功
-                        if (downloadBtn) {
-                            downloadBtn.innerHTML = '✅ 下载开始';
-                            setTimeout(() => {
-                                downloadBtn.innerHTML = '📥 直接下载';
-                                downloadBtn.disabled = false;
-                            }, 2000);
-                        }
-                        
-                        console.log('通过代理下载已开始:', proxyUrl);
-                        return;
-                    } else {
-                        throw new Error(data.error || '获取下载链接失败');
+                    if (!downloadResponse.ok) {
+                        throw new Error('下载请求失败');
                     }
-                } else {
-                    throw new Error('服务器响应格式错误');
+                    
+                    updateProgress(90, '正在下载文件...');
+                    
+                    // 获取文件数据
+                    const blob = await downloadResponse.blob();
+                    
+                    updateProgress(95, '正在保存文件...');
+                    
+                    // 创建下载链接
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = `draft_${draftId}.zip`;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    
+                    // 触发下载
+                    link.click();
+                    
+                    // 清理
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(blobUrl);
+                    }, 100);
+                    
+                    // 步骤5：下载完成
+                    updateProgress(100, '✅ 下载完成！请检查浏览器下载文件夹');
+                    console.log('✅ 下载已完成');
+                    
+                    // 改变按钮状态为"关闭"
+                    updateProgressButton('关闭', '#28a745');
+                    
+                    // 启用主下载按钮
+                    if (downloadBtn) {
+                        downloadBtn.disabled = false;
+                    }
+                    
+                } catch (fetchError) {
+                    console.warn('Fetch下载失败，尝试备用方案:', fetchError);
+                    
+                    // 方式2：备用方案 - 直接打开链接
+                    updateProgress(90, '正在尝试备用下载方式...');
+                    
+                    const link = document.createElement('a');
+                    link.href = proxyUrl;
+                    link.download = `draft_${draftId}.zip`;
+                    link.target = '_blank';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    
+                    link.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                    }, 100);
+                    
+                    updateProgress(100, '✅ 已触发下载，请检查浏览器下载');
+                    
+                    // 改变按钮状态为"关闭"
+                    updateProgressButton('关闭', '#28a745');
+                    
+                    // 启用主下载按钮
+                    if (downloadBtn) {
+                        downloadBtn.disabled = false;
+                    }
                 }
                 
             } catch (error) {
-                console.error('直接下载失败:', error);
+                console.error('❌ 下载失败:', error);
                 
-                // 恢复按钮状态
+                // 显示错误信息
+                updateProgress(0, '❌ 下载失败: ' + error.message);
+                
+                // 改变按钮状态为"关闭"（红色）
+                updateProgressButton('关闭', '#dc3545');
+                
+                // 恢复主下载按钮状态
                 if (downloadBtn) {
-                    downloadBtn.innerHTML = '❌ 下载失败';
+                    downloadBtn.innerHTML = '📥 直接下载';
                     downloadBtn.disabled = false;
-                    setTimeout(() => {
-                        downloadBtn.innerHTML = '📥 直接下载';
-                    }, 2000);
                 }
                 
-                alert(`直接下载失败: ${error.message}`);
+                // 不自动关闭，让用户看到错误信息
+                console.log('下载失败，进度条保持显示，等待用户手动关闭');
             }
         }
         

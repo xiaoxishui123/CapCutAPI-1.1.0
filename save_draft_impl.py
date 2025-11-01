@@ -119,10 +119,11 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
                 material.replace_path = build_asset_path(draft_folder, draft_id, asset_type, material.material_name)
                 local_path = os.path.join(draft_path, "assets", asset_type, material.material_name)
                 
-                # 对于音频文件，使用ffmpeg下载以确保格式正确
+                # 🔧 修复：音频使用专门的下载函数（支持重试和验证）
                 if asset_type == 'audio':
                     future = executor.submit(download_audio, remote_url, draft_path, material.material_name)
                 else:
+                    # 图片和视频都使用 download_file（更稳定，支持OSS签名URL）
                     future = executor.submit(download_file, remote_url, local_path)
                 future_to_material[future] = material
 
