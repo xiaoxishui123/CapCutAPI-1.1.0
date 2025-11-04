@@ -10,6 +10,9 @@ from util import normalize_path_by_os
 
 ASSET_DIRS = ("assets/audio/", "assets/image/", "assets/video/")
 
+# 版本号：修改路径重写逻辑后需要更新此版本号，以使OSS缓存失效
+REWRITE_VERSION = "v3_fold_path_fix"
+
 
 def _hash_str(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()[:12]
@@ -44,6 +47,28 @@ def _rewrite_paths_in_json(data, draft_id: str, client_os: str, draft_folder: st
         return data
 
 
+def _rewrite_meta_info(data, draft_id: str, client_os: str, draft_folder: str) -> dict:
+    """Rewrite draft_meta_info.json, specifically updating draft_root_path and draft_fold_path"""
+    if not isinstance(data, dict):
+        return data
+    
+    new_obj = {}
+    for k, v in data.items():
+        if k == "draft_root_path" and draft_folder:
+            # 重写 draft_root_path 为配置的根路径
+            new_obj[k] = normalize_path_by_os(draft_folder, client_os)
+        elif k == "draft_fold_path" and draft_folder:
+            # 重写 draft_fold_path 为完整的草稿路径（根路径 + 草稿ID）
+            base = draft_folder.rstrip("/\\")
+            full_path = f"{base}/{draft_id}"
+            new_obj[k] = normalize_path_by_os(full_path, client_os)
+        else:
+            # 其他字段保持不变
+            new_obj[k] = v
+    
+    return new_obj
+
+
 def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> Tuple[str, bool]:
     """
     Ensure an OSS object exists for the customized zip.
@@ -51,7 +76,8 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
     """
     bucket = _ensure_bucket()
     base_key = f"{draft_id}.zip"
-    key_suffix = _hash_str(f"{client_os}|{draft_folder}") if draft_folder else client_os
+    # 在key中加入版本号，当修改重写逻辑后更新版本号可使旧缓存失效
+    key_suffix = _hash_str(f"{REWRITE_VERSION}|{client_os}|{draft_folder}") if draft_folder else client_os
     custom_key = f"{draft_id}__{client_os}__{key_suffix}.zip"
 
     # If already exists, return directly
@@ -69,13 +95,17 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
             # stream download via SDK
             obj = bucket.get_object(base_key)
             f.write(obj.read())
-        # Read, modify draft_info.json, write new zip
+        # Read, modify draft_info.json and draft_meta_info.json, write new zip
         custom_zip_path = os.path.join(td, custom_key)
         with zipfile.ZipFile(base_zip_path, "r") as zin, zipfile.ZipFile(custom_zip_path, "w", zipfile.ZIP_DEFLATED) as zout:
-            found = False
+            found_draft_info = False
+            found_meta_info = False
+            
             for item in zin.infolist():
-                if item.filename.replace("\\", "/").lower() == "draft_info.json":
-                    # rewrite
+                filename_lower = item.filename.replace("\\", "/").lower()
+                
+                if filename_lower == "draft_info.json":
+                    # 重写 draft_info.json 中的素材路径
                     raw = zin.read(item)
                     try:
                         info = json.loads(raw.decode("utf-8"))
@@ -91,12 +121,37 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
                     zi.date_time = item.date_time
                     zi.compress_type = zipfile.ZIP_DEFLATED
                     zout.writestr(zi, data)
-                    found = True
+                    found_draft_info = True
+                
+                elif filename_lower == "draft_meta_info.json":
+                    # 重写 draft_meta_info.json 中的 draft_root_path
+                    raw = zin.read(item)
+                    try:
+                        meta_info = json.loads(raw.decode("utf-8"))
+                    except Exception:
+                        # pass through unmodified if parsing fails
+                        meta_info = None
+                    if meta_info is not None and draft_folder:
+                        meta_info2 = _rewrite_meta_info(meta_info, draft_id, client_os, draft_folder)
+                        data = json.dumps(meta_info2, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                    else:
+                        data = raw
+                    zi = zipfile.ZipInfo(item.filename)
+                    zi.date_time = item.date_time
+                    zi.compress_type = zipfile.ZIP_DEFLATED
+                    zout.writestr(zi, data)
+                    found_meta_info = True
+                
                 else:
                     # copy other entries
                     data = zin.read(item)
                     zout.writestr(item, data)
-            # If draft_info.json missing, still proceed without change
+            
+            # Log if files are missing (for debugging)
+            if not found_draft_info:
+                print(f"Warning: draft_info.json not found in {draft_id}.zip")
+            if not found_meta_info:
+                print(f"Warning: draft_meta_info.json not found in {draft_id}.zip")
         # Upload new zip
         bucket.put_object_from_file(custom_key, custom_zip_path)
 

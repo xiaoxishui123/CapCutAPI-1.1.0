@@ -10,7 +10,7 @@ def init_db():
             status TEXT DEFAULT 'initialized',
             progress INTEGER DEFAULT 0,
             message TEXT,
-            script_data TEXT,
+            script_data BLOB,
             width INTEGER DEFAULT 1920,
             height INTEGER DEFAULT 1080,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

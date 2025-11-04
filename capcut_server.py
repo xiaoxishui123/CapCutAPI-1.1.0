@@ -4217,7 +4217,7 @@ def render_template_with_official_style(draft_id, materials, total_duration, dra
                              materials=materials,
                              total_duration=total_duration,
                              draft_info=draft_info,
-                             timeline_html=generate_timeline_html_for_template(materials, total_duration))
+                             timeline_html=generate_timeline_html_for_template(materials, total_duration, draft_id))
     except Exception as e:
         print(f"模板渲染失败: {e}")
         # 如果模板不存在，返回简单的HTML
@@ -4248,8 +4248,29 @@ def render_template_with_official_style(draft_id, materials, total_duration, dra
         </html>
         """
 
-def generate_timeline_html_for_template(materials, total_duration):
+def generate_timeline_html_for_template(materials, total_duration, draft_id=None):
     """生成适用于官方模板的时间轴HTML - 按类型分层显示（官方模式）"""
+    
+    # 【增强】text类型素材也作为字幕显示
+    # 在materials中，type为text的素材实际上是文本/字幕
+    print(f"\n=== 处理素材，查找字幕 ===")
+    print(f"原始素材数量: {len(materials)}")
+    
+    text_materials_count = 0
+    for material in materials:
+        mat_type = material.get('type', 'unknown')
+        if mat_type == 'text':
+            # text类型实际上是字幕/文本，标记为subtitle以便正确显示
+            material['original_type'] = 'text'
+            material['type'] = 'subtitle'  # 改为subtitle类型在时间轴上显示
+            content = material.get('content', '字幕')
+            start = material.get('start', 0)
+            print(f"  ✓ 发现文本素材(作为字幕): {content[:30]}... start={start}s")
+            text_materials_count += 1
+    
+    print(f"文本/字幕素材数量: {text_materials_count}")
+    print(f"处理后素材总数: {len(materials)}")
+    
     if not materials:
         return '<div class="empty-timeline">暂无素材数据</div>'
     
@@ -4306,6 +4327,36 @@ def generate_timeline_html_for_template(materials, total_duration):
         
         return type_mapping.get(material_type, 'unknown')
     
+    # 【智能处理】修正音频素材的start时间
+    # 如果同track_name的音频start都是0，自动计算累加时间
+    audio_materials = [m for m in materials if normalize_material_type(m.get('type', 'unknown')) == 'audio']
+    
+    # 按track_name分组音频
+    audio_by_track = {}
+    for audio in audio_materials:
+        track_name = audio.get('track_name', 'audio')
+        if track_name not in audio_by_track:
+            audio_by_track[track_name] = []
+        audio_by_track[track_name].append(audio)
+    
+    # 对audio_voice类型的音频，如果start都是0，自动累加时间
+    for track_name, track_audios in audio_by_track.items():
+        if track_name == 'audio_voice' and len(track_audios) > 1:
+            # 检查是否所有音频start都是0
+            all_start_zero = all(float(a.get('start', 0)) == 0 for a in track_audios)
+            if all_start_zero:
+                print(f"🔧 检测到{len(track_audios)}个语音音频start都是0，自动计算时间顺序...")
+                # 按added_at排序（保持添加顺序）
+                track_audios.sort(key=lambda x: x.get('added_at', ''))
+                # 累加计算start时间
+                cumulative_time = 0
+                for audio in track_audios:
+                    audio['start'] = cumulative_time
+                    duration = float(audio.get('duration', 0))
+                    audio['end'] = cumulative_time + duration
+                    cumulative_time += duration
+                    print(f"  ✓ 音频 start={audio['start']:.2f}s, duration={duration:.2f}s")
+    
     # 按类型分组素材
     materials_by_type = {}
     for material in materials:
@@ -4321,7 +4372,63 @@ def generate_timeline_html_for_template(materials, total_duration):
     for material_type in materials_by_type:
         materials_by_type[material_type].sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
     
-    # 生成多轨道HTML（官方风格）- 按类型分层
+    # 调试日志：打印素材分组情况
+    print(f"\n===== 时间轴生成调试信息 =====")
+    print(f"总素材数量: {len(materials)}")
+    print(f"总时长: {total_duration}秒")
+    for mat_type, mats in materials_by_type.items():
+        print(f"\n【{mat_type}】类型素材: {len(mats)}个")
+        for i, m in enumerate(mats):
+            start = m.get('start', m.get('start_time', 0))
+            duration = m.get('duration', m.get('length', '未知'))
+            name = m.get('name', m.get('filename', f'{mat_type}_{i+1}'))
+            print(f"  {i+1}. {name} - 开始:{start}s, 时长:{duration}s")
+    print(f"================================\n")
+    
+    def assign_to_subtracks(materials_list):
+        """
+        将素材分配到不重叠的子轨道上（剪映逻辑）
+        - 素材已按时间排序
+        - 只检查轨道的最后一个素材，如果新素材在最后素材结束后开始，就放在同一轨道
+        - 这样时间连续的素材会自然地排列在同一轨道
+        """
+        if not materials_list:
+            return []
+        
+        subtracks = []  # 每个子轨道是一个素材列表
+        
+        for material in materials_list:
+            start = float(material.get('start', material.get('start_time', 0)) or 0)
+            duration = float(material.get('duration', material.get('length', 30)) or 30)
+            if duration <= 0:
+                duration = 30
+            end = start + duration
+            
+            # 尝试将素材放入已有的子轨道
+            placed = False
+            for subtrack in subtracks:
+                # 【剪映逻辑】只检查该轨道的最后一个素材
+                if subtrack:
+                    last_material = subtrack[-1]
+                    last_start = float(last_material.get('start', last_material.get('start_time', 0)) or 0)
+                    last_duration = float(last_material.get('duration', last_material.get('length', 30)) or 30)
+                    if last_duration <= 0:
+                        last_duration = 30
+                    last_end = last_start + last_duration
+                    
+                    # 如果新素材在最后素材结束后开始（或有一点容差），就放在同一轨道
+                    if start >= last_end - 0.01:  # 0.01秒容差
+                        subtrack.append(material)
+                        placed = True
+                        break
+            
+            # 如果没有合适的子轨道，创建新的子轨道
+            if not placed:
+                subtracks.append([material])
+        
+        return subtracks
+    
+    # 生成多轨道HTML（官方风格）- 按类型分层，支持子轨道
     timeline_html = []
     
     # 按官方顺序显示轨道（视频在上，音频在下）
@@ -4331,78 +4438,92 @@ def generate_timeline_html_for_template(materials, total_duration):
         type_materials = materials_by_type[material_type]
         track_info = track_types.get(material_type, track_types['unknown'])
         
-        # 轨道容器开始
-        timeline_html.append(f'''
-        <div class="timeline-track official-track" data-track-type="{material_type}">
+        # 将该类型的素材分配到子轨道
+        subtracks = assign_to_subtracks(type_materials)
+        
+        # 调试日志：打印子轨道分配情况
+        print(f"【{material_type}】类型分配到 {len(subtracks)} 个子轨道")
+        for idx, subtrack in enumerate(subtracks):
+            print(f"  子轨道 #{idx+1}: {len(subtrack)} 个素材")
+        
+        # 为每个子轨道生成HTML
+        for subtrack_idx, subtrack_materials in enumerate(subtracks):
+            # 轨道容器开始
+            subtrack_label = f"{track_info['label']}"
+            if len(subtracks) > 1:
+                subtrack_label += f" #{subtrack_idx + 1}"
+            
+            timeline_html.append(f'''
+        <div class="timeline-track official-track" data-track-type="{material_type}" data-subtrack="{subtrack_idx}">
             <div class="track-label official-label">
                 <span class="track-icon">{track_info['icon']}</span>
-                <span class="track-name">{track_info['label']}</span>
-                <span class="track-count">({len(type_materials)})</span>
+                <span class="track-name">{subtrack_label}</span>
+                <span class="track-count">({len(subtrack_materials)})</span>
             </div>
             <div class="track-items official-items">''')
-        
-        # 为该类型的所有素材生成时间块
-        for i, material in enumerate(type_materials):
-            # 获取时间信息，支持多种字段名
-            start = float(material.get('start', material.get('start_time', 0)) or 0)
-            duration = float(material.get('duration', material.get('length', 30)) or 30)
             
-            # 确保时长不为0
-            if duration <= 0:
-                duration = 30
-            
-            # 计算位置和宽度（百分比）
-            if total_duration > 0:
-                left_percent = (start / total_duration) * 100
-                width_percent = (duration / total_duration) * 100
-            else:
-                # 如果没有总时长，使用固定布局
-                left_percent = i * 25
-                width_percent = 20
-            
-            # 限制最小宽度和最大宽度
-            width_percent = max(3, min(width_percent, 100 - left_percent))
-            left_percent = max(0, min(left_percent, 97))
-            
-            # 生成素材名称
-            material_name = material.get('name', material.get('filename', material.get('title', f'{track_info["label"]}_{i+1}')))
-            if len(material_name) > 15:
-                display_name = material_name[:12] + '...'
-            else:
-                display_name = material_name
-            
-            # 将素材数据转换为JSON字符串，并进行HTML转义
-            try:
-                material_json = html.escape(json.dumps(material, ensure_ascii=False))
-            except Exception:
-                material_json = html.escape(json.dumps({'id': material.get('id', f'material_{i}'), 'type': material_type}, ensure_ascii=False))
-            
-            material_id = material.get('id', f'material_{material_type}_{i}')
-            
-            # 根据素材类型设置不同的样式和内容
-            block_color = track_info.get('color', '#9E9E9E')
-            
-            if material_type == 'video':
-                block_class = 'timeline-block official-block video-block'
-                block_content = f'<div class="material-icon">🎬</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'audio':
-                block_class = 'timeline-block official-block audio-block'
-                block_content = f'<div class="material-icon">🎵</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'image':
-                block_class = 'timeline-block official-block image-block'
-                block_content = f'<div class="material-icon">🖼️</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'text':
-                block_class = 'timeline-block official-block text-block'
-                block_content = f'<div class="material-icon">📝</div><span class="material-name">{display_name}</span>'
-            elif material_type == 'subtitle':
-                block_class = 'timeline-block official-block subtitle-block'
-                block_content = f'<div class="material-icon">💬</div><span class="material-name">{display_name}</span>'
-            else:
-                block_class = f'timeline-block official-block {material_type}-block'
-                block_content = f'<div class="material-icon">{track_info["icon"]}</div><span class="material-name">{display_name}</span>'
-            
-            # 生成时间块HTML
-            timeline_html.append(f'''
+            # 为该子轨道的所有素材生成时间块
+            for i, material in enumerate(subtrack_materials):
+                # 获取时间信息，支持多种字段名
+                start = float(material.get('start', material.get('start_time', 0)) or 0)
+                duration = float(material.get('duration', material.get('length', 30)) or 30)
+                
+                # 确保时长不为0
+                if duration <= 0:
+                    duration = 30
+                
+                # 计算位置和宽度（百分比）
+                if total_duration > 0:
+                    left_percent = (start / total_duration) * 100
+                    width_percent = (duration / total_duration) * 100
+                else:
+                    # 如果没有总时长，使用固定布局
+                    left_percent = i * 25
+                    width_percent = 20
+                
+                # 限制最小宽度和最大宽度
+                width_percent = max(3, min(width_percent, 100 - left_percent))
+                left_percent = max(0, min(left_percent, 97))
+                
+                # 生成素材名称
+                material_name = material.get('name', material.get('filename', material.get('title', f'{track_info["label"]}_{i+1}')))
+                if len(material_name) > 15:
+                    display_name = material_name[:12] + '...'
+                else:
+                    display_name = material_name
+                
+                # 将素材数据转换为JSON字符串，并进行HTML转义
+                try:
+                    material_json = html.escape(json.dumps(material, ensure_ascii=False))
+                except Exception:
+                    material_json = html.escape(json.dumps({'id': material.get('id', f'material_{i}'), 'type': material_type}, ensure_ascii=False))
+                
+                material_id = material.get('id', f'material_{material_type}_{subtrack_idx}_{i}')
+                
+                # 根据素材类型设置不同的样式和内容
+                block_color = track_info.get('color', '#9E9E9E')
+                
+                if material_type == 'video':
+                    block_class = 'timeline-block official-block video-block'
+                    block_content = f'<div class="material-icon">🎬</div><span class="material-name">{display_name}</span>'
+                elif material_type == 'audio':
+                    block_class = 'timeline-block official-block audio-block'
+                    block_content = f'<div class="material-icon">🎵</div><span class="material-name">{display_name}</span>'
+                elif material_type == 'image':
+                    block_class = 'timeline-block official-block image-block'
+                    block_content = f'<div class="material-icon">🖼️</div><span class="material-name">{display_name}</span>'
+                elif material_type == 'text':
+                    block_class = 'timeline-block official-block text-block'
+                    block_content = f'<div class="material-icon">📝</div><span class="material-name">{display_name}</span>'
+                elif material_type == 'subtitle':
+                    block_class = 'timeline-block official-block subtitle-block'
+                    block_content = f'<div class="material-icon">💬</div><span class="material-name">{display_name}</span>'
+                else:
+                    block_class = f'timeline-block official-block {material_type}-block'
+                    block_content = f'<div class="material-icon">{track_info["icon"]}</div><span class="material-name">{display_name}</span>'
+                
+                # 生成时间块HTML
+                timeline_html.append(f'''
                 <div class="{block_class}" 
                      style="left: {left_percent:.2f}%; width: {width_percent:.2f}%; background-color: {block_color}; border-left: 3px solid {block_color};"
                      onclick="onTimelineMaterialClick('{material_id}', this)"
@@ -4414,9 +4535,9 @@ def generate_timeline_html_for_template(materials, total_duration):
                     {block_content}
                     <div class="material-time">{start:.1f}s</div>
                 </div>''')
-        
-        # 轨道容器结束
-        timeline_html.append('</div></div>')
+            
+            # 子轨道容器结束
+            timeline_html.append('</div></div>')
     
     return ''.join(timeline_html)
 

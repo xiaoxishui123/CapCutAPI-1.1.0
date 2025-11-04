@@ -12,8 +12,8 @@
         }
         
         .section-title {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             margin-bottom: 12px;
             color: #333;
         }
@@ -57,7 +57,7 @@
         }
         
         .material-name-large {
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 600;
             color: #333;
             margin-bottom: 4px;
@@ -70,9 +70,10 @@
             color: white;
             padding: 4px 12px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .material-details-grid {
@@ -137,8 +138,9 @@
         }
         
         .header-title {
-            font-size: 20px;
-            font-weight: 600;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
         
         .header-actions {
@@ -154,6 +156,7 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
             transition: background 0.3s ease;
             text-decoration: none;
             display: inline-block;
@@ -244,19 +247,21 @@
         }
         
         .material-name {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             margin-bottom: 4px;
             word-break: break-all;
         }
         
         .material-type {
-            font-size: 12px;
+            font-size: 11px;
+            font-weight: 500;
             color: #666;
             background: #e9ecef;
             padding: 2px 6px;
             border-radius: 4px;
             display: inline-block;
+            text-transform: uppercase;
         }
         
         .timeline-section {
@@ -265,31 +270,11 @@
             background: #fafafa;
         }
         
-        .timeline-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .timeline-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        .timeline-btn:hover {
-            background: #5a6fd8;
-        }
-        
         .timeline-content {
             background: white;
             border-radius: 6px;
             padding: 15px;
-            height: calc(100% - 50px);
+            height: calc(100% - 20px);
             overflow-y: auto;
         }
         
@@ -348,13 +333,13 @@
         }
         
         .track-name {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             color: #fff;
         }
         
         .track-count {
-            font-size: 9px;
+            font-size: 10px;
             color: #aaa;
             font-weight: 400;
         }
@@ -592,8 +577,8 @@
         }
         
         .panel-header {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 18px;
+            font-weight: 700;
             margin-bottom: 20px;
             color: #333;
             border-bottom: 2px solid #f0f0f0;
@@ -609,7 +594,7 @@
         }
         
         .details-title {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             margin-bottom: 10px;
             color: #667eea;
@@ -619,16 +604,18 @@
             display: flex;
             justify-content: space-between;
             margin-bottom: 8px;
-            font-size: 13px;
         }
         
         .details-label {
             color: #666;
+            font-size: 14px;
             font-weight: 500;
         }
         
         .details-value {
             color: #333;
+            font-size: 14px;
+            font-weight: 400;
             text-align: right;
             max-width: 150px;
             word-break: break-all;
@@ -643,13 +630,17 @@
             background: #e3f2fd;
             border: 1px solid #bbdefb;
             border-radius: 6px;
-            padding: 10px;
+            padding: 10px 22px; /* 统一左右内边距 */
             margin-bottom: 15px;
             font-size: 12px;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box;
         }
         
         .path-label {
             color: #1976d2;
+            font-size: 14px;
             font-weight: 600;
             margin-bottom: 5px;
         }
@@ -658,24 +649,65 @@
             color: #333;
             font-family: 'Courier New', monospace;
             background: white;
-            padding: 5px 8px;
+            padding: 10px 12px;
             border-radius: 4px;
             border: 1px solid #e0e0e0;
             word-break: break-all;
-            font-size: 11px;
+            font-size: 12px;
+            width: 100% !important; /* 在网格列内自动填满80%列 */
+            box-sizing: border-box;
+            overflow-wrap: anywhere;
+            display: flex !important;
+            align-items: center;
+            height: 100% !important; /* 使div在网格行中等高 */
+        }
+        
+        /* 路径行与右侧下载按钮排版 */
+        .path-row {
+            display: grid !important;
+            grid-template-columns: 80% 20% !important;
+            column-gap: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            align-items: stretch !important; /* 拉伸子项以实现等高 */
+            box-sizing: border-box;
+        }
+
+        .path-download-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+            width: 100% !important; /* 在网格列内自动填满20%列 */
+            box-sizing: border-box;
+            display: block !important;
+            height: 100% !important; /* 使按钮在网格行中等高 */
+            text-align: center; /* 将按钮文字水平居中 */
+        }
+
+        .path-download-btn:hover {
+            background: #5a6fd8;
         }
         
         .download-btn {
-            width: 100%;
+            width: 100% !important;
             background: #667eea;
             color: white;
             border: none;
             padding: 12px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 15px;
+            font-weight: 600;
             margin-bottom: 10px;
             transition: background 0.3s ease;
+            display: block !important;
         }
         
         .download-btn:hover {
@@ -712,6 +744,7 @@
             text-align: center;
             color: #666;
             padding: 40px 20px;
+            font-size: 14px;
         }
         
         .empty-state .icon {
@@ -852,14 +885,14 @@
                     <!-- 当前路径显示 -->
                     <div class="current-path-display" id="currentPathDisplay">
                         <div class="path-label">📁 当前下载路径:</div>
-                        <div class="path-value" id="currentPathValue">默认路径</div>
+                        <div class="path-row">
+                            <div class="path-value" id="currentPathValue">默认路径</div>
+                            <button class="path-download-btn" onclick="configPath()">⚙️ 配置路径</button>
+                        </div>
                     </div>
                     
-                    <button class="download-btn" onclick="configPath()">
-                        ⚙️ 配置路径
-                    </button>
                     <button class="download-btn" onclick="startCustomDownload('{{ draft_id }}')">
-                        📥 自定义下载
+                        📥 下载草稿
                     </button>
                     <button class="download-btn" onclick="window.open('/download_guide', '_blank')" style="background: #28a745;">
                         📖 下载指南
@@ -872,12 +905,6 @@
         <div class="left-panel">
             <div class="timeline-section">
                 <div class="section-title">⏱️ 时间轴</div>
-                <div class="timeline-controls">
-                    <button class="timeline-btn">▶️ 播放</button>
-                    <button class="timeline-btn">⏸️ 暂停</button>
-                    <button class="timeline-btn">⏹️ 停止</button>
-                    <button class="timeline-btn">🔄 重置</button>
-                </div>
                 <div class="timeline-content">
                     <div class="timeline-tracks">
                         {{ timeline_html|safe }}
@@ -1316,7 +1343,6 @@
             showProgressBar(false);
             const downloadBtn = document.querySelector('.btn.primary');
             if (downloadBtn) {
-                downloadBtn.innerHTML = '📥 直接下载';
                 downloadBtn.disabled = false;
             }
         }
@@ -1368,9 +1394,8 @@
             downloadCancelled = false;
             
             try {
-                // 更新按钮状态
+                // 禁用按钮避免重复点击，但保持文本不变
                 if (downloadBtn) {
-                    downloadBtn.innerHTML = '📥 检查状态...';
                     downloadBtn.disabled = true;
                 }
                 
@@ -1498,7 +1523,7 @@
                     // 改变按钮状态为"关闭"
                     updateProgressButton('关闭', '#28a745');
                     
-                    // 启用主下载按钮
+                    // 恢复主下载按钮状态，保持原文本不变
                     if (downloadBtn) {
                         downloadBtn.disabled = false;
                     }
@@ -1527,7 +1552,7 @@
                     // 改变按钮状态为"关闭"
                     updateProgressButton('关闭', '#28a745');
                     
-                    // 启用主下载按钮
+                    // 恢复主下载按钮状态，保持原文本不变
                     if (downloadBtn) {
                         downloadBtn.disabled = false;
                     }
@@ -1542,9 +1567,8 @@
                 // 改变按钮状态为"关闭"（红色）
                 updateProgressButton('关闭', '#dc3545');
                 
-                // 恢复主下载按钮状态
+                // 恢复主下载按钮状态，保持原文本不变
                 if (downloadBtn) {
-                    downloadBtn.innerHTML = '📥 直接下载';
                     downloadBtn.disabled = false;
                 }
                 
@@ -1575,9 +1599,10 @@
             
             const content = document.createElement('div');
             content.style.cssText = `
-                background: white;
+                background: #e7f3ff;
                 padding: 20px;
                 border-radius: 8px;
+                border: 3px solid #667eea;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
                 max-width: 500px;
                 width: 90%;
@@ -1587,11 +1612,13 @@
                 <h3 style="margin-top: 0; color: #333;">配置下载路径</h3>
                 <p style="color: #666; margin: 10px 0;">请输入自定义下载路径:</p>
                 <input type="text" id="pathInput" value="${currentPath}" 
-                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;">
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; background: white;">
+                <!-- 消息提示区域 -->
+                <div id="pathConfigMessage" style="display: none; padding: 10px; border-radius: 4px; margin: 10px 0; font-size: 14px;"></div>
                 <div style="text-align: right; margin-top: 15px;">
-                    <button onclick="closePathModal()" 
+                    <button id="cancelButton" onclick="closePathModal()" 
                             style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer;">取消</button>
-                    <button onclick="savePathConfig()" 
+                    <button id="confirmButton" onclick="savePathConfig()" 
                             style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">确定</button>
                 </div>
             `;
@@ -1611,6 +1638,30 @@
         }
 
         /**
+         * 在模态框内显示消息
+         * @param {string} message - 消息内容
+         * @param {string} type - 消息类型：success, error, warning
+         */
+        function showModalMessage(message, type) {
+            const messageDiv = document.getElementById('pathConfigMessage');
+            if (!messageDiv) return;
+            
+            const colors = {
+                success: { bg: '#d4edda', border: '#c3e6cb', color: '#155724', icon: '✅' },
+                error: { bg: '#f8d7da', border: '#f5c6cb', color: '#721c24', icon: '❌' },
+                warning: { bg: '#fff3cd', border: '#ffeaa7', color: '#856404', icon: '⚠️' }
+            };
+            
+            const config = colors[type] || colors.warning;
+            
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = config.bg;
+            messageDiv.style.border = `1px solid ${config.border}`;
+            messageDiv.style.color = config.color;
+            messageDiv.innerHTML = `${config.icon} ${message}`;
+        }
+        
+        /**
          * 保存路径配置
          */
         function savePathConfig() {
@@ -1618,7 +1669,7 @@
             const newPath = pathInput ? pathInput.value.trim() : '';
             
             if (!newPath) {
-                alert('请输入有效的路径');
+                showModalMessage('请输入有效的路径', 'warning');
                 return;
             }
             
@@ -1638,16 +1689,36 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('路径配置成功!\n当前路径: ' + newPath);
-                    closePathModal();
+                    // 在模态框内显示成功消息
+                    showModalMessage('路径配置成功！', 'success');
+                    // 更新页面显示
                     updatePathDisplay(newPath);
+                    console.log('✅ 路径已更新为:', newPath);
+                    
+                    // 将"确定"按钮改为"关闭"按钮
+                    const confirmButton = document.getElementById('confirmButton');
+                    const cancelButton = document.getElementById('cancelButton');
+                    if (confirmButton) {
+                        confirmButton.textContent = '关闭';
+                        confirmButton.onclick = closePathModal;
+                        confirmButton.style.background = '#28a745';
+                    }
+                    // 隐藏"取消"按钮
+                    if (cancelButton) {
+                        cancelButton.style.display = 'none';
+                    }
+                    // 禁用输入框
+                    if (pathInput) {
+                        pathInput.disabled = true;
+                        pathInput.style.background = '#f5f5f5';
+                    }
                 } else {
-                    alert('路径配置失败: ' + data.error);
+                    showModalMessage('配置失败: ' + data.error, 'error');
                 }
             })
             .catch(error => {
                 console.error('配置路径失败:', error);
-                alert('配置路径失败: ' + error.message);
+                showModalMessage('配置失败: ' + error.message, 'error');
             });
         }
 
@@ -1680,97 +1751,89 @@
         }
         
         /**
-         * 创建路径配置模态框
+         * 显示Toast通知
+         * @param {string} message - 提示信息
+         * @param {string} type - 类型：success, error, warning, info
          */
-        function createPathConfigModal(currentPath) {
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                display: none;
-                justify-content: center;
-                align-items: center;
-                z-index: 10000;
-            `;
+        function showToast(message, type = 'info') {
+            // 移除已存在的toast
+            const existingToast = document.getElementById('customToast');
+            if (existingToast) {
+                existingToast.remove();
+            }
             
-            const content = document.createElement('div');
-            content.style.cssText = `
-                background: white;
-                padding: 20px;
+            // 根据类型设置颜色
+            const colors = {
+                success: { bg: '#28a745', icon: '✅' },
+                error: { bg: '#dc3545', icon: '❌' },
+                warning: { bg: '#ffc107', icon: '⚠️' },
+                info: { bg: '#17a2b8', icon: 'ℹ️' }
+            };
+            
+            const config = colors[type] || colors.info;
+            
+            // 创建Toast元素
+            const toast = document.createElement('div');
+            toast.id = 'customToast';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: ${config.bg};
+                color: white;
+                padding: 12px 24px;
                 border-radius: 8px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                max-width: 500px;
-                width: 90%;
+                z-index: 99999;
+                font-size: 14px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                animation: slideDown 0.3s ease-out;
             `;
             
-            content.innerHTML = `
-                <h3 style="margin-top: 0; color: #333;">配置下载路径</h3>
-                <p style="color: #666; margin: 10px 0;">请输入自定义下载路径:</p>
-                <input type="text" id="pathInput" value="${currentPath}" 
-                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0;">
-                <div style="text-align: right; margin-top: 15px;">
-                    <button onclick="closePathModal()" 
-                            style="padding: 8px 16px; margin-right: 10px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer;">取消</button>
-                    <button onclick="savePathConfig()" 
-                            style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer;">确定</button>
-                </div>
+            toast.innerHTML = `
+                <span style="font-size: 16px;">${config.icon}</span>
+                <span>${message}</span>
             `;
             
-            modal.appendChild(content);
-            return modal;
-        }
-        
-        /**
-         * 关闭路径配置模态框
-         */
-        function closePathModal() {
-            const modal = document.querySelector('div[style*="z-index: 10000"]');
-            if (modal) {
-                modal.remove();
-            }
-        }
-        
-        /**
-         * 保存路径配置
-         */
-        function savePathConfig() {
-            const pathInput = document.getElementById('pathInput');
-            const newPath = pathInput ? pathInput.value.trim() : '';
-            
-            if (!newPath) {
-                alert('请输入有效的路径');
-                return;
-            }
-            
-            // 更新路径配置
-            fetch('/api/draft/path/config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    custom_path: newPath
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('路径配置成功!\n当前路径: ' + newPath);
-                    // 更新页面显示的路径信息
-                    updatePathDisplay(newPath);
-                    closePathModal();
-                } else {
-                    alert('路径配置失败: ' + data.error);
+            // 添加动画
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('配置路径失败:', error);
-                alert('配置路径失败: ' + error.message);
-            });
+                @keyframes slideUp {
+                    from {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(toast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                toast.style.animation = 'slideUp 0.3s ease-out';
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
         }
         
         /**
@@ -1791,7 +1854,7 @@
             try {
                 // 显示进度条
                 showProgressBar(true);
-                updateProgress(5, '正在获取路径配置...');
+                updateProgress(10, '正在获取路径配置...');
                 console.log('🎬 开始自定义下载:', draftId);
                 
                 // 先获取配置的路径
@@ -1805,12 +1868,11 @@
                     throw new Error('请先配置下载路径');
                 }
                 
-                updateProgress(15, '路径配置已加载...');
+                updateProgress(30, '正在生成下载包...');
                 console.log('📁 自定义路径:', customPath);
                 
                 // 检测客户端操作系统
                 const clientOS = detectClientOS();
-                updateProgress(20, '正在生成自定义下载包...');
                 console.log('💻 客户端系统:', clientOS);
                 
                 // 调用自定义下载API
@@ -1827,16 +1889,15 @@
                     })
                 });
                 
-                updateProgress(60, '正在处理自定义下载包...');
+                updateProgress(70, '正在准备下载...');
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    updateProgress(80, '下载包已准备就绪...');
+                    updateProgress(90, '正在开始下载...');
                     
                     // 检查是否有下载链接
                     if (data.download_url) {
-                        updateProgress(90, '正在开始下载...');
                         console.log('📥 下载URL:', data.download_url);
                         console.log('🎯 目标路径:', data.custom_path);
                         console.log('🖥️ 系统类型:', data.client_os);
@@ -1876,7 +1937,7 @@
          */
         async function triggerCustomDownloadWithProgress(downloadUrl, draftId, data) {
             try {
-                updateProgress(95, '正在下载文件到浏览器...');
+                updateProgress(95, '正在下载文件...');
                 
                 // 创建一个隐藏的下载链接
                 const link = document.createElement('a');
@@ -1893,29 +1954,16 @@
                     document.body.removeChild(link);
                 }, 100);
                 
-                // 显示成功信息
-                updateProgress(100, '✅ 下载完成！');
+                // 下载触发成功后立即显示100%完成
+                updateProgress(100, '✅ 下载完成！请检查浏览器下载文件夹');
                 
-                // 显示详细说明
+                // 简化的下载完成提示
                 const statusTextElement = document.getElementById('downloadStatusText');
                 if (statusTextElement) {
                     statusTextElement.innerHTML = `
-                        <div style="text-align: left; line-height: 1.8;">
-                            <strong>✅ 自定义下载完成</strong><br>
-                            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 10px 0; border-radius: 4px;">
-                                <strong style="color: #856404;">📋 重要提示（请按步骤操作）：</strong><br>
-                                <small style="color: #856404;">
-                                    1️⃣ 文件已下载到：<strong>浏览器默认下载文件夹</strong><br>
-                                    2️⃣ 请手动将ZIP解压到：<br>
-                                    <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; display: inline-block; margin: 5px 0;">${data.custom_path || '未指定'}</code><br>
-                                    3️⃣ 解压后在剪映中打开即可自动识别所有素材
-                                </small>
-                            </div>
-                            <small style="color: #666;">
-                                • 目标系统: ${data.client_os || 'unknown'}<br>
-                                • 下载文件: ${draftId}.zip<br>
-                                • 💡 提示：ZIP内部路径已自动配置为${data.client_os}格式
-                            </small>
+                        <div style="text-align: center; line-height: 1.6;">
+                            <strong style="color: #28a745; font-size: 16px;">✅ 下载完成！</strong><br>
+                            <small style="color: #666; font-size: 14px;">请检查浏览器下载文件夹</small>
                         </div>
                     `;
                 }
@@ -1923,11 +1971,10 @@
                 updateProgressButton('关闭', '#28a745');
                 
                 console.log('✅ 自定义下载已触发');
-                console.log('📋 使用说明:', data.instructions);
                 
             } catch (error) {
                 console.error('触发下载失败:', error);
-                updateProgress(0, '❌ 下载触发失败: ' + error.message);
+                updateProgress(0, '❌ 下载失败: ' + error.message);
                 updateProgressButton('关闭', '#dc3545');
             }
         }
