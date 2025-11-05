@@ -22,6 +22,8 @@ import sqlite3
 from database import update_draft_status
 from settings import IS_CAPCUT_ENV, IS_UPLOAD_DRAFT
 from os_path_config import get_os_path_config, get_default_draft_path
+# 导入新的路径工具模块
+from path_utils import normalize_path, is_absolute_path, ensure_directory_exists, validate_path
 
 logger = logging.getLogger('flask_video_generator')
 
@@ -30,6 +32,17 @@ TaskStatus = Literal["initialized", "processing", "completed", "failed", "not_fo
 DEFAULT_WINDOWS_DRAFT_FOLDER = "F:\\jianyin\\cgwz\\JianyingPro Drafts"
 
 def build_asset_path(draft_folder: str, draft_id: str, asset_type: str, material_name: str) -> str:
+    """
+    构建素材路径
+    🔧 修复：支持空路径（相对路径模式），返回 assets/audio/xxx.mp3 格式
+    """
+    # 🆕 相对路径模式：当 draft_folder 为空时，只返回相对路径
+    if not draft_folder:
+        # 使用正斜杠作为分隔符（跨平台兼容）
+        relative_path = f"assets/{asset_type}/{material_name}"
+        return relative_path
+    
+    # 原有逻辑：处理绝对路径
     if is_windows_path(draft_folder):
         if os.name == 'nt':
             draft_real_path = os.path.join(draft_folder, draft_id, "assets", asset_type, material_name)
@@ -76,24 +89,48 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
             logger.warning(f"读取自定义路径配置失败: {e}")
 
         # 确定最终使用的草稿路径
+        # 🔧 正确的逻辑：保存草稿时使用配置路径（供"下载草稿"功能）
+        # "智能下载"会通过customize_zip转换为相对路径，不影响基础ZIP
+        use_relative_path = False  # 标记是否使用相对路径模式
+        
         if not draft_folder:
             if custom_path:
-                # 使用用户自定义路径
+                # 使用用户自定义路径（供"下载草稿"功能使用）
                 draft_folder = custom_path
                 logger.info(f"使用用户自定义草稿路径: {draft_folder}")
             else:
-                # 根据客户端操作系统获取默认路径
-                os_config = get_os_path_config()
-                if client_os.lower() == "windows":
-                    # 强制使用Windows路径配置
-                    draft_folder = os_config.get_default_draft_path("windows")
-                    logger.info(f"使用Windows客户端默认草稿路径: {draft_folder}")
-                else:
-                    # 使用其他操作系统的路径配置
-                    draft_folder = os_config.get_default_draft_path(client_os.lower())
-                    logger.info(f"使用{client_os}客户端默认草稿路径: {draft_folder}")
+                # 如果没有配置，使用相对路径模式
+                draft_folder = ""
+                use_relative_path = True
+                logger.info(f"使用相对路径模式：素材路径将保持为相对格式")
         else:
             logger.info(f"使用传入的草稿路径: {draft_folder}")
+        
+        # 🆕 新功能：支持相对路径转换为绝对路径
+        # 但跳过空路径（相对路径模式）
+        if draft_folder and not use_relative_path:
+            # 检查是否为相对路径，如果是则转换为绝对路径
+            if not is_absolute_path(draft_folder):
+                original_path = draft_folder
+                # 基于项目根目录转换为绝对路径
+                project_root = os.path.dirname(os.path.abspath(__file__))
+                draft_folder = normalize_path(draft_folder, base_dir=project_root)
+                logger.info(f"相对路径转换: {original_path} -> {draft_folder}")
+            
+            # 验证路径有效性
+            is_valid, error_msg = validate_path(draft_folder, must_exist=False, must_be_dir=False)
+            if not is_valid:
+                logger.warning(f"路径验证失败: {error_msg}，但继续执行")
+            
+            # 确保目标目录存在（如果是本地路径）
+            if not draft_folder.startswith('http'):
+                if not is_windows_path(draft_folder) or os.name == 'nt':
+                    # Linux路径或在Windows系统上的Windows路径
+                    ensure_directory_exists(os.path.dirname(draft_folder))
+            
+            logger.info(f"最终使用的草稿路径: {draft_folder}")
+        elif use_relative_path:
+            logger.info(f"使用相对路径模式，跳过路径转换和验证")
         
         download_tasks = []
         materials_to_download = []
@@ -147,6 +184,26 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
         #     material.remote_url = None
 
         script.dump(os.path.join(draft_path, "draft_info.json"))
+
+        # 🔧 修复：清空draft_meta_info.json中的绝对路径（相对路径模式）
+        if use_relative_path:
+            meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
+            if os.path.exists(meta_info_path):
+                try:
+                    with open(meta_info_path, 'r', encoding='utf-8') as f:
+                        meta_info = json.load(f)
+                    
+                    # 清空路径字段，使用相对路径
+                    meta_info["draft_root_path"] = ""
+                    meta_info["draft_fold_path"] = ""
+                    meta_info["draft_name"] = draft_id
+                    
+                    with open(meta_info_path, 'w', encoding='utf-8') as f:
+                        json.dump(meta_info, f, ensure_ascii=False, separators=(',', ':'))
+                    
+                    logger.info(f"已清空draft_meta_info.json中的绝对路径（相对路径模式）")
+                except Exception as e:
+                    logger.warning(f"清空draft_meta_info.json路径失败: {e}")
 
         update_draft_status(draft_id, 'processing', 80, '正在压缩草稿文件')
         zip_filename = f"{draft_id}.zip"

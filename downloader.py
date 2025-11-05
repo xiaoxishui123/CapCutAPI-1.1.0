@@ -6,18 +6,25 @@ import shutil
 from requests.exceptions import RequestException, Timeout
 from urllib.parse import urlparse, unquote, urlunparse
 from settings.local import DOWNLOAD_HEADERS, FILE_SERVER_PUBLIC_HOST, FILE_SERVER_INTERNAL_BASE
+# 导入路径工具模块以支持相对路径
+from path_utils import normalize_path, ensure_directory_exists
 
 def download_video(video_url, draft_name, material_name):
     """
     Download video to specified directory
+    支持相对路径和绝对路径
+    
     :param video_url: Video URL
-    :param draft_name: Draft name
+    :param draft_name: Draft name (支持相对路径)
     :param material_name: Material name
     :return: Local video path
     """
+    # 🆕 支持相对路径：规范化draft_name
+    draft_name = normalize_path(draft_name)
+    
     # Ensure directory exists
     video_dir = f"{draft_name}/assets/video"
-    os.makedirs(video_dir, exist_ok=True)
+    ensure_directory_exists(video_dir)
     
     # Generate local filename
     local_path = f"{video_dir}/{material_name}"
@@ -43,14 +50,19 @@ def download_video(video_url, draft_name, material_name):
 def download_image(image_url, draft_name, material_name):
     """
     Download image to specified directory, and convert to PNG format
+    支持相对路径和绝对路径
+    
     :param image_url: Image URL
-    :param draft_name: Draft name
+    :param draft_name: Draft name (支持相对路径)
     :param material_name: Material name
     :return: Local image path
     """
+    # 🆕 支持相对路径：规范化draft_name
+    draft_name = normalize_path(draft_name)
+    
     # Ensure directory exists
     image_dir = f"{draft_name}/assets/image"
-    os.makedirs(image_dir, exist_ok=True)
+    ensure_directory_exists(image_dir)
     
     # Uniformly use png format
     local_path = f"{image_dir}/{material_name}"
@@ -79,15 +91,20 @@ def download_image(image_url, draft_name, material_name):
 def download_audio(audio_url, draft_name, material_name, max_retries=3):
     """
     Download audio using requests (more reliable than ffmpeg for remote URLs)
+    支持相对路径和绝对路径
+    
     :param audio_url: Audio URL  
-    :param draft_name: Draft name
+    :param draft_name: Draft name (支持相对路径)
     :param material_name: Material name
     :param max_retries: Maximum retry attempts
     :return: Local audio path
     """
+    # 🆕 支持相对路径：规范化draft_name
+    draft_name = normalize_path(draft_name)
+    
     # Ensure directory exists
     audio_dir = f"{draft_name}/assets/audio"
-    os.makedirs(audio_dir, exist_ok=True)
+    ensure_directory_exists(audio_dir)
     
     # Generate local filename (keep .mp3 extension)
     local_path = f"{audio_dir}/{material_name}"
@@ -158,6 +175,19 @@ def download_audio(audio_url, draft_name, material_name, max_retries=3):
     raise Exception(f"Failed to download audio after {max_retries} attempts: {last_error}")
 
 def download_file(url:str, local_filename, max_retries=3, timeout=180):
+    """
+    通用文件下载函数
+    支持相对路径和绝对路径
+    
+    :param url: 文件URL或本地路径
+    :param local_filename: 本地保存路径 (支持相对路径)
+    :param max_retries: 最大重试次数
+    :param timeout: 超时时间（秒）
+    :return: 本地文件路径
+    """
+    # 🆕 支持相对路径：规范化local_filename
+    local_filename = normalize_path(local_filename)
+    
     # 检查是否是本地文件路径
     if os.path.exists(url) and os.path.isfile(url):
         # 是本地文件，直接复制

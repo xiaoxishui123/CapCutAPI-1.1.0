@@ -378,6 +378,7 @@ def generate_index_html():
         <div class="footer">
             <p>📖 详细使用说明请查看 API_USAGE_EXAMPLES.md</p>
             <p>🔧 服务管理请使用 ./service_manager.sh</p>
+            <p style="color: #4CAF50; font-weight: bold;">🆕 新功能：支持相对路径下载 - draft_folder参数现在可使用相对路径(如: ./downloads, ../output)</p>
         </div>
     </div>
     
@@ -448,9 +449,10 @@ def index():
                     "POST /add_image - 添加图片",
                     "POST /add_effect - 添加特效",
                     "POST /add_sticker - 添加贴纸",
-                    "POST /save_draft - 保存草稿"
+                    "POST /save_draft - 保存草稿 (🆕 支持相对路径)"
                 ],
-                "documentation": "查看 API_USAGE_EXAMPLES.md 获取详细使用说明"
+                "documentation": "查看 API_USAGE_EXAMPLES.md 获取详细使用说明",
+                "new_features": "🆕 支持相对路径下载 - draft_folder参数现在可以使用相对路径(如: ./downloads, ../output)或绝对路径，相对路径将自动转换为基于项目根目录的绝对路径"
             }
         ))
     
@@ -2831,10 +2833,19 @@ def get_draft_title(draft_id):
 def download_draft_proxy(draft_id):
     """代理下载草稿文件 - 解决跨域问题"""
     try:
-        # 直接使用已知的OSS链接格式
-        draft_url = f"https://zdaigfpt.oss-cn-wuhan-lr.aliyuncs.com/{draft_id}.zip"
+        # 🔧 最终修复：使用customize_zip生成定制化版本
+        # 从请求参数获取client_os和draft_folder
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
         
-        print(f"代理下载草稿: {draft_id}, OSS链接: {draft_url}")
+        print(f"代理下载草稿: {draft_id}, client_os={client_os}, draft_folder='{draft_folder}'")
+        
+        # 调用customize_zip生成定制化URL
+        from customize_zip import get_customized_signed_url
+        draft_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+        
+        print(f"[代理下载] 使用定制化OSS链接: {draft_url[:120]}...")
+        print(f"[代理下载] 参数 - client_os={client_os}, draft_folder='{draft_folder}'")
         
         # 从OSS获取文件内容
         import requests
@@ -3295,94 +3306,69 @@ def draft_download_api():
                 'error': '草稿不存在或无素材'
             }), 404
         
-        # 如果使用自定义路径下载
-        if use_custom_path and draft_folder:
-            try:
-                # 优先生成自定义下载链接（推荐方式）
-                try:
-                    from customize_zip import get_customized_signed_url
-                    custom_download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
-                    if custom_download_url:
-                        # 使用代理下载URL，这样可以控制文件名
-                        # 添加必要的参数到URL，确保代理能正确处理
-                        from urllib.parse import urlencode
-                        params = urlencode({
-                            'client_os': client_os,
-                            'draft_folder': draft_folder
-                        })
-                        proxy_download_url = f"/api/draft/download/proxy/{draft_id}?{params}"
-                        return jsonify({
-                            'success': True,
-                            'message': f'已生成自定义下载链接，包含{client_os}路径配置',
-                            'download_url': proxy_download_url,
-                            'original_url': custom_download_url,
-                            'client_os': client_os,
-                            'custom_path': draft_folder,
-                            'instructions': {
-                                'message': '下载完成后请按以下步骤操作：',
-                                'steps': [
-                                    f'1. 下载完成后，将压缩包解压到: {draft_folder}',
-                                    '2. 确保解压后的文件夹结构正确',
-                                    '3. 打开剪映应用',
-                                    '4. 从草稿管理中导入或直接打开项目文件'
-                                ]
-                            }
-                        })
-                except Exception as custom_error:
-                    print(f"生成自定义下载链接失败: {custom_error}")
-                
-                # 降级方案：下载到服务器（不推荐，但作为后备）
-                download_result = _download_draft_to_custom_path_impl(draft_id, draft_folder, materials)
-                if download_result['success']:
-                    return jsonify({
-                        'success': True,
-                        'message': '文件已下载到服务器，但建议使用自定义下载链接',
-                        'download_path': download_result['download_path'],
-                        'files_copied': download_result['files_copied'],
-                        'note': '⚠️ 此方式文件保存在服务器上，建议使用"直接下载"功能'
-                    })
-                else:
-                    return jsonify({
-                        'success': False,
-                        'error': download_result['error']
-                    }), 500
-            except Exception as download_error:
-                return jsonify({
-                    'success': False,
-                    'error': f'下载失败: {str(download_error)}'
-                }), 500
-        
-        # 生成下载链接或开始下载流程
+        # 🔧 最终修复：智能下载总是使用customize_zip来处理路径
+        # 不管use_custom_path是true还是false，都调用customize_zip
+        # draft_folder为空时，customize_zip会清空路径；不为空时，会设置为指定路径
         try:
-            # 尝试生成草稿URL
-            import requests
-            response = requests.post(f"http://localhost:{PORT}/generate_draft_url", json={
-                "draft_id": draft_id,
-                "client_os": client_os,
-                "draft_folder": draft_folder
-            })
+            from customize_zip import get_customized_signed_url
+            # 调用customize_zip生成定制化下载链接
+            # draft_folder为空 → 清空路径（相对路径模式）
+            # draft_folder不为空 → 设置为指定路径
+            custom_download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+            if custom_download_url:
+                # 使用代理下载URL，这样可以控制文件名
+                from urllib.parse import urlencode
+                params = urlencode({
+                    'client_os': client_os,
+                    'draft_folder': draft_folder
+                })
+                proxy_download_url = f"/api/draft/download/proxy/{draft_id}?{params}"
+                
+                # 根据draft_folder是否为空，返回不同的提示信息
+                if draft_folder:
+                    message = f'已生成自定义下载链接，包含{client_os}路径配置'
+                    instructions = {
+                        'message': '下载完成后请按以下步骤操作：',
+                        'steps': [
+                            f'1. 下载完成后，将压缩包解压到: {draft_folder}',
+                            '2. 确保解压后的文件夹结构正确',
+                            '3. 打开剪映应用',
+                            '4. 从草稿管理中导入或直接打开项目文件'
+                        ]
+                    }
+                else:
+                    message = f'已生成智能下载链接（相对路径模式）'
+                    instructions = {
+                        'message': '下载完成后请按以下步骤操作：',
+                        'steps': [
+                            '1. 下载完成后，解压ZIP文件',
+                            '2. 将草稿文件夹复制到剪映草稿目录（任意位置）',
+                            '3. 打开剪映应用',
+                            '4. 草稿会自动出现在草稿列表中'
+                        ]
+                    }
+                
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'download_url': proxy_download_url,
+                    'original_url': custom_download_url,
+                    'client_os': client_os,
+                    'custom_path': draft_folder if draft_folder else '(相对路径)',
+                    'instructions': instructions
+                })
+        except Exception as custom_error:
+            print(f"生成定制化下载链接失败: {custom_error}")
+            import traceback
+            traceback.print_exc()
             
-            if response.status_code == 200:
-                result = response.json()
-                if result.get('success'):
-                    return jsonify({
-                        'success': True,
-                        'message': '下载链接生成成功',
-                        'download_url': result.get('download_url'),
-                        'draft_folder': draft_folder
-                    })
-                    
-        except Exception as url_error:
-            print(f"生成下载链接失败: {url_error}")
-        
-        # 如果URL生成失败，返回配置信息
-        return jsonify({
-            'success': True,
-            'message': f'请在剪映中手动导入草稿ID: {draft_id}',
-            'draft_id': draft_id,
-            'materials_count': len(materials),
-            'instructions': f'在剪映草稿目录中查找: {draft_id}'
-        })
+            # customize_zip失败，降级到返回配置信息
+            return jsonify({
+                'success': False,
+                'error': f'下载失败: {str(custom_error)}',
+                'draft_id': draft_id,
+                'materials_count': len(materials)
+            }), 500
         
     except Exception as e:
         return jsonify({
@@ -3750,20 +3736,13 @@ def download_proxy(draft_id):
         client_os = request.args.get('client_os', 'windows')
         draft_folder = request.args.get('draft_folder', '')
         
-        # 如果没有提供draft_folder，尝试从配置文件读取
-        if not draft_folder:
-            try:
-                import json
-                config_path = '/home/CapCutAPI-1.1.0/path_config.json'
-                if os.path.exists(config_path):
-                    with open(config_path, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                        draft_folder = config.get('custom_download_path', '')
-            except:
-                pass
+        # 🔧 修复：智能下载不应该读取path_config.json
+        # 只有用户明确传递draft_folder时才使用，否则保持为空（相对路径模式）
+        print(f"[单数代理] client_os={client_os}, draft_folder='{draft_folder}'")
         
         # 生成下载URL
         download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+        print(f"[单数代理] 生成URL: {download_url[:100]}...")
         
         if download_url:
             # 使用requests获取文件并返回
@@ -3809,6 +3788,11 @@ def download_proxy(draft_id):
         return f"下载代理失败: {str(e)}", 500
 
 # 草稿预览页面 - 完全按照官方文档风格设计
+@app.route('/debug/download', methods=['GET'])
+def debug_download():
+    """调试下载页面"""
+    return render_template('debug_download.html')
+
 @app.route('/download_guide', methods=['GET'])
 def download_guide():
     """提供下载指导页面"""

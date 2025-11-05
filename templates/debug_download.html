@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能下载调试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #17a2b8;
+            padding-bottom: 10px;
+        }
+        .btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #138496;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .log-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-line {
+            margin: 5px 0;
+            line-height: 1.5;
+        }
+        .log-success { color: #4ec9b0; }
+        .log-error { color: #f48771; }
+        .log-warning { color: #ce9178; }
+        .log-info { color: #9cdcfe; }
+        .input-group {
+            margin: 20px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 智能下载调试工具</h1>
+        
+        <div class="input-group">
+            <label>草稿ID:</label>
+            <input type="text" id="draftId" value="dfd_cat_1762263149_1d98171b" placeholder="输入草稿ID">
+        </div>
+        
+        <button class="btn" onclick="testSmartDownload()">🧠 测试智能下载</button>
+        <button class="btn" onclick="testAPI()">🔧 测试API调用</button>
+        <button class="btn" onclick="downloadDirect()">📥 直接下载验证</button>
+        <button class="btn danger" onclick="clearLogs()">🗑️ 清空日志</button>
+        
+        <div class="log-area" id="logArea">
+            <div class="log-line log-info">等待操作...</div>
+        </div>
+    </div>
+    
+    <script>
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            line.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(line);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logArea').innerHTML = '<div class="log-line log-info">日志已清空</div>';
+        }
+        
+        async function testAPI() {
+            const draftId = document.getElementById('draftId').value;
+            clearLogs();
+            log('开始测试API调用...', 'info');
+            
+            try {
+                log(`发送POST请求到 /api/draft/download`, 'info');
+                log(`参数: draft_id=${draftId}, use_custom_path=false, client_os=windows`, 'info');
+                
+                const response = await fetch('/api/draft/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        use_custom_path: false,
+                        client_os: 'windows'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                log('API响应:', 'success');
+                log(`  success: ${data.success}`, 'success');
+                log(`  message: ${data.message}`, 'info');
+                log(`  download_url: ${data.download_url}`, 'info');
+                log(`  original_url: ${data.original_url ? data.original_url.substring(0, 100) + '...' : 'N/A'}`, 'info');
+                log(`  custom_path: ${data.custom_path}`, 'info');
+                
+                // 检查URL中的key
+                if (data.original_url) {
+                    const match = data.original_url.match(/dfd_cat_\d+_[a-f0-9]+__windows__([a-f0-9]+)\.zip/);
+                    if (match) {
+                        log(`  版本hash: ${match[1]}`, 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                log(`API调用失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testSmartDownload() {
+            const draftId = document.getElementById('draftId').value;
+            clearLogs();
+            log('开始智能下载测试...', 'info');
+            
+            try {
+                log('步骤1: 调用API获取下载链接...', 'info');
+                
+                const response = await fetch('/api/draft/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        use_custom_path: false,
+                        client_os: 'windows'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.download_url) {
+                    log(`步骤2: 获取到下载URL: ${data.download_url}`, 'success');
+                    log(`步骤3: 开始下载文件...`, 'info');
+                    
+                    // 创建隐藏链接下载
+                    const link = document.createElement('a');
+                    link.href = data.download_url;
+                    link.download = `${draftId}.zip`;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                    }, 100);
+                    
+                    log('步骤4: 下载已触发，请检查浏览器下载文件夹', 'success');
+                    log('', 'info');
+                    log('📋 验证步骤:', 'warning');
+                    log('1. 找到下载的ZIP文件', 'warning');
+                    log('2. 解压文件', 'warning');
+                    log('3. 打开 draft_info.json 搜索 "path"', 'warning');
+                    log('4. 检查路径格式是否为: assets\\audio\\xxx.mp3', 'warning');
+                    
+                } else {
+                    log(`API返回失败: ${data.error || '未知错误'}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`智能下载失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function downloadDirect() {
+            const draftId = document.getElementById('draftId').value;
+            clearLogs();
+            log('直接下载验证...', 'info');
+            
+            const testUrl = `http://8.148.70.18:9000/api/draft/download/proxy/${draftId}?client_os=windows&draft_folder=`;
+            log(`使用URL: ${testUrl}`, 'info');
+            log('下载中，请稍候...', 'warning');
+            
+            window.open(testUrl, '_blank');
+            
+            setTimeout(() => {
+                log('下载已触发，请检查下载文件夹', 'success');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
+

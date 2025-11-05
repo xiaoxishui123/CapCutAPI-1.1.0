@@ -81,6 +81,107 @@ Try It: https://www.capcutapi.top
 
 ## 🚀 **最新功能优化** (NEW!)
 
+### 🆕 智能下载功能 (v1.3.8) - ✅ 完美解决剪映重命名问题
+
+#### 💫 功能亮点：
+- **🧠 一键智能下载**: 无需配置路径，点击即可下载草稿
+- **📁 纯相对路径**: 使用 `assets/audio/xxx.mp3` 格式，确保剪映正确识别
+- **🎯 简单易用**: 在预览页面点击"智能下载"按钮即可
+- **💫 美观进度条**: 实时显示下载进度和详细状态
+- **🔄 跨平台兼容**: 自动检测操作系统（Windows/Linux/Mac）
+- **✅ 任意位置可用**: 草稿可解压到任意位置，剪映都能识别素材
+- **🔧 根源已解决**: v1.3.7解决path_config.json污染问题，智能下载完全独立（不受任何配置影响）
+- **🎉 自动刷新ID**: v1.3.8自动刷新draft_id，彻底解决剪映重命名文件夹问题
+
+#### 📝 使用方法：
+1. 访问草稿预览页面：`http://8.148.70.18:9000/draft/preview/<草稿ID>`
+2. 点击右上角的 **🧠 智能下载** 按钮
+3. 等待下载完成（显示进度条）
+4. 文件自动下载到浏览器下载文件夹
+5. 解压后放入剪映草稿目录，打开剪映即可使用
+
+#### 🔧 设计说明：
+
+**两种下载方式，互不影响**：
+- **📥 下载草稿**：使用path_config.json配置，生成**绝对路径**版本（适合固定位置使用）
+- **🧠 智能下载**：完全忽略配置，总是生成**相对路径**版本（适合任意位置使用）
+
+详细区别请查看：[智能下载与普通下载的区别.md](智能下载与普通下载的区别.md)
+
+#### 🔧 问题修复记录：
+- **v1.3.8 (2025-11-05 14:30)**: 🎉 **完美解决剪映重命名问题**
+  - 详情：[剪映重命名问题完美解决方案.md](剪映重命名问题完美解决方案.md)
+  - **核心实现**: 自动刷新draft_id和时间戳，让剪映识别为全新草稿
+  - **彻底解决**: 即使删除旧草稿，剪映也不会再添加(2)后缀
+- **v1.3.7 (2025-11-05 09:42)**: ⭐ **终极修复** - 完善两种下载方式的独立性
+  - 详情：[智能下载问题根源及终极解决方案.md](智能下载问题根源及终极解决方案.md)
+  - **核心实现**: customize_zip将基础ZIP的绝对路径转换为相对路径
+- **v1.3.2-v1.3.6**: 前端、后端、模板、缓存、路由等各层面修复
+
+#### ✅ 现在完全可用：
+**智能下载**：总是返回相对路径（customize_zip自动转换）  
+**下载草稿**：使用配置的绝对路径（适合固定位置）  
+**调试工具**：http://8.148.70.18:9000/debug/download
+
+详细说明请查看：[智能下载功能说明.md](智能下载功能说明.md)
+
+---
+
+### 🆕 支持相对路径下载 (v1.3.0)
+
+#### 💫 功能亮点：
+- **📁 相对路径支持**: draft_folder参数现在支持使用相对路径
+- **🔄 自动转换**: 相对路径自动转换为基于项目根目录的绝对路径
+- **🌐 跨平台兼容**: 同时支持Linux、Windows和macOS路径格式
+- **✨ 灵活配置**: 支持 `./downloads`、`../output`、`~/Documents` 等多种路径格式
+- **🛡️ 路径验证**: 自动验证路径有效性，确保下载安全可靠
+
+#### 📝 使用示例：
+
+**1. 使用相对路径下载草稿**：
+```python
+import requests
+
+# 使用相对路径（相对于项目根目录）
+response = requests.post("http://8.148.70.18:9000/save_draft", json={
+    "draft_id": "dfd_cat_1234567890_abc123",
+    "draft_folder": "./downloads/drafts",  # 相对路径
+    "client_os": "windows"
+})
+
+print(response.json())
+```
+
+**2. 更多路径格式示例**：
+```python
+# 当前目录下的子目录
+draft_folder = "./output"
+
+# 上级目录
+draft_folder = "../shared_drafts"
+
+# 用户主目录
+draft_folder = "~/Documents/CapCut"
+
+# 绝对路径（仍然支持）
+draft_folder = "/home/user/capcut_projects"
+draft_folder = "F:\\jianying\\cgwz\\JianyingPro Drafts"  # Windows
+```
+
+**3. 路径转换说明**：
+- `./downloads` → `/home/CapCutAPI-1.1.0/downloads`
+- `../output` → `/home/output`
+- `~/Documents` → `/home/user/Documents`
+
+#### 🔧 技术改进：
+- 新增 `path_utils.py` 路径处理工具模块
+- 优化 `save_draft_impl.py` 路径处理逻辑
+- 增强 `downloader.py` 路径规范化功能
+- 所有下载函数自动支持相对路径
+- 完善的路径验证和错误处理机制
+
+---
+
 ### 🎨 官方风格草稿预览界面优化 (v1.2.0)
 
 #### 💫 设计升级亮点：
@@ -491,11 +592,37 @@ curl -X GET http://8.148.70.18:9000/api/draft/path/config
 3. **客户端操作系统默认路径**（根据 client_os 参数）
 4. **服务器操作系统默认路径**（兜底方案）
 
+#### 路径格式支持（🆕 v1.3.0）
+- ✅ **绝对路径**：`/home/user/capcut` 或 `F:\jianying\cgwz\JianyingPro Drafts`
+- ✅ **相对路径**：`./downloads`、`../output`（基于项目根目录自动转换）
+- ✅ **用户目录**：`~/Documents/CapCut`（自动展开为用户主目录）
+- ✅ **Windows标准路径格式**：支持反斜杠分隔符和盘符
+- ✅ **自动路径分隔符转换**：Linux风格（`/`）↔ Windows风格（`\`）
+- ✅ **路径验证**：自动验证路径有效性，确保下载成功
+- ✅ **自动创建目录**：目标目录不存在时自动创建
+
+#### 路径使用示例
+```python
+# 绝对路径（原有方式，仍然支持）
+draft_folder = "/home/user/capcut_projects"
+draft_folder = "F:\\jianying\\cgwz\\JianyingPro Drafts"
+
+# 🆕 相对路径（基于项目根目录）
+draft_folder = "./downloads/drafts"      # 项目根目录下的downloads/drafts
+draft_folder = "../shared_output"        # 项目上级目录的shared_output
+draft_folder = "output/videos"           # 项目根目录下的output/videos
+
+# 🆕 用户主目录
+draft_folder = "~/Documents/CapCut"      # 用户主目录下的Documents/CapCut
+draft_folder = "~/Downloads"             # 用户下载目录
+```
+
 #### Windows路径格式
 - ✅ 支持Windows标准路径格式：`F:\jianying\cgwz\JianyingPro Drafts`
 - ✅ 自动处理路径分隔符转换（`/` → `\`）
 - ✅ 确保草稿文件中的素材路径为Windows本地绝对路径
 - ✅ 剪映客户端可直接识别和链接素材
+- ✅ 相对路径在Windows系统上同样有效
 
 ### Environment Configuration
 
