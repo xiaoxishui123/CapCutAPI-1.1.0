@@ -28,6 +28,8 @@ dist/
 .DS_Store
 
 # 配置文件（包含敏感信息）
+.env
+!.env.example
 config.json
 !config.json.example
 
