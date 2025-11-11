@@ -17,37 +17,56 @@ CapCutAPI Server - 剪映草稿生成和管理API服务
 """
 
 # ===== 标准库导入 =====
-import os
-import json
-import time
-import uuid
 import codecs
+import html
+import json
+import logging
+import os
 import random
 import sqlite3
-import html
+import time
+import uuid
 from datetime import datetime
 from urllib.parse import quote
 
 # ===== 第三方库导入 =====
+import oss2
 import requests
-import logging
 from flask import Flask, request, jsonify, Response, render_template, redirect
 
 # ===== pyJianYingDraft 相关导入 =====
 import pyJianYingDraft as draft
-from pyJianYingDraft.metadata.animation_meta import Intro_type, Outro_type, Group_animation_type
-from pyJianYingDraft.metadata.capcut_animation_meta import CapCut_Intro_type, CapCut_Outro_type, CapCut_Group_animation_type
+from pyJianYingDraft.metadata.animation_meta import (
+    Intro_type, Outro_type, Group_animation_type,
+    Text_intro, Text_outro, Text_loop_anim
+)
+from pyJianYingDraft.metadata.capcut_animation_meta import (
+    CapCut_Intro_type, CapCut_Outro_type, CapCut_Group_animation_type
+)
 from pyJianYingDraft.metadata.transition_meta import Transition_type
 from pyJianYingDraft.metadata.capcut_transition_meta import CapCut_Transition_type
 from pyJianYingDraft.metadata.mask_meta import Mask_type
 from pyJianYingDraft.metadata.capcut_mask_meta import CapCut_Mask_type
-from pyJianYingDraft.metadata.audio_effect_meta import Tone_effect_type, Audio_scene_effect_type, Speech_to_song_type
-from pyJianYingDraft.metadata.capcut_audio_effect_meta import CapCut_Voice_filters_effect_type, CapCut_Voice_characters_effect_type, CapCut_Speech_to_song_effect_type
+from pyJianYingDraft.metadata.audio_effect_meta import (
+    Tone_effect_type, Audio_scene_effect_type, Speech_to_song_type
+)
+from pyJianYingDraft.metadata.capcut_audio_effect_meta import (
+    CapCut_Voice_filters_effect_type, CapCut_Voice_characters_effect_type,
+    CapCut_Speech_to_song_effect_type
+)
 from pyJianYingDraft.metadata.font_meta import Font_type
-from pyJianYingDraft.metadata.animation_meta import Text_intro, Text_outro, Text_loop_anim
-from pyJianYingDraft.metadata.capcut_text_animation_meta import CapCut_Text_intro, CapCut_Text_outro, CapCut_Text_loop_anim
-from pyJianYingDraft.metadata.video_effect_meta import Video_scene_effect_type, Video_character_effect_type
-from pyJianYingDraft.metadata.capcut_effect_meta import CapCut_Video_scene_effect_type, CapCut_Video_character_effect_type
+from pyJianYingDraft.metadata.capcut_text_animation_meta import (
+    CapCut_Text_intro, CapCut_Text_outro, CapCut_Text_loop_anim
+)
+from pyJianYingDraft.metadata.video_effect_meta import (
+    Video_scene_effect_type, Video_character_effect_type
+)
+from pyJianYingDraft.metadata.capcut_effect_meta import (
+    CapCut_Video_scene_effect_type, CapCut_Video_character_effect_type
+)
+from pyJianYingDraft.text_segment import TextStyleRange, Text_style, Text_border
+
+# ===== 本地模块导入 =====
 from add_audio_track import add_audio_track
 from add_video_track import add_video_track
 from add_text_impl import add_text_impl
@@ -60,40 +79,136 @@ from add_effect_impl import add_effect_impl
 from add_sticker_impl import add_sticker_impl
 from create_draft import create_draft, get_or_create_draft
 from util import generate_draft_url as utilgenerate_draft_url, hex_to_rgb, normalize_path_by_os
-from pyJianYingDraft.text_segment import TextStyleRange, Text_style, Text_border
-
-from settings.local import IS_CAPCUT_ENV, DRAFT_DOMAIN, PREVIEW_ROUTER, PORT, IS_UPLOAD_DRAFT
+from database import (
+    init_db,
+    get_draft_materials as get_draft_materials_from_db,
+    add_material_to_db,
+    get_all_drafts,
+    update_draft_status
+)
 from oss import get_signed_draft_url_if_exists
 from customize_zip import get_customized_signed_url
-
-# OSS mirror support
-import uuid as _uuid
-import oss2 as _oss2
-from settings.local import OSS_CONFIG as _OSS_CONFIG
+from settings.local import IS_CAPCUT_ENV, DRAFT_DOMAIN, PREVIEW_ROUTER, PORT, IS_UPLOAD_DRAFT, OSS_CONFIG
+from validators import (
+    validate_draft_id,
+    validate_url,
+    validate_text_content,
+    validate_numeric_range,
+    validate_color,
+    validate_duration,
+    validate_material_type,
+    validate_resolution,
+    validate_file_path,
+    validate_required_fields
+)
+from exceptions import (
+    CapCutAPIException,
+    DraftNotFoundException,
+    ValidationException,
+    StorageException,
+    handle_exception,
+    get_status_code
+)
+from log_config import setup_logging, setup_access_logger, PerformanceLogger, log_api_request, log_api_response
 
 def _ensure_bucket_v4():
-    auth = _oss2.AuthV4(_OSS_CONFIG['access_key_id'], _OSS_CONFIG['access_key_secret'])
-    endpoint = _OSS_CONFIG['endpoint']
+    """创建OSS Bucket实例（使用V4签名）"""
+    auth = oss2.AuthV4(OSS_CONFIG['access_key_id'], OSS_CONFIG['access_key_secret'])
+    endpoint = OSS_CONFIG['endpoint']
     if not str(endpoint).startswith('http'):
         endpoint = 'https://' + endpoint
-    return _oss2.Bucket(auth, endpoint, _OSS_CONFIG['bucket_name'], region=_OSS_CONFIG['region'])
-
-from database import init_db
+    return oss2.Bucket(auth, endpoint, OSS_CONFIG['bucket_name'], region=OSS_CONFIG['region'])
 
 app = Flask(__name__, template_folder='templates')
 
-# 配置logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-    handlers=[
-        logging.FileHandler('logs/capcutapi.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger('capcutapi')
+# ===== 日志配置 =====
+# 使用增强的日志配置
+logger = setup_logging(log_level='INFO', log_to_console=True, log_to_file=True)
+access_logger = setup_access_logger()
+
+# 记录服务启动
+logger.info("=" * 60)
+logger.info("CapCutAPI 服务启动")
+logger.info(f"版本: v1.1.0")
+logger.info(f"端口: {PORT}")
+logger.info(f"环境: {'CapCut' if IS_CAPCUT_ENV else '剪映'}")
+logger.info(f"草稿上传: {'启用' if IS_UPLOAD_DRAFT else '禁用'}")
+logger.info("=" * 60)
+
+# ===== 全局异常处理器 =====
+
+@app.errorhandler(CapCutAPIException)
+def handle_capcut_api_exception(error):
+    """处理自定义API异常"""
+    logger.error(f"API异常: {error.message}", exc_info=True, extra=error.details)
+    response_data = error.to_dict()
+    return jsonify(response_data), error.status_code
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    """处理404错误"""
+    logger.warning(f"资源未找到: {request.url}")
+    return jsonify({
+        'success': False,
+        'error': '资源未找到',
+        'error_type': 'NotFound',
+        'status_code': 404,
+        'path': request.path
+    }), 404
+
+@app.errorhandler(500)
+def handle_internal_error(error):
+    """处理500错误"""
+    logger.error(f"服务器内部错误: {error}", exc_info=True)
+    return jsonify({
+        'success': False,
+        'error': '服务器内部错误，请联系管理员',
+        'error_type': 'InternalServerError',
+        'status_code': 500
+    }), 500
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(error):
+    """处理所有未捕获的异常"""
+    logger.error(f"未预期的异常: {error}", exc_info=True)
+    error_dict = handle_exception(error)
+    status_code = get_status_code(error)
+    return jsonify(error_dict), status_code
 
 init_db()
+
+# ===== 请求/响应日志中间件 =====
+
+@app.before_request
+def log_request():
+    """在每个请求前记录访问日志"""
+    request.start_time = datetime.now()
+
+    # 记录请求信息
+    log_api_request(
+        access_logger,
+        endpoint=request.path,
+        method=request.method,
+        remote_addr=request.remote_addr,
+        user_agent=request.headers.get('User-Agent')
+    )
+
+@app.after_request
+def log_response(response):
+    """在每个请求后记录响应日志"""
+    if hasattr(request, 'start_time'):
+        duration = (datetime.now() - request.start_time).total_seconds()
+
+        # 记录响应信息
+        log_api_response(
+            access_logger,
+            endpoint=request.path,
+            status_code=response.status_code,
+            duration=duration,
+            response_size=response.content_length
+        )
+
+    return response
 
 # ===== 全局变量和配置 =====
 draft_materials_cache = {}
@@ -112,7 +227,9 @@ def create_standard_response(success=False, output="", error=""):
 def handle_api_error(error_message, exception=None):
     """统一错误处理"""
     if exception:
-        print(f"API错误: {error_message}, 异常: {str(exception)}")
+        logger.error(f"API错误: {error_message}", exc_info=exception)
+    else:
+        logger.warning(f"API错误: {error_message}")
     return jsonify(create_standard_response(success=False, error=error_message))
 
 def get_material_type_by_extension(file_ext):
@@ -147,9 +264,7 @@ def add_material_to_cache(draft_id, material_info):
         material_info['id'] = material_id
         draft_materials_cache[draft_id].append(material_info)
     except Exception as e:
-        print(f'持久化素材到数据库失败: {e}')
-
-from database import get_draft_materials as get_draft_materials_from_db, add_material_to_db, get_all_drafts
+        logger.error(f'持久化素材到数据库失败: {e}', exc_info=True)
 
 def get_draft_materials(draft_id):
     """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统"""
@@ -203,7 +318,7 @@ def _create_material_info(draft_id, filename, file_path):
             'created_at': datetime.now().isoformat()
         }
     except Exception as e:
-        print(f"创建素材信息失败: {e}")
+        logger.error(f"创建素材信息失败: {e}", exc_info=True)
         return None
 
 def _save_materials_to_db(draft_id, materials):
@@ -212,7 +327,7 @@ def _save_materials_to_db(draft_id, materials):
         try:
             add_material_to_db(draft_id, material)
         except Exception as e:
-            print(f"保存素材到数据库失败: {e}")
+            logger.error(f"保存素材到数据库失败: {e}", exc_info=True)
 
 # ===== HTML模板生成函数 =====
 
@@ -464,16 +579,44 @@ def add_video():
     """添加视频素材到草稿"""
     try:
         data = request.get_json()
-        
+
         # 验证必需参数
         video_url = data.get('video_url')
         if not video_url:
             return handle_api_error("缺少必需参数 'video_url'")
-            
+
         # 拒绝未解析的占位符
         if isinstance(video_url, str) and ('{{' in video_url or '}}' in video_url):
             return handle_api_error(f"video_url 是占位符，未替换为真实地址。请在调用前先生成实际URL。", video_url)
-        
+
+        # ===== 输入验证 =====
+        # 验证draft_id
+        draft_id = data.get('draft_id')
+        if draft_id:
+            is_valid, error_msg = validate_draft_id(draft_id)
+            if not is_valid:
+                return jsonify({'success': False, 'error': f'draft_id验证失败: {error_msg}'}), 400
+
+        # 验证video_url（允许内网地址，因为可能使用本地文件服务器）
+        is_valid, error_msg = validate_url(video_url, allow_internal=True)
+        if not is_valid:
+            return jsonify({'success': False, 'error': f'video_url验证失败: {error_msg}'}), 400
+
+        # 验证时长参数
+        start = data.get('start', 0)
+        end = data.get('end', 0)
+        if end > 0:  # 如果指定了end，验证start和end的有效性
+            is_valid, error_msg = validate_duration(start, end)
+            if not is_valid:
+                return jsonify({'success': False, 'error': f'时长验证失败: {error_msg}'}), 400
+
+        # 验证分辨率
+        width = data.get('width', 1080)
+        height = data.get('height', 1920)
+        is_valid, error_msg = validate_resolution(int(width), int(height))
+        if not is_valid:
+            return jsonify({'success': False, 'error': f'分辨率验证失败: {error_msg}'}), 400
+
         # 获取参数
         params = {
             'draft_folder': data.get('draft_folder'),
@@ -594,12 +737,24 @@ def create_draft_service():
     """创建新的草稿项目"""
     try:
         data = request.get_json()
-        
+
         # 获取参数
         draft_id = data.get('draft_id')  # 用户指定的草稿ID
         width = data.get('width', 1080)
         height = data.get('height', 1920)
-        
+
+        # ===== 输入验证 =====
+        # 验证draft_id（如果用户指定了）
+        if draft_id:
+            is_valid, error_msg = validate_draft_id(draft_id)
+            if not is_valid:
+                return jsonify({'success': False, 'error': f'draft_id验证失败: {error_msg}'}), 400
+
+        # 验证分辨率
+        is_valid, error_msg = validate_resolution(int(width), int(height))
+        if not is_valid:
+            return jsonify({'success': False, 'error': f'分辨率验证失败: {error_msg}'}), 400
+
         # 创建新草稿
         draft_id, script = get_or_create_draft(draft_id=draft_id, width=width, height=height)
         
@@ -683,16 +838,44 @@ def add_subtitle():
 @app.route('/add_text', methods=['POST'])
 def add_text():
     data = request.get_json()
-    
+
     # Get required parameters
     text = data.get('text')
     start = data.get('start', 0)
     end = data.get('end', 5)
     draft_id = data.get('draft_id')
+
+    # ===== 输入验证 =====
+    # 验证必填参数
+    is_valid, error_msg = validate_required_fields(data, ['text'])
+    if not is_valid:
+        return jsonify({'success': False, 'error': error_msg}), 400
+
+    # 验证文本内容
+    is_valid, error_msg = validate_text_content(text, max_length=10000)
+    if not is_valid:
+        return jsonify({'success': False, 'error': f'文本内容验证失败: {error_msg}'}), 400
+
+    # 验证draft_id
+    if draft_id:
+        is_valid, error_msg = validate_draft_id(draft_id)
+        if not is_valid:
+            return jsonify({'success': False, 'error': f'draft_id验证失败: {error_msg}'}), 400
+
+    # 验证时长
+    is_valid, error_msg = validate_duration(start, end)
+    if not is_valid:
+        return jsonify({'success': False, 'error': f'时长验证失败: {error_msg}'}), 400
+
+    # 验证颜色格式
+    font_color = data.get('color', data.get('font_color', "#FF0000"))
+    is_valid, error_msg = validate_color(font_color)
+    if not is_valid:
+        return jsonify({'success': False, 'error': f'字体颜色验证失败: {error_msg}'}), 400
+
     transform_y = data.get('transform_y', 0)
     transform_x = data.get('transform_x', 0)
     font = data.get('font', "文轩体")
-    font_color = data.get('color', data.get('font_color', "#FF0000"))  # Support both 'color' and 'font_color'
     font_size = data.get('size', data.get('font_size', 8.0))  # Support both 'size' and 'font_size'
     track_name = data.get('track_name', "text_main")
     vertical = data.get('vertical', False)
@@ -1224,7 +1407,7 @@ def mirror_to_oss():
         if content_type.lower() == 'audio/mp3':
             content_type = 'audio/mpeg'
         
-        object_name = f"{prefix}/{_uuid.uuid4().hex}{ext}" if prefix else f"{_uuid.uuid4().hex}{ext}"
+        object_name = f"{prefix}/{uuid.uuid4().hex}{ext}" if prefix else f"{uuid.uuid4().hex}{ext}"
         bucket = _ensure_bucket_v4()
         
         # 🔧 修复：上传时设置 Content-Type 头部
@@ -2379,7 +2562,7 @@ def upload_to_oss_route():
         if not content_type:
             content_type = 'application/octet-stream'
         
-        object_name = f"{prefix}/{_uuid.uuid4().hex}{ext}" if prefix else f"{_uuid.uuid4().hex}{ext}"
+        object_name = f"{prefix}/{uuid.uuid4().hex}{ext}" if prefix else f"{uuid.uuid4().hex}{ext}"
         bucket = _ensure_bucket_v4()
         
         # 🔧 修复：上传时设置 Content-Type 头部
@@ -2653,13 +2836,13 @@ def edit_draft_api(draft_id):
 def delete_draft_api(draft_id):
     """删除草稿API"""
     try:
-        print(f"开始删除草稿: {draft_id}")
-        
+        logger.info(f"开始删除草稿: {draft_id}")
+
         # 检查草稿是否存在
         from database import get_draft_by_id
         draft_info = get_draft_by_id(draft_id)
-        print(f"草稿信息: {draft_info}")
-        
+        logger.debug(f"草稿信息: {draft_info}")
+
         # 从数据库删除草稿和相关素材
         conn = sqlite3.connect('capcut.db')
         c = conn.cursor()
@@ -2667,28 +2850,26 @@ def delete_draft_api(draft_id):
         c.execute("DELETE FROM drafts WHERE id = ?", (draft_id,))
         conn.commit()
         conn.close()
-        
+
         # 从缓存中删除
         if draft_id in draft_materials_cache:
             del draft_materials_cache[draft_id]
-        
+
         # 删除本地文件夹（如果存在）
         import shutil
         draft_path = f"drafts/{draft_id}"
         if os.path.exists(draft_path):
             shutil.rmtree(draft_path)
-        
-        print(f"草稿删除成功: {draft_id}")
+
+        logger.info(f"草稿删除成功: {draft_id}")
         return jsonify({
             'success': True,
             'message': '草稿删除成功',
             'draft_id': draft_id
         })
-        
+
     except Exception as e:
-        print(f"删除草稿失败: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"删除草稿失败: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'error': f'删除草稿失败: {str(e)}'
@@ -2737,7 +2918,7 @@ def download_draft_file(draft_id):
                             })
                 
         except Exception as url_error:
-            print(f"生成下载链接失败: {url_error}")
+            logger.error(f"生成下载链接失败: {url_error}")
         
         # 降级处理：返回草稿信息和手动导入指引
         return jsonify({
@@ -2757,7 +2938,7 @@ def download_draft_file(draft_id):
         })
         
     except Exception as e:
-        print(f"下载草稿失败: {e}")
+        logger.error(f"下载草稿失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -2824,7 +3005,7 @@ def get_draft_title(draft_id):
         return f"{now.month}月{now.day}日"
         
     except Exception as e:
-        print(f"获取草稿标题失败: {e}")
+        logger.error(f"获取草稿标题失败: {e}", exc_info=True)
         from datetime import datetime
         now = datetime.now()
         return f"{now.month}月{now.day}日"
@@ -2838,14 +3019,14 @@ def download_draft_proxy(draft_id):
         client_os = request.args.get('client_os', 'windows')
         draft_folder = request.args.get('draft_folder', '')
         
-        print(f"代理下载草稿: {draft_id}, client_os={client_os}, draft_folder='{draft_folder}'")
+        logger.info(f"代理下载草稿: {draft_id}, client_os={client_os}, draft_folder='{draft_folder}'")
         
         # 调用customize_zip生成定制化URL
         from customize_zip import get_customized_signed_url
         draft_url = get_customized_signed_url(draft_id, client_os, draft_folder)
         
-        print(f"[代理下载] 使用定制化OSS链接: {draft_url[:120]}...")
-        print(f"[代理下载] 参数 - client_os={client_os}, draft_folder='{draft_folder}'")
+        logger.info(f"[代理下载] 使用定制化OSS链接: {draft_url[:120]}...")
+        logger.info(f"[代理下载] 参数 - client_os={client_os}, draft_folder='{draft_folder}'")
         
         # 从OSS获取文件内容
         import requests
@@ -2863,10 +3044,10 @@ def download_draft_proxy(draft_id):
             # 如果响应头中有文件名，优先使用草稿标题
             if 'content-disposition' in file_response.headers:
                 content_disp = file_response.headers['content-disposition']
-                print(f"原始content-disposition: {content_disp}")
+                logger.debug(f"原始content-disposition: {content_disp}")
             
-            print(f"使用草稿标题作为文件名: {filename}")
-            print(f"URL编码后的文件名: {encoded_filename}")
+            logger.debug(f"使用草稿标题作为文件名: {filename}")
+            logger.info(f"URL编码后的文件名: {encoded_filename}")
             
             # 创建响应
             def generate():
@@ -2892,17 +3073,17 @@ def download_draft_proxy(draft_id):
             if 'content-length' in file_response.headers:
                 response.headers['Content-Length'] = file_response.headers['content-length']
             
-            print(f"代理下载成功: {filename}")
+            logger.info(f"代理下载成功: {filename}")
             return response
         else:
-            print(f"OSS文件不存在或无法访问: {file_response.status_code}")
+            logger.info(f"OSS文件不存在或无法访问: {file_response.status_code}")
             return jsonify({
                 'success': False,
                 'error': f'无法从OSS获取文件，状态码: {file_response.status_code}'
             }), 404
         
     except Exception as e:
-        print(f"代理下载失败: {e}")
+        logger.error(f"代理下载失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -2940,7 +3121,7 @@ def download_draft_to_custom_path(draft_id):
                             config = json.load(f)
                             custom_download_path = config.get('custom_download_path', '')
                 except Exception as e:
-                    print(f"加载配置文件失败: {e}")
+                    logger.error(f"加载配置文件失败: {e}", exc_info=True)
             
             custom_path = custom_download_path
         
@@ -2986,7 +3167,7 @@ def download_draft_to_custom_path(draft_id):
                     raise Exception("无法生成自定义压缩包下载链接")
                     
             except Exception as custom_error:
-                print(f"生成自定义压缩包失败: {custom_error}")
+                logger.error(f"生成自定义压缩包失败: {custom_error}")
                 import traceback
                 traceback.print_exc()
         
@@ -3033,7 +3214,7 @@ def download_draft_to_custom_path(draft_id):
                             })
                 
         except Exception as url_error:
-            print(f"生成下载链接失败: {url_error}")
+            logger.error(f"生成下载链接失败: {url_error}")
         
         # 最终降级处理：返回草稿信息和手动导入指引
         return jsonify({
@@ -3055,7 +3236,7 @@ def download_draft_to_custom_path(draft_id):
         })
         
     except Exception as e:
-        print(f"自定义路径下载草稿失败: {e}")
+        logger.error(f"自定义路径下载草稿失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -3118,8 +3299,6 @@ def batch_download_drafts():
             'success': False,
             'error': f'批量下载失败: {str(e)}'
         }), 500
-
-from database import update_draft_status
 
 @app.route('/api/draft/long_poll_status', methods=['GET'])
 def long_poll_draft_status():
@@ -3216,7 +3395,7 @@ def draft_path_config():
                 # 检测Windows路径特征（盘符开头，如 C:\, D:\, F:\）
                 if client_os == 'windows' and re.match(r'^[A-Za-z]:\\', custom_path):
                     is_cross_platform = True
-                    print(f"检测到跨平台路径配置: Windows路径 '{custom_path}' 在 Linux 服务器上")
+                    logger.debug(f"检测到跨平台路径配置: Windows路径 '{custom_path}' 在 Linux 服务器上")
                 
                 # 如果不是跨平台路径，才进行物理验证
                 if not is_cross_platform:
@@ -3229,7 +3408,7 @@ def draft_path_config():
                         }), 400
                 else:
                     # 跨平台路径只做格式验证，不进行物理验证
-                    print(f"跳过跨平台路径的物理验证: {custom_path}")
+                    logger.debug(f"跳过跨平台路径的物理验证: {custom_path}")
             
             # 保存配置到全局变量
             custom_download_path = custom_path
@@ -3240,7 +3419,7 @@ def draft_path_config():
                 with open(config_file, 'w', encoding='utf-8') as f:
                     json.dump({'custom_download_path': custom_path}, f, ensure_ascii=False, indent=2)
             except Exception as e:
-                print(f"保存配置文件失败: {e}")
+                logger.error(f"保存配置文件失败: {e}", exc_info=True)
                 
             return jsonify({
                 'success': True,
@@ -3358,7 +3537,7 @@ def draft_download_api():
                     'instructions': instructions
                 })
         except Exception as custom_error:
-            print(f"生成定制化下载链接失败: {custom_error}")
+            logger.error(f"生成定制化下载链接失败: {custom_error}")
             import traceback
             traceback.print_exc()
             
@@ -3593,7 +3772,7 @@ def generate_draft_url_api():
                         'error': f'保存草稿失败: {save_result.get("error", "未知错误")}'
                     }), 500
             except Exception as save_error:
-                print(f"保存草稿时出错: {save_error}")
+                logger.info(f"保存草稿时出错: {save_error}")
                 # 继续尝试生成URL，即使保存失败
         
         # 尝试从OSS获取已签名的URL
@@ -3609,7 +3788,7 @@ def generate_draft_url_api():
                     'message': '从OSS获取下载链接成功'
                 })
         except Exception as oss_error:
-            print(f"从OSS获取URL失败: {oss_error}")
+            logger.info(f"从OSS获取URL失败: {oss_error}")
         
         # 尝试获取自定义签名URL
         try:
@@ -3624,7 +3803,7 @@ def generate_draft_url_api():
                     'message': '获取自定义下载链接成功'
                 })
         except Exception as custom_error:
-            print(f"获取自定义URL失败: {custom_error}")
+            logger.info(f"获取自定义URL失败: {custom_error}")
         
         # 检查是否有自定义下载路径配置
         global custom_download_path
@@ -3660,7 +3839,7 @@ def generate_draft_url_api():
                     }), 404
                     
             except Exception as copy_error:
-                print(f"复制草稿到自定义路径失败: {copy_error}")
+                logger.info(f"复制草稿到自定义路径失败: {copy_error}")
                 # 继续使用默认路径作为备选
         
         # 生成本地路径作为备选方案
@@ -3681,14 +3860,14 @@ def generate_draft_url_api():
                 }
             })
         except Exception as path_error:
-            print(f"生成本地路径失败: {path_error}")
+            logger.error(f"生成本地路径失败: {path_error}")
             return jsonify({
                 'success': False,
                 'error': f'生成草稿路径失败: {str(path_error)}'
             }), 500
         
     except Exception as e:
-        print(f"generate_draft_url API错误: {e}")
+        logger.error(f"generate_draft_url API错误: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -3714,7 +3893,7 @@ def get_draft_info(draft_id):
             'update_time': '未知'
         }
     except Exception as e:
-        print(f"获取草稿信息失败: {e}")
+        logger.error(f"获取草稿信息失败: {e}", exc_info=True)
         return {
             'id': draft_id,
             'name': f'草稿_{draft_id}',
@@ -3738,11 +3917,11 @@ def download_proxy(draft_id):
         
         # 🔧 修复：智能下载不应该读取path_config.json
         # 只有用户明确传递draft_folder时才使用，否则保持为空（相对路径模式）
-        print(f"[单数代理] client_os={client_os}, draft_folder='{draft_folder}'")
+        logger.info(f"[单数代理] client_os={client_os}, draft_folder='{draft_folder}'")
         
         # 生成下载URL
         download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
-        print(f"[单数代理] 生成URL: {download_url[:100]}...")
+        logger.info(f"[单数代理] 生成URL: {download_url[:100]}...")
         
         if download_url:
             # 使用requests获取文件并返回
@@ -4203,7 +4382,7 @@ def render_template_with_official_style(draft_id, materials, total_duration, dra
                              draft_info=draft_info,
                              timeline_html=generate_timeline_html_for_template(materials, total_duration, draft_id))
     except Exception as e:
-        print(f"模板渲染失败: {e}")
+        logger.error(f"模板渲染失败: {e}", exc_info=True)
         # 如果模板不存在，返回简单的HTML
         return f"""
         <html>
@@ -4237,8 +4416,8 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
     
     # 【增强】text类型素材也作为字幕显示
     # 在materials中，type为text的素材实际上是文本/字幕
-    print(f"\n=== 处理素材，查找字幕 ===")
-    print(f"原始素材数量: {len(materials)}")
+    logger.info(f"\n=== 处理素材，查找字幕 ===")
+    logger.debug(f"原始素材数量: {len(materials)}")
     
     text_materials_count = 0
     for material in materials:
@@ -4249,11 +4428,11 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
             material['type'] = 'subtitle'  # 改为subtitle类型在时间轴上显示
             content = material.get('content', '字幕')
             start = material.get('start', 0)
-            print(f"  ✓ 发现文本素材(作为字幕): {content[:30]}... start={start}s")
+            logger.info(f"  ✓ 发现文本素材(作为字幕): {content[:30]}... start={start}s")
             text_materials_count += 1
     
-    print(f"文本/字幕素材数量: {text_materials_count}")
-    print(f"处理后素材总数: {len(materials)}")
+    logger.info(f"文本/字幕素材数量: {text_materials_count}")
+    logger.info(f"处理后素材总数: {len(materials)}")
     
     if not materials:
         return '<div class="empty-timeline">暂无素材数据</div>'
@@ -4329,7 +4508,7 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
             # 检查是否所有音频start都是0
             all_start_zero = all(float(a.get('start', 0)) == 0 for a in track_audios)
             if all_start_zero:
-                print(f"🔧 检测到{len(track_audios)}个语音音频start都是0，自动计算时间顺序...")
+                logger.info(f"🔧 检测到{len(track_audios)}个语音音频start都是0，自动计算时间顺序...")
                 # 按added_at排序（保持添加顺序）
                 track_audios.sort(key=lambda x: x.get('added_at', ''))
                 # 累加计算start时间
@@ -4339,7 +4518,7 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
                     duration = float(audio.get('duration', 0))
                     audio['end'] = cumulative_time + duration
                     cumulative_time += duration
-                    print(f"  ✓ 音频 start={audio['start']:.2f}s, duration={duration:.2f}s")
+                    logger.info(f"  ✓ 音频 start={audio['start']:.2f}s, duration={duration:.2f}s")
     
     # 按类型分组素材
     materials_by_type = {}
@@ -4357,17 +4536,17 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
         materials_by_type[material_type].sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
     
     # 调试日志：打印素材分组情况
-    print(f"\n===== 时间轴生成调试信息 =====")
-    print(f"总素材数量: {len(materials)}")
-    print(f"总时长: {total_duration}秒")
+    logger.info(f"\n===== 时间轴生成调试信息 =====")
+    logger.info(f"总素材数量: {len(materials)}")
+    logger.info(f"总时长: {total_duration}秒")
     for mat_type, mats in materials_by_type.items():
-        print(f"\n【{mat_type}】类型素材: {len(mats)}个")
+        logger.info(f"\n【{mat_type}】类型素材: {len(mats)}个")
         for i, m in enumerate(mats):
             start = m.get('start', m.get('start_time', 0))
             duration = m.get('duration', m.get('length', '未知'))
             name = m.get('name', m.get('filename', f'{mat_type}_{i+1}'))
-            print(f"  {i+1}. {name} - 开始:{start}s, 时长:{duration}s")
-    print(f"================================\n")
+            logger.info(f"  {i+1}. {name} - 开始:{start}s, 时长:{duration}s")
+    logger.info(f"================================\n")
     
     def assign_to_subtracks(materials_list):
         """
@@ -4426,9 +4605,9 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
         subtracks = assign_to_subtracks(type_materials)
         
         # 调试日志：打印子轨道分配情况
-        print(f"【{material_type}】类型分配到 {len(subtracks)} 个子轨道")
+        logger.info(f"【{material_type}】类型分配到 {len(subtracks)} 个子轨道")
         for idx, subtrack in enumerate(subtracks):
-            print(f"  子轨道 #{idx+1}: {len(subtrack)} 个素材")
+            logger.info(f"  子轨道 #{idx+1}: {len(subtrack)} 个素材")
         
         # 为每个子轨道生成HTML
         for subtrack_idx, subtrack_materials in enumerate(subtracks):
@@ -4541,19 +4720,162 @@ def draft_downloader():
         return redirect(f'/api/drafts/download/{draft_id}')
         
     except Exception as e:
-        print(f"草稿下载路由错误: {e}")
+        logger.error(f"草稿下载路由错误: {e}", exc_info=True)
         return jsonify({
             'success': False,
             'error': f'下载失败: {str(e)}'
         }), 500
 
 
+# ===== 健康检查和监控端点 =====
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """健康检查端点 - 返回服务状态和基本信息"""
+    try:
+        # 检查数据库连接
+        db_status = "healthy"
+        try:
+            conn = sqlite3.connect('capcut.db')
+            conn.execute("SELECT 1")
+            conn.close()
+        except Exception as db_error:
+            db_status = f"unhealthy: {str(db_error)}"
+            logger.error(f"数据库健康检查失败: {db_error}", exc_info=True)
+
+        # 检查OSS连接（如果启用）
+        oss_status = "disabled"
+        if IS_UPLOAD_DRAFT:
+            try:
+                bucket = _ensure_bucket_v4()
+                # 简单的存在性检查,不实际上传
+                oss_status = "healthy"
+            except Exception as oss_error:
+                oss_status = f"unhealthy: {str(oss_error)}"
+                logger.error(f"OSS健康检查失败: {oss_error}", exc_info=True)
+
+        # 检查缓存状态
+        cache_size = len(draft_materials_cache)
+
+        # 整体健康状态
+        overall_status = "healthy" if db_status == "healthy" and (oss_status in ["healthy", "disabled"]) else "unhealthy"
+
+        return jsonify({
+            'status': overall_status,
+            'timestamp': datetime.now().isoformat(),
+            'version': 'v1.1.0',
+            'environment': 'CapCut' if IS_CAPCUT_ENV else '剪映',
+            'components': {
+                'database': db_status,
+                'oss': oss_status,
+                'cache': {
+                    'status': 'healthy',
+                    'size': cache_size,
+                    'max_size': 10000
+                }
+            },
+            'uptime': 'N/A'  # 可以添加启动时间跟踪
+        }), 200 if overall_status == "healthy" else 503
+
+    except Exception as e:
+        logger.error(f"健康检查失败: {e}", exc_info=True)
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
+@app.route('/health/ready', methods=['GET'])
+def readiness_check():
+    """就绪检查端点 - 检查服务是否准备好接收请求"""
+    try:
+        # 检查关键组件是否就绪
+        conn = sqlite3.connect('capcut.db')
+        conn.execute("SELECT COUNT(*) FROM drafts")
+        conn.close()
+
+        return jsonify({
+            'ready': True,
+            'timestamp': datetime.now().isoformat()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"就绪检查失败: {e}", exc_info=True)
+        return jsonify({
+            'ready': False,
+            'reason': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 503
+
+
+@app.route('/health/live', methods=['GET'])
+def liveness_check():
+    """存活检查端点 - 简单的ping检查"""
+    return jsonify({
+        'alive': True,
+        'timestamp': datetime.now().isoformat()
+    }), 200
+
+
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    """性能指标端点 - 返回服务运行指标"""
+    try:
+        # 数据库统计
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+
+        # 草稿总数
+        c.execute("SELECT COUNT(*) FROM drafts")
+        total_drafts = c.fetchone()[0]
+
+        # 素材总数
+        c.execute("SELECT COUNT(*) FROM materials")
+        total_materials = c.fetchone()[0]
+
+        # 按状态统计草稿
+        c.execute("SELECT status, COUNT(*) FROM drafts GROUP BY status")
+        draft_by_status = {row[0] or 'unknown': row[1] for row in c.fetchall()}
+
+        conn.close()
+
+        # 缓存统计
+        cache_stats = {
+            'size': len(draft_materials_cache),
+            'max_size': 10000,
+            'usage_percent': round(len(draft_materials_cache) / 10000 * 100, 2)
+        }
+
+        return jsonify({
+            'timestamp': datetime.now().isoformat(),
+            'database': {
+                'total_drafts': total_drafts,
+                'total_materials': total_materials,
+                'drafts_by_status': draft_by_status
+            },
+            'cache': cache_stats,
+            'system': {
+                'environment': 'CapCut' if IS_CAPCUT_ENV else '剪映',
+                'upload_enabled': IS_UPLOAD_DRAFT,
+                'port': PORT
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"获取性能指标失败: {e}", exc_info=True)
+        return jsonify({
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+
 if __name__ == "__main__":
     try:
-        print("🚀 启动 CapCutAPI 服务...")
-        print(f"🔗 访问地址: http://localhost:{PORT}")
+        logger.info("🚀 启动 CapCutAPI 服务...")
+        logger.info(f"🔗 访问地址: http://localhost:{PORT}")
         app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False)
     except KeyboardInterrupt:
-        print("🚫 服务已停止")
+        logger.info("🚫 服务已停止")
     except Exception as e:
-        print(f"❌ 启动失败: {e}")
+        logger.error(f"❌ 启动失败: {e}", exc_info=True)

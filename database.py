@@ -27,8 +27,21 @@ def init_db():
             FOREIGN KEY (draft_id) REFERENCES drafts (id)
         )
     ''')
+
+    # ===== 创建索引以提升查询性能 =====
+    # drafts表索引
+    c.execute('CREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_drafts_last_modified ON drafts(last_modified DESC)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_drafts_created_at ON drafts(created_at DESC)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_drafts_status_modified ON drafts(status, last_modified DESC)')
+
+    # materials表索引
+    c.execute('CREATE INDEX IF NOT EXISTS idx_materials_draft_id ON materials(draft_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_materials_created_at ON materials(created_at DESC)')
+
     conn.commit()
     conn.close()
+    print("数据库初始化完成，索引已创建")
 
 def get_draft_materials(draft_id):
     conn = sqlite3.connect('capcut.db')

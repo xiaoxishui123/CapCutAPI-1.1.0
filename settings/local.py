@@ -4,6 +4,11 @@
 
 import os
 import json
+from dotenv import load_dotenv
+
+# 加载 .env 文件（优先级高于 config.json）
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+load_dotenv(dotenv_path=dotenv_path, override=True)
 
 # 配置文件路径
 CONFIG_FILE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
@@ -118,3 +123,39 @@ _mp4_env_overrides = {
 for _k, _v in _mp4_env_overrides.items():
     if _v:
         MP4_OSS_CONFIG[_k] = _v
+
+# ===== 配置验证 =====
+def validate_oss_config():
+    """验证OSS配置是否完整"""
+    import sys
+
+    if not IS_UPLOAD_DRAFT:
+        # 如果不启用OSS上传，跳过验证
+        return
+
+    required_fields = ['bucket_name', 'access_key_id', 'access_key_secret', 'endpoint', 'region']
+    missing_fields = [field for field in required_fields if not OSS_CONFIG.get(field)]
+
+    if missing_fields:
+        error_msg = f"""
+❌ OSS配置不完整！缺少以下字段：{', '.join(missing_fields)}
+
+请检查配置：
+1. 确认 .env 文件存在且包含所有必需的OSS配置
+2. 或在 config.json 中配置 oss_config（不推荐，有安全风险）
+
+必需的环境变量：
+- OSS_BUCKET_NAME
+- OSS_ACCESS_KEY_ID
+- OSS_ACCESS_KEY_SECRET
+- OSS_ENDPOINT
+- OSS_REGION
+
+参考 .env.example 文件查看配置示例。
+"""
+        print(error_msg, file=sys.stderr)
+        sys.exit(1)
+
+# 启动时验证配置（仅当此模块被导入时执行一次）
+if __name__ != "__main__":
+    validate_oss_config()
