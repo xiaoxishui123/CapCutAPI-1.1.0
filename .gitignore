@@ -72,3 +72,4 @@ capcut_server_backup.py
 # 其他
 ignored
 ./resource
+DEPLOY_KEY_BASE64.txt

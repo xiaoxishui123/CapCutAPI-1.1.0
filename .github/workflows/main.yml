@@ -43,17 +43,35 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image to GHCR
+        id: docker_build
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
             ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ env.SHORT_SHA }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: type=registry
+
+      - name: Check Docker Build Result
+        run: |
+          echo "================================"
+          echo "Docker 构建结果检查"
+          echo "================================"
+          echo "Image Digest: ${{ steps.docker_build.outputs.digest }}"
+          echo "Image Tags: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
+          echo ""
+
+          if [ -z "${{ steps.docker_build.outputs.digest }}" ]; then
+            echo "❌ 警告: Docker 构建可能失败，未获取到 digest"
+          else
+            echo "✅ Docker 构建成功"
+            echo "Digest: ${{ steps.docker_build.outputs.digest }}"
+          fi
 
       # ================================================================
       # 🚨 部署步骤已禁用 - 需要先配置 GitHub Secrets
@@ -68,6 +86,26 @@ jobs:
       #
       # 配置完成后，取消下面整个部署步骤的注释即可启用自动部署
       # ================================================================
+
+      - name: Verify Docker Image Exists
+        run: |
+          echo "🔍 验证镜像是否成功推送到 GHCR..."
+          echo "镜像地址: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
+
+          # 登录 GHCR
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+          # 尝试拉取镜像验证是否存在
+          if docker pull ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest; then
+            echo "✅ 镜像验证成功"
+          else
+            echo "❌ 镜像不存在或拉取失败"
+            echo "可能原因："
+            echo "1. Docker 构建步骤失败"
+            echo "2. 镜像名称不匹配"
+            echo "3. 权限不足"
+            exit 1
+          fi
 
       - name: Setup SSH Key
         run: |
