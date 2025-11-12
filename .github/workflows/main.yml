@@ -133,8 +133,8 @@ jobs:
             echo "🔐 登录 GitHub Container Registry..."
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
-            # 获取镜像信息
-            REPO_NAME="capcutapi-1-1-0"
+            # 获取镜像信息（使用与构建阶段相同的镜像名称）
+            REPO_NAME="${{ env.REPO_NAME }}"
             IMAGE="ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
             echo "📦 镜像地址: $IMAGE"
 
