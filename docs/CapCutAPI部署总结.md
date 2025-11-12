@@ -2,11 +2,25 @@
 
 ## 部署信息
 
-- **部署时间**: 2025年8月4日
+- **初始部署时间**: 2025年8月4日
+- **最后更新时间**: 2025年11月12日
 - **服务器地址**: 8.148.70.18
 - **服务端口**: 9000
 - **访问地址**: http://8.148.70.18:9000
 - **部署状态**: ✅ 成功部署并运行中
+
+## 最新功能更新 (v1.3.0+)
+
+### 🎨 Pattern 模板库 (NEW!)
+- ✅ 视频编辑模板系统已集成
+- ✅ 3个开箱即用的模板（文字滚动、情侣关系、扣子工作流）
+- ✅ Pattern API 端点已部署
+- 📁 模板目录: `/home/CapCutAPI-1.1.0/pattern/`
+
+### 🌉 MCP 服务支持 (NEW!)
+- ✅ **简化版 MCP**: 轻量级 MCP 协议支持，适合个人开发者
+- ✅ **企业版 MCP Bridge**: 完整的企业级 MCP 服务（端口 8082）
+- 📖 快速入门: 查看 `MCP_QUICK_START.md`
 
 ## 部署过程
 
@@ -90,6 +104,8 @@ sudo systemctl status capcutapi.service
 - ✅ 创建草稿
 
 ### 可用API端点
+
+#### 核心功能 API
 - `GET /get_intro_animation_types` - 获取入场动画类型
 - `GET /get_outro_animation_types` - 获取出场动画类型
 - `GET /get_transition_types` - 获取转场类型
@@ -105,19 +121,84 @@ sudo systemctl status capcutapi.service
 - `POST /add_sticker` - 添加贴纸
 - `POST /save_draft` - 保存草稿
 
+#### Pattern 模板 API (NEW!)
+- `GET /api/patterns/list` - 列出所有可用模板
+- `GET /api/patterns/get/<pattern_id>` - 获取模板详情和内容
+- `GET /api/patterns/download/<pattern_id>` - 下载模板文件
+
+#### 草稿管理 API
+- `GET /api/drafts/list` - 获取草稿列表
+- `GET /api/drafts/dashboard` - 草稿管理仪表板
+- `GET /draft/preview/<draft_id>` - 草稿预览
+- `POST /api/drafts/batch-download` - 批量下载草稿
+- `POST /generate_draft_url` - 生成草稿下载链接
+
+## MCP 服务部署 (可选)
+
+### 简化版 MCP 服务器
+
+**适用场景**: 个人开发、快速测试、学习 MCP 协议
+
+**部署步骤**:
+
+1. **安装 MCP 依赖**
+   ```bash
+   pip install mcp>=1.0.0
+   ```
+
+2. **启动简化版 MCP**
+   ```bash
+   cd /home/CapCutAPI-1.1.0
+   python3 simple_mcp_server.py
+   ```
+
+3. **验证服务**
+   ```bash
+   # 服务应该在 stdio 模式运行
+   # 看到 "CapCut MCP 服务器已启动" 表示成功
+   ```
+
+**配置说明**:
+- 无需额外配置，开箱即用
+- 默认连接到 `http://localhost:9000` 的主服务
+- 通过环境变量 `CAPCUT_API_URL` 可自定义 API 地址
+- 详细使用方法参考 `MCP_QUICK_START.md`
+
+### 企业版 MCP Bridge 服务
+
+**适用场景**: 生产环境、企业部署、需要监控和缓存
+
+**部署信息**:
+- **服务地址**: http://8.148.70.18:8082
+- **服务状态**: ✅ 已部署并运行
+- **健康检查**: `GET /health`
+- **性能指标**: `GET /metrics`
+
+**部署文档**:
+- 详细部署指南: `mcp_bridge/docs/实施指南.md`
+- Dify 集成: `mcp_bridge/docs/Dify集成指南.md`
+- 版本对比: `docs/MCP_VERSION_COMPARISON.md`
+
 ## 系统信息
 
 ### 服务器环境
 - **操作系统**: Linux 4.18.0-348.7.1.el8_5.x86_64
 - **Python版本**: 3.9.7
 - **ffmpeg版本**: 已安装
-- **防火墙**: 端口9000已开放
+- **防火墙**: 端口9000已开放（主服务）、端口8082已开放（MCP Bridge）
 
 ### 服务配置
+
+#### 主服务 (CapCutAPI)
 - **服务名称**: capcutapi.service
 - **工作目录**: /home/CapCutAPI-1.1.0
 - **虚拟环境**: /home/CapCutAPI-1.1.0/venv
 - **日志位置**: /home/CapCutAPI-1.1.0/logs/
+
+#### Pattern 模板库
+- **模板目录**: /home/CapCutAPI-1.1.0/pattern/
+- **可用模板**: 3个（001-words, 002-relationship, 001-words-coze）
+- **测试脚本**: test_pattern_api.py
 
 ## 性能监控
 
@@ -201,14 +282,87 @@ sudo systemctl status capcutapi.service
 - **服务状态**: 正常运行
 
 ### 文档链接
-- **API文档**: `API_USAGE_EXAMPLES.md`
+
+#### 核心文档
+- **API文档**: `docs/API_USAGE_EXAMPLES.md`
 - **项目文档**: `README.md`
+- **快速使用指南**: `docs/CapCutAPI_快速使用指南.md`
+- **故障排除**: `docs/TROUBLESHOOTING.md`
+
+#### Pattern 模板文档
+- **Pattern 快速开始**: `pattern/QUICK_START.md`
+- **Pattern 集成报告**: `docs/PATTERN_INTEGRATION_REPORT.md`
+- **Pattern 模块文档**: `pattern/CLAUDE.md`
+
+#### MCP 服务文档
+- **MCP 快速入门**: `MCP_QUICK_START.md` ⭐ 推荐新手
+- **MCP 版本对比**: `docs/MCP_VERSION_COMPARISON.md`
+- **MCP Bridge 实施指南**: `mcp_bridge/docs/实施指南.md`
+- **Dify 集成指南**: `mcp_bridge/docs/Dify集成指南.md`
+
+#### 管理脚本
 - **部署脚本**: `deploy.sh`
 - **服务管理**: `service_manager.sh`
+- **Pattern 测试**: `test_pattern_api.py`
+
+## 快速测试命令
+
+### 测试主服务
+```bash
+# 测试核心 API
+curl http://8.148.70.18:9000/get_intro_animation_types
+
+# 测试 Pattern API
+curl http://8.148.70.18:9000/api/patterns/list
+
+# 测试草稿列表
+curl http://8.148.70.18:9000/api/drafts/list
+```
+
+### 测试 Pattern 功能
+```bash
+# 运行 Pattern 测试脚本
+cd /home/CapCutAPI-1.1.0
+python3 test_pattern_api.py
+```
+
+### 测试 MCP Bridge (如已部署)
+```bash
+# 健康检查
+curl http://8.148.70.18:8082/health
+
+# 性能指标
+curl http://8.148.70.18:8082/metrics
+```
 
 ---
 
-**部署完成时间**: 2025年8月4日 09:54  
-**部署状态**: ✅ 成功  
-**服务状态**: ✅ 正常运行  
-**访问地址**: http://8.148.70.18:9000 
+**初始部署时间**: 2025年8月4日 09:54
+**最后更新时间**: 2025年11月12日
+**部署状态**: ✅ 成功
+**服务状态**: ✅ 正常运行
+**主服务地址**: http://8.148.70.18:9000
+**MCP Bridge 地址**: http://8.148.70.18:8082 (如已部署)
+
+## 版本历史
+
+### v1.3.0+ (2025-11-12)
+- ✅ 新增 Pattern 模板库功能
+- ✅ 新增简化版 MCP 服务器
+- ✅ 完善草稿管理和批量下载功能
+- ✅ 更新部署文档
+
+### v1.2.0 (2025-01-03)
+- ✅ 优化草稿预览界面
+- ✅ 增强下载管理功能
+- ✅ 响应式设计改进
+
+### v1.1.0 (2024)
+- ✅ 草稿管理仪表板
+- ✅ 批量下载功能
+- ✅ 云存储集成
+
+### v1.0.0 (2025-08-04)
+- ✅ 初始部署
+- ✅ 核心 API 功能
+- ✅ systemd 服务配置 

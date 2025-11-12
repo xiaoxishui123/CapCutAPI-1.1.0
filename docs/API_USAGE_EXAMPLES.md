@@ -312,19 +312,363 @@ response = requests.get(f"{BASE_URL}/debug/cache/my_draft")
 print(f"缓存信息: {response.json()}")
 ```
 
+## Pattern 模板库 API (NEW! 🎨)
+
+Pattern 模板库提供开箱即用的视频编辑模板，帮助您快速创建专业视频。
+
+### 1. 列出所有可用模板
+
+**请求**:
+```python
+import requests
+
+BASE_URL = "http://8.148.70.18:9000"
+
+# 获取所有模板列表
+response = requests.get(f"{BASE_URL}/api/patterns/list")
+data = response.json()
+
+print(f"成功: {data['success']}")
+print(f"模板数量: {data['count']}")
+print(f"\n可用模板:")
+for pattern in data['patterns']:
+    print(f"  - ID: {pattern['id']}")
+    print(f"    名称: {pattern['name']}")
+    print(f"    类型: {pattern['type']}")
+    print(f"    描述: {pattern['description']}")
+    if pattern.get('video_url'):
+        print(f"    演示: {pattern['video_url']}")
+    print()
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "patterns": [
+    {
+      "id": "001-words",
+      "name": "文字滚动效果",
+      "description": "文字滚动效果视频模板，支持 AI 生成文字内容",
+      "file": "001-words.py",
+      "type": "python",
+      "video_url": "https://www.youtube.com/watch?v=HLSHaJuNtBw"
+    },
+    {
+      "id": "002-relationship",
+      "name": "情侣关系主题",
+      "description": "生成情侣关系主题的短视频",
+      "file": "002-relationship.py",
+      "type": "python",
+      "video_url": "https://www.youtube.com/watch?v=f2Q1OI_SQZo"
+    },
+    {
+      "id": "001-words-coze",
+      "name": "文字滚动效果（扣子工作流）",
+      "description": "扣子平台工作流配置文件",
+      "file": "001-words-coze.md",
+      "type": "workflow"
+    }
+  ],
+  "count": 3
+}
+```
+
+### 2. 获取模板详情和内容
+
+**请求**:
+```python
+import requests
+
+BASE_URL = "http://8.148.70.18:9000"
+pattern_id = "001-words"
+
+# 获取模板详情
+response = requests.get(f"{BASE_URL}/api/patterns/get/{pattern_id}")
+data = response.json()
+
+if data['success']:
+    pattern = data['pattern']
+    print(f"模板名称: {pattern['name']}")
+    print(f"模板类型: {pattern['type']}")
+    print(f"模板描述: {pattern['description']}")
+    print(f"内容长度: {len(pattern['content'])} 字符")
+
+    # 保存模板内容到本地
+    file_ext = ".py" if pattern['type'] == "python" else ".md"
+    filename = f"{pattern_id}{file_ext}"
+
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(pattern['content'])
+
+    print(f"\n✅ 模板已保存到: {filename}")
+else:
+    print(f"❌ 错误: {data['error']}")
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "pattern": {
+    "id": "001-words",
+    "name": "文字滚动效果",
+    "description": "文字滚动效果视频模板",
+    "file": "001-words.py",
+    "type": "python",
+    "video_url": "https://www.youtube.com/watch?v=HLSHaJuNtBw",
+    "content": "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n...(完整的模板代码)..."
+  }
+}
+```
+
+### 3. 直接下载模板文件
+
+**请求**:
+```python
+import requests
+
+BASE_URL = "http://8.148.70.18:9000"
+pattern_id = "001-words"
+
+# 下载模板文件
+response = requests.get(f"{BASE_URL}/api/patterns/download/{pattern_id}")
+
+if response.status_code == 200:
+    # 从 Content-Disposition 头获取文件名
+    filename = f"{pattern_id}.py"  # 根据模板类型调整扩展名
+
+    with open(filename, 'wb') as f:
+        f.write(response.content)
+
+    print(f"✅ 模板已下载: {filename}")
+    print(f"文件大小: {len(response.content)} 字节")
+else:
+    print(f"❌ 下载失败: {response.status_code}")
+    print(response.text)
+```
+
+**使用 curl 下载**:
+```bash
+# 下载 Python 模板
+curl -O http://8.148.70.18:9000/api/patterns/download/001-words
+
+# 下载工作流配置
+curl -O http://8.148.70.18:9000/api/patterns/download/001-words-coze
+```
+
+### 4. 完整的 Pattern 使用流程
+
+```python
+import requests
+import json
+
+BASE_URL = "http://8.148.70.18:9000"
+
+def use_pattern_workflow():
+    """完整的 Pattern 使用流程示例"""
+
+    print("=" * 60)
+    print("Pattern 模板库使用流程")
+    print("=" * 60)
+
+    # 步骤 1: 浏览可用模板
+    print("\n📋 步骤 1: 获取模板列表...")
+    response = requests.get(f"{BASE_URL}/api/patterns/list")
+    patterns = response.json()['patterns']
+
+    print(f"找到 {len(patterns)} 个可用模板:")
+    for i, pattern in enumerate(patterns, 1):
+        print(f"{i}. {pattern['name']} ({pattern['id']})")
+        print(f"   类型: {pattern['type']}")
+        print(f"   {pattern['description']}")
+
+    # 步骤 2: 选择并下载模板
+    pattern_id = "001-words"  # 选择文字滚动效果模板
+    print(f"\n📥 步骤 2: 下载模板 '{pattern_id}'...")
+
+    response = requests.get(f"{BASE_URL}/api/patterns/get/{pattern_id}")
+    pattern_data = response.json()['pattern']
+
+    # 保存到本地
+    filename = f"{pattern_id}.py"
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(pattern_data['content'])
+
+    print(f"✅ 模板已保存: {filename}")
+
+    # 步骤 3: 配置和使用
+    print(f"\n⚙️ 步骤 3: 配置说明")
+    print("请按照以下步骤使用模板:")
+    print(f"1. 打开 {filename} 查看配置要求")
+    print("2. 配置必要的 API 密钥 (如: Qwen API Key, Pexels API Key)")
+    print("3. 根据需要调整模板参数")
+    print(f"4. 运行模板: python3 {filename}")
+
+    # 步骤 4: 查看演示
+    if pattern_data.get('video_url'):
+        print(f"\n🎬 步骤 4: 查看演示效果")
+        print(f"演示视频: {pattern_data['video_url']}")
+
+    print("\n" + "=" * 60)
+    print("✅ Pattern 使用流程完成！")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    use_pattern_workflow()
+```
+
+### 5. 错误处理示例
+
+```python
+import requests
+
+BASE_URL = "http://8.148.70.18:9000"
+
+def get_pattern_safely(pattern_id):
+    """安全地获取 Pattern 模板"""
+    try:
+        response = requests.get(
+            f"{BASE_URL}/api/patterns/get/{pattern_id}",
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            if data['success']:
+                return data['pattern']
+            else:
+                print(f"❌ API 错误: {data.get('error', '未知错误')}")
+                return None
+
+        elif response.status_code == 404:
+            print(f"❌ 模板不存在: {pattern_id}")
+            print("提示: 使用 /api/patterns/list 查看可用模板")
+            return None
+
+        else:
+            print(f"❌ HTTP 错误: {response.status_code}")
+            return None
+
+    except requests.exceptions.Timeout:
+        print("❌ 请求超时，请检查网络连接")
+        return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 网络错误: {str(e)}")
+        return None
+
+    except Exception as e:
+        print(f"❌ 未知错误: {str(e)}")
+        return None
+
+# 使用示例
+pattern = get_pattern_safely("001-words")
+if pattern:
+    print(f"✅ 成功获取模板: {pattern['name']}")
+else:
+    print("获取模板失败")
+```
+
+### 6. Pattern 与草稿 API 结合使用
+
+```python
+import requests
+
+BASE_URL = "http://8.148.70.18:9000"
+
+def create_video_from_pattern():
+    """使用 Pattern 模板创建视频项目"""
+
+    # 1. 获取模板内容作为参考
+    print("📋 获取模板参考...")
+    response = requests.get(f"{BASE_URL}/api/patterns/get/001-words")
+    pattern = response.json()['pattern']
+    print(f"使用模板: {pattern['name']}")
+
+    # 2. 创建草稿
+    print("\n📝 创建草稿...")
+    draft_id = "pattern_demo_001"
+    requests.post(f"{BASE_URL}/create_draft", json={
+        "draft_id": draft_id,
+        "width": 1080,
+        "height": 1920
+    })
+
+    # 3. 根据模板逻辑添加素材
+    print("🎬 添加视频素材...")
+    requests.post(f"{BASE_URL}/add_video", json={
+        "draft_id": draft_id,
+        "video_url": "http://example.com/background.mp4",
+        "start": 0,
+        "end": 10
+    })
+
+    print("✍️ 添加文字效果...")
+    requests.post(f"{BASE_URL}/add_text", json={
+        "draft_id": draft_id,
+        "text": "这是使用 Pattern 创建的视频",
+        "start": 0,
+        "end": 10,
+        "font": "ZY_Courage",
+        "font_color": "#FF0000",
+        "font_size": 40.0
+    })
+
+    # 4. 保存草稿
+    print("\n💾 保存草稿...")
+    response = requests.post(f"{BASE_URL}/save_draft", json={
+        "draft_id": draft_id
+    })
+
+    print(f"✅ 草稿创建完成: {draft_id}")
+    print(f"预览地址: {BASE_URL}/draft/preview/{draft_id}")
+
+if __name__ == "__main__":
+    create_video_from_pattern()
+```
+
 ## Web界面访问
 
-### 1. 主页
-访问地址：http://8.148.70.18:9000
+### 核心页面
 
-### 2. 草稿管理仪表板
-访问地址：http://8.148.70.18:9000/api/drafts/dashboard
+#### 1. 主页
+- **地址**: http://8.148.70.18:9000
+- **功能**: 欢迎页面，显示 API 基本信息
 
-### 3. 草稿预览
-访问地址：http://8.148.70.18:9000/draft/preview/[草稿ID]
+#### 2. 草稿管理仪表板
+- **地址**: http://8.148.70.18:9000/api/drafts/dashboard
+- **功能**: 管理所有草稿，支持批量操作
 
-### 4. 草稿下载
-访问地址：http://8.148.70.18:9000/draft/downloader?draft_id=[草稿ID]
+#### 3. 草稿预览
+- **地址**: http://8.148.70.18:9000/draft/preview/[草稿ID]
+- **功能**: 可视化预览草稿内容和时间轴
+- **示例**: http://8.148.70.18:9000/draft/preview/dfd_cat_1756104121_cb774809
+
+#### 4. 草稿下载
+- **地址**: http://8.148.70.18:9000/draft/downloader?draft_id=[草稿ID]
+- **功能**: 下载草稿文件到本地
+
+### Pattern 相关接口 (API Only)
+
+Pattern 模板库通过 API 端点提供服务，没有专门的 Web 页面，但可以通过浏览器访问：
+
+#### 5. Pattern 列表 (JSON)
+- **地址**: http://8.148.70.18:9000/api/patterns/list
+- **功能**: 返回所有可用模板的 JSON 列表
+- **格式**: JSON
+
+#### 6. Pattern 详情 (JSON)
+- **地址**: http://8.148.70.18:9000/api/patterns/get/[模板ID]
+- **示例**: http://8.148.70.18:9000/api/patterns/get/001-words
+- **功能**: 返回模板的完整信息和代码内容
+- **格式**: JSON
+
+#### 7. Pattern 下载 (文件)
+- **地址**: http://8.148.70.18:9000/api/patterns/download/[模板ID]
+- **示例**: http://8.148.70.18:9000/api/patterns/download/001-words
+- **功能**: 直接下载模板文件
+- **格式**: Python 脚本 (.py) 或 Markdown (.md)
 
 ## 错误处理
 
@@ -389,11 +733,28 @@ else:
 
 ## 注意事项
 
+### 基础 API 使用
+
 1. **草稿ID**: 每个草稿必须有唯一的ID
 2. **时间参数**: start和end参数表示秒数
 3. **坐标系统**: position_x和position_y使用0-1的相对坐标
 4. **文件格式**: 支持常见的视频、音频、图片格式
 5. **网络资源**: 确保视频、音频、图片URL可以正常访问
+
+### Pattern 模板使用
+
+6. **模板类型**: 支持 Python 脚本 (`.py`) 和工作流配置 (`.md`)
+7. **API 密钥**: Python 模板可能需要配置第三方 API 密钥（如 Qwen、Pexels）
+8. **演示视频**: 大多数模板都有演示视频链接，建议先查看效果
+9. **模板修改**: 下载后可以根据需求自由修改模板代码
+10. **错误处理**: 使用 404 状态码表示模板不存在，使用 `/api/patterns/list` 查看可用模板
+
+### 最佳实践
+
+11. **超时设置**: API 调用建议设置 10-30 秒超时
+12. **错误处理**: 始终检查响应的 `success` 字段和 HTTP 状态码
+13. **文件编码**: 模板内容使用 UTF-8 编码
+14. **并发控制**: 批量操作时注意控制并发数量，避免服务器过载
 
 ## 故障排除
 

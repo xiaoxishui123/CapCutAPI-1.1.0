@@ -1,106 +1,284 @@
-# CLAUDE.md
+[根目录](../CLAUDE.md) > **docs**
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+---
 
-## 项目概述
+# docs 文档模块
 
-CapCutAPI-1.1.0是一个开源的CapCut（剪映）API工具，基于Python开发，提供了一系列功能来自动化视频剪辑和混剪流程。项目支持通过API创建和编辑视频，集成了AI功能，并提供云端存储和预览。
+> 最后更新时间：2025-11-11 22:20:59
 
-## 核心架构
+## 变更记录 (Changelog)
 
-### 服务端
-- **Web框架**: Flask (`capcut_server.py`)
-- **核心功能**: `pyJianYingDraft`库 - 用于处理剪映的草稿文件
-- **配置文件**: `config.json` - 控制服务端口、草稿保存模式等
-- **OSS集成**: 支持将草稿上传到阿里云OSS (`oss.py`)
+### 2025-11-11 22:20:59
+- 初始化 docs 文档模块文档
+- 完成文档清单和分类整理
 
-### 草稿保存模式
-项目支持两种草稿保存模式，通过`config.json`中的`is_upload_draft`字段控制：
-- **OSS云存储模式**: 草稿自动上传到OSS，适合生产环境
-- **本地保存模式**: 草稿保存在本地，适合开发测试
+---
 
-### API接口
-- `/create_draft`: 创建草稿
-- `/add_video`: 添加视频
-- `/add_audio`: 添加音频
-- `/add_text`: 添加文本
-- `/save_draft`: 保存草稿
+## 模块职责
 
-## 常用命令
+`docs` 模块是 CapCutAPI 项目的文档中心，包含项目的各类技术文档、使用指南、故障排除等资料。这些文档为开发者、运维人员和用户提供全面的项目信息。
 
-### 服务管理
-```bash
-# 使用管理脚本（推荐）
-./service_manager.sh start      # 启动服务
-./service_manager.sh stop       # 停止服务
-./service_manager.sh restart    # 重启服务
-./service_manager.sh status     # 查看状态
-./service_manager.sh logs       # 查看日志
-./service_manager.sh test       # 测试服务
+**文档分类**：
+- 需求与设计文档
+- 部署与运维文档
+- API 使用文档
+- 故障排除文档
+- 功能集成报告
+- MCP 相关文档
 
-# 使用systemd
-sudo systemctl start capcutapi.service
-sudo systemctl stop capcutapi.service
-sudo systemctl restart capcutapi.service
+---
 
-# 查看日志
-tail -f logs/capcutapi.log
+## 文档清单
+
+### 1. 核心文档
+
+#### 需求文档
+- **[REQUIREMENTS_DOCUMENT.md](REQUIREMENTS_DOCUMENT.md)**: 项目需求文档
+  - 功能需求
+  - 非功能需求
+  - 用户故事
+  - 验收标准
+
+#### 操作手册
+- **[OPERATION_MANUAL.md](OPERATION_MANUAL.md)**: 操作手册
+  - 系统安装
+  - 配置说明
+  - 日常运维
+  - 常见操作
+
+#### API 文档
+- **[API_USAGE_EXAMPLES.md](API_USAGE_EXAMPLES.md)**: API 使用示例
+  - 所有 API 端点列表
+  - 请求/响应示例
+  - 参数说明
+  - 错误码说明
+
+#### 故障排除
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: 故障排除指南
+  - 常见问题及解决方案
+  - 错误信息解释
+  - 调试技巧
+  - 日志分析
+
+---
+
+### 2. 部署文档
+
+#### 部署总结
+- **[CapCutAPI部署总结.md](CapCutAPI部署总结.md)**: 完整部署总结
+  - 服务器环境准备
+  - 依赖安装
+  - 配置文件设置
+  - 服务启动和管理
+  - systemd 配置
+
+#### 技术架构
+- **[CLAUDE.md](CLAUDE.md)**: 技术架构文档
+  - 系统架构设计
+  - 技术选型
+  - 模块划分
+  - 数据流分析
+
+#### 快速使用指南
+- **[CapCutAPI_快速使用指南.md](CapCutAPI_快速使用指南.md)**: 快速上手指南
+  - 5分钟快速开始
+  - 基础 API 调用
+  - 常见使用场景
+
+---
+
+### 3. 专题文档
+
+#### 数据流分析
+- **[CapCutAPI_数据流分析文档.md](CapCutAPI_数据流分析文档.md)**: 数据流分析
+  - 请求处理流程
+  - 数据转换过程
+  - 缓存策略
+  - 存储方案
+
+#### 跨平台兼容性
+- **[CapCutAPI_跨平台素材识别问题解决方案.md](CapCutAPI_跨平台素材识别问题解决方案.md)**: 跨平台解决方案
+  - Windows/Linux/macOS 路径适配
+  - 素材识别问题
+  - 解决方案实现
+
+#### Windows 路径修复
+- **[Windows_Path_Fix_Report.md](Windows_Path_Fix_Report.md)**: Windows 路径修复报告
+  - 问题描述
+  - 修复方案
+  - 测试结果
+
+#### OSS 素材识别修复
+- **[OSS_Material_Recognition_Fix_Report.md](OSS_Material_Recognition_Fix_Report.md)**: OSS 素材识别修复
+  - OSS 素材下载问题
+  - 路径识别问题
+  - 修复实现
+
+---
+
+### 4. 功能集成报告
+
+#### Pattern 模板集成
+- **[PATTERN_INTEGRATION_REPORT.md](PATTERN_INTEGRATION_REPORT.md)**: Pattern 模板集成报告
+  - 模板系统设计
+  - API 端点实现
+  - 测试结果
+
+#### 功能优化总结
+- **[FEATURE_OPTIMIZATION_SUMMARY.md](FEATURE_OPTIMIZATION_SUMMARY.md)**: 功能优化总结
+  - 性能优化措施
+  - 代码重构
+  - 测试覆盖
+
+#### 功能集成测试
+- **[FEATURE_INTEGRATION_TEST_REPORT.md](FEATURE_INTEGRATION_TEST_REPORT.md)**: 功能集成测试报告
+  - 测试用例
+  - 测试结果
+  - 问题修复
+
+#### 浏览器工具测试
+- **[BROWSER_TOOLS_TEST_REPORT.md](BROWSER_TOOLS_TEST_REPORT.md)**: 浏览器工具测试报告
+  - 前端功能测试
+  - 浏览器兼容性
+  - 性能测试
+
+---
+
+### 5. MCP 相关文档
+
+#### MCP 快速入门
+- **[../MCP_QUICK_START.md](../MCP_QUICK_START.md)**: MCP 快速入门（根目录）
+  - 简化版 MCP 使用指南
+  - 5分钟快速上手
+
+#### MCP 版本对比
+- **[MCP_VERSION_COMPARISON.md](MCP_VERSION_COMPARISON.md)**: MCP 版本对比
+  - 简化版 vs 企业版
+  - 功能对比
+  - 选型建议
+
+#### MCP 简化报告
+- **[MCP_SIMPLIFICATION_REPORT.md](MCP_SIMPLIFICATION_REPORT.md)**: MCP 简化报告
+  - 简化设计思路
+  - 实现细节
+  - 测试结果
+
+#### MCP Bridge 文档
+- **[../mcp_bridge/docs/](../mcp_bridge/docs/)**: MCP Bridge 详细文档
+  - [实施指南](../mcp_bridge/docs/实施指南.md)
+  - [Dify集成指南](../mcp_bridge/docs/Dify集成指南.md)
+  - [部署方案对比](../mcp_bridge/docs/MCP部署方案对比.md)
+  - [实施路线图](../mcp_bridge/docs/实施路线图.md)
+
+---
+
+## 文档使用指南
+
+### 快速查找
+根据您的需求，选择对应的文档：
+
+**我想快速开始**：
+- [CapCutAPI_快速使用指南.md](CapCutAPI_快速使用指南.md)
+- [API_USAGE_EXAMPLES.md](API_USAGE_EXAMPLES.md)
+
+**我想部署服务**：
+- [CapCutAPI部署总结.md](CapCutAPI部署总结.md)
+- [OPERATION_MANUAL.md](OPERATION_MANUAL.md)
+
+**我遇到问题**：
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- 相关专题文档（跨平台、路径等）
+
+**我想了解架构**：
+- [CLAUDE.md](CLAUDE.md)
+- [CapCutAPI_数据流分析文档.md](CapCutAPI_数据流分析文档.md)
+
+**我想使用 MCP**：
+- [../MCP_QUICK_START.md](../MCP_QUICK_START.md)（推荐新手）
+- [MCP_VERSION_COMPARISON.md](MCP_VERSION_COMPARISON.md)
+- [../mcp_bridge/docs/实施指南.md](../mcp_bridge/docs/实施指南.md)（企业版）
+
+**我想使用模板**：
+- [../pattern/QUICK_START.md](../pattern/QUICK_START.md)
+- [PATTERN_INTEGRATION_REPORT.md](PATTERN_INTEGRATION_REPORT.md)
+
+---
+
+## 文档维护规范
+
+### 新增文档
+1. 确定文档类型和目标读者
+2. 使用 Markdown 格式编写
+3. 添加文档标题和更新时间
+4. 在本文档中更新文档清单
+5. 在相关模块的 `CLAUDE.md` 中添加链接
+
+### 文档命名规范
+- **英文文档**: 使用大写字母和下划线，如 `API_USAGE_EXAMPLES.md`
+- **中文文档**: 使用驼峰命名或下划线，如 `CapCutAPI部署总结.md`
+- **专题文档**: 包含主题前缀，如 `MCP_VERSION_COMPARISON.md`
+
+### 文档结构建议
+```markdown
+# 文档标题
+
+> 最后更新时间：YYYY-MM-DD
+
+## 概述
+简要说明文档内容和目标读者
+
+## 目录
+- [章节1](#章节1)
+- [章节2](#章节2)
+
+## 章节1
+内容...
+
+## 章节2
+内容...
+
+## 相关文档
+- [文档A](path/to/doc_a.md)
+- [文档B](path/to/doc_b.md)
 ```
 
-### 开发调试
-```bash
-# 直接启动服务
-python capcut_server.py
+---
 
-# 安装依赖
-pip install -r requirements.txt
+## 常见问题 (FAQ)
 
-# API测试
-# 可以使用 rest_client_test.http 文件进行API测试
-```
+### Q1: 文档太多，如何快速找到需要的内容？
+使用本文档的"快速查找"章节，根据您的需求选择对应文档。
 
-## 环境要求
+### Q2: 文档有更新吗？
+每个文档顶部都有"最后更新时间"，可以判断文档是否最新。
 
-- **Python**: 3.9 或更高版本 (`/usr/local/bin/python3.9` 推荐)
-- **FFmpeg**: 系统需安装并配置好环境变量
-- **依赖**: 见 `requirements.txt` (`imageio`, `psutil`, `flask`, `requests`, `oss2`)
+### Q3: 我可以贡献文档吗？
+可以！请遵循文档维护规范，提交 Pull Request。
 
-## 部署
+### Q4: 哪些文档是必读的？
+根据角色推荐：
+- **开发者**: API_USAGE_EXAMPLES.md, CLAUDE.md
+- **运维人员**: CapCutAPI部署总结.md, TROUBLESHOOTING.md
+- **用户**: CapCutAPI_快速使用指南.md, OPERATION_MANUAL.md
 
-### 自动部署
-```bash
-# 确保服务器已安装Python3.9和ffmpeg
-chmod +x deploy.sh
-./deploy.sh
-```
+---
 
-### 手动部署
-1. 安装依赖: `pip install -r requirements.txt`
-2. 配置`config.json`: `cp config.json.example config.json`
-3. 启动服务: `python capcut_server.py`
+## 文档统计
 
-## 安全注意事项
+- **总文档数**: 17+ 篇
+- **核心文档**: 4 篇
+- **部署文档**: 3 篇
+- **专题文档**: 4 篇
+- **功能报告**: 4 篇
+- **MCP 文档**: 4+ 篇
 
-### 环境变量
-为了避免硬编码敏感密钥，项目支持通过环境变量配置OSS信息：
-- `OSS_BUCKET_NAME`
-- `OSS_ACCESS_KEY_ID`
-- `OSS_ACCESS_KEY_SECRET`
-- `OSS_ENDPOINT`
-- `OSS_REGION`
+---
 
-## 开发注意事项
+## 相关模块
+- [根目录](../CLAUDE.md) - 项目总览
+- [pyJianYingDraft](../pyJianYingDraft/CLAUDE.md) - 核心库文档
+- [mcp_bridge](../mcp_bridge/CLAUDE.md) - MCP Bridge 文档
 
-### 核心逻辑
-- **草稿创建**: `create_draft.py`
-- **素材添加**: `add_video_track.py`, `add_audio_track.py`, etc.
-- **草稿保存**: `save_draft_impl.py`
+---
 
-### 预览功能
-- 项目提供了草稿预览功能，通过`/draft/preview/<draft_id>`访问
-- 预览界面采用现代化设计，支持响应式布局
-
-### 代码结构
-- **pyJianYingDraft/**: 核心草稿处理库
-- **settings/**: 项目配置
-- ***.py**: 各个API接口的实现
+**提示**: 文档是项目的重要组成部分，建议定期更新和完善。如有任何疑问，请查阅相关文档或联系项目维护者。

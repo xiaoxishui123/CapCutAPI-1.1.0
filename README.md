@@ -254,13 +254,161 @@ tail -f logs/capcutapi.error.log
 
 ---
 
-## 🌉 MCP Bridge 服务 (NEW!)
+## 🎨 Pattern 模板库 (NEW!)
+
+**功能简介**: Pattern 模板库提供开箱即用的视频编辑模板，帮助您快速创建专业视频
+
+### 📦 可用模板
+
+| 模板 ID | 名称 | 类型 | 演示视频 |
+|---------|------|------|----------|
+| `001-words` | 文字滚动效果 | Python 脚本 | [观看演示](https://www.youtube.com/watch?v=HLSHaJuNtBw) |
+| `002-relationship` | 情侣关系主题 | Python 脚本 | [观看演示](https://www.youtube.com/watch?v=f2Q1OI_SQZo) |
+| `001-words-coze` | 文字滚动效果 | 扣子工作流 | - |
+
+### 🔌 Pattern API 端点
+
+#### 1. 列出所有模板
+```bash
+curl http://8.148.70.18:9000/api/patterns/list
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "patterns": [
+    {
+      "id": "001-words",
+      "name": "文字滚动效果",
+      "description": "文字滚动效果视频模板",
+      "file": "001-words.py",
+      "type": "python",
+      "video_url": "https://www.youtube.com/watch?v=HLSHaJuNtBw"
+    }
+  ],
+  "count": 3
+}
+```
+
+#### 2. 获取模板详情
+```bash
+curl http://8.148.70.18:9000/api/patterns/get/001-words
+```
+
+**响应**: 包含模板的完整代码内容
+
+#### 3. 下载模板文件
+```bash
+curl -O http://8.148.70.18:9000/api/patterns/download/001-words
+```
+
+**使用方式**: 下载后可直接运行 Python 脚本生成视频
+
+### 📝 使用示例
+
+#### Python 脚本方式
+```python
+import requests
+
+# 1. 获取模板列表
+response = requests.get("http://8.148.70.18:9000/api/patterns/list")
+patterns = response.json()['patterns']
+
+print(f"可用模板数量: {len(patterns)}")
+for pattern in patterns:
+    print(f"- {pattern['name']} ({pattern['id']})")
+
+# 2. 下载并使用模板
+pattern_id = "001-words"
+response = requests.get(f"http://8.148.70.18:9000/api/patterns/get/{pattern_id}")
+pattern_content = response.json()['pattern']['content']
+
+# 保存到本地
+with open(f"{pattern_id}.py", 'w', encoding='utf-8') as f:
+    f.write(pattern_content)
+
+print(f"模板已下载: {pattern_id}.py")
+
+# 3. 根据模板说明配置API密钥后运行
+# python 001-words.py
+```
+
+### 💡 模板功能说明
+
+#### 文字滚动效果 (001-words)
+- **功能**: 自动生成文字滚动效果视频
+- **特点**:
+  - 支持 AI 生成文字内容（集成通义千问）
+  - 自动识别音频并生成字幕
+  - 支持彩色文字和特效
+  - 背景图片自动适配
+- **所需配置**: Qwen API Key, Pexels API Key
+
+#### 情侣关系主题 (002-relationship)
+- **功能**: 生成情侣关系主题的短视频
+- **特点**:
+  - AI 生成情感建议内容
+  - 自动素材下载和拼接
+  - 专业的视觉效果
+- **所需配置**: Qwen API Key, Pexels API Key
+
+### 🔧 模板目录
+
+所有模板文件位于项目的 `pattern/` 目录下：
+
+```bash
+pattern/
+├── 001-words.py              # 文字滚动效果模板
+├── 002-relationship.py       # 情侣关系主题模板
+├── 001-words-coze.md         # 扣子工作流配置
+└── README.md                 # 模板说明文档
+```
+
+### 📖 更多信息
+
+- 查看 `pattern/README.md` 了解每个模板的详细说明
+- 观看演示视频了解模板效果
+- 根据模板代码学习 CapCutAPI 的高级用法
+
+---
+
+## 🌉 MCP 服务 (NEW!)
+
+CapCutAPI 提供**两种 MCP 服务方式**，满足不同用户需求：
+
+| 特性 | 简化版 | 企业版 (MCP Bridge) |
+|------|--------|---------------------|
+| **适用场景** | 🟢 个人开发、快速测试 | 🟡 生产环境、企业部署 |
+| **启动时间** | < 10秒 | 需要配置 Redis 等 |
+| **配置难度** | ⭐ 简单 | ⭐⭐⭐ 复杂 |
+| **依赖** | Python 3.9+ | Python、Redis、Docker |
+| **推荐** | ⭐⭐⭐⭐⭐ 新手首选 | ⭐⭐⭐ 企业用户 |
+
+### 🟢 简化版 MCP - 个人开发者推荐
+
+**一行命令启动**:
+```bash
+python3 simple_mcp_server.py
+```
+
+**特点**:
+- ✅ 零配置，开箱即用
+- ✅ 完整的 MCP 功能
+- ✅ 适合学习和开发
+- ✅ 支持 Claude Desktop、Dify 等
+
+**快速开始**: 查看 [MCP_QUICK_START.md](MCP_QUICK_START.md) 了解 5 分钟上手指南
+
+---
+
+### 🟡 企业版 MCP Bridge - 生产环境推荐
 
 **MCP Bridge服务地址**: http://8.148.70.18:8082
 
 **部署状态**: ✅ 已部署并运行中
 
-### 🚀 功能特性
+#### 🚀 功能特性
 
 MCP Bridge是一个企业级的Model Context Protocol (MCP) 桥接服务，为CapCutAPI提供标准化的MCP接口支持：
 

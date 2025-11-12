@@ -4727,6 +4727,156 @@ def draft_downloader():
         }), 500
 
 
+# ===== Pattern 模板管理端点 =====
+
+@app.route('/api/patterns/list', methods=['GET'])
+def list_patterns():
+    """
+    列出所有可用的 Pattern 模板
+
+    Returns:
+        JSON: {
+            "success": true,
+            "patterns": [
+                {
+                    "id": "001-words",
+                    "name": "文字滚动效果",
+                    "description": "文字滚动效果视频模板",
+                    "file": "001-words.py",
+                    "type": "python",
+                    "video_url": "https://www.youtube.com/..."
+                }
+            ],
+            "count": 2
+        }
+    """
+    try:
+        from pattern_manager import get_pattern_manager
+
+        pattern_mgr = get_pattern_manager()
+        patterns = pattern_mgr.list_patterns()
+
+        return jsonify({
+            'success': True,
+            'patterns': patterns,
+            'count': len(patterns)
+        })
+
+    except Exception as e:
+        logger.error(f"列出 Pattern 失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/patterns/get/<pattern_id>', methods=['GET'])
+def get_pattern(pattern_id):
+    """
+    获取指定 Pattern 的详细信息和内容
+
+    Args:
+        pattern_id: Pattern ID (例如: 001-words)
+
+    Returns:
+        JSON: {
+            "success": true,
+            "pattern": {
+                "id": "001-words",
+                "name": "文字滚动效果",
+                "description": "...",
+                "content": "# Python 脚本内容...",
+                "type": "python",
+                "video_url": "..."
+            }
+        }
+    """
+    try:
+        from pattern_manager import get_pattern_manager
+
+        pattern_mgr = get_pattern_manager()
+
+        # 获取 Pattern 信息
+        pattern_info = pattern_mgr.get_pattern_info(pattern_id)
+        if not pattern_info:
+            return jsonify({
+                'success': False,
+                'error': f'Pattern 不存在: {pattern_id}'
+            }), 404
+
+        # 获取 Pattern 内容
+        content = pattern_mgr.get_pattern_content(pattern_id)
+        if content is None:
+            return jsonify({
+                'success': False,
+                'error': f'无法读取 Pattern 内容: {pattern_id}'
+            }), 500
+
+        # 合并信息和内容
+        pattern_info['content'] = content
+
+        return jsonify({
+            'success': True,
+            'pattern': pattern_info
+        })
+
+    except Exception as e:
+        logger.error(f"获取 Pattern 失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/patterns/download/<pattern_id>', methods=['GET'])
+def download_pattern(pattern_id):
+    """
+    下载 Pattern 文件
+
+    Args:
+        pattern_id: Pattern ID
+
+    Returns:
+        文件下载响应
+    """
+    try:
+        from pattern_manager import get_pattern_manager
+        from flask import send_file
+        import io
+
+        pattern_mgr = get_pattern_manager()
+
+        # 获取 Pattern 内容
+        content = pattern_mgr.get_pattern_content(pattern_id)
+        if content is None:
+            return jsonify({
+                'success': False,
+                'error': f'Pattern 不存在: {pattern_id}'
+            }), 404
+
+        # 确定文件扩展名
+        pattern_info = pattern_mgr.get_pattern_info(pattern_id)
+        file_ext = ".py" if pattern_info['type'] == "python" else ".md"
+
+        # 创建文件流
+        file_stream = io.BytesIO(content.encode('utf-8'))
+        file_stream.seek(0)
+
+        return send_file(
+            file_stream,
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=f"{pattern_id}{file_ext}"
+        )
+
+    except Exception as e:
+        logger.error(f"下载 Pattern 失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # ===== 健康检查和监控端点 =====
 
 @app.route('/health', methods=['GET'])

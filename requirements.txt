@@ -24,6 +24,12 @@ aiohttp==3.8.6
 websockets==15.0.1
 PyYAML==6.0.2
 
+# ===== MCP 简化版依赖（可选） =====
+# 仅在使用 simple_mcp_server.py 时需要安装
+# 简化版 MCP 提供轻量级 MCP 协议支持，适合个人开发者和快速测试
+# mcp>=1.0.0            # MCP Python SDK
+# 注意：aiohttp 已在 MCP Bridge 依赖中包含
+
 # ===== 可选依赖（未安装，按需添加） =====
 # redis>=4.0.0          # Redis缓存（MCP Bridge使用）
 # prometheus_client>=0.16.0  # Prometheus监控（MCP Bridge使用）
