@@ -151,6 +151,25 @@ jobs:
               echo "🗑️  停止旧容器..."
               docker-compose down || true
 
+              # 强制清理所有相关容器（防止端口占用）
+              echo "🧹 清理所有 capcutapi 容器..."
+              docker ps -a | grep capcutapi | awk '{print $1}' | xargs -r docker stop || true
+              docker ps -a | grep capcutapi | awk '{print $1}' | xargs -r docker rm -f || true
+
+              # 检查端口 9000 是否被占用
+              echo "🔍 检查端口 9000..."
+              if netstat -tlnp | grep :9000; then
+                echo "⚠️  端口 9000 仍被占用，尝试查找并终止进程..."
+                PID=$(netstat -tlnp | grep :9000 | awk '{print $7}' | cut -d'/' -f1)
+                if [ ! -z "$PID" ]; then
+                  echo "终止进程 PID: $PID"
+                  kill -9 $PID || true
+                  sleep 2
+                fi
+              else
+                echo "✅ 端口 9000 可用"
+              fi
+
               # 启动新容器
               echo "▶️  启动新容器..."
               docker-compose up -d
