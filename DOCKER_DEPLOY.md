@@ -75,7 +75,45 @@ OSS_ENDPOINT=oss-cn-hangzhou.aliyuncs.com
 
 ## 🔄 CI/CD 自动部署流程
 
-当代码推送到 `master` 分支时，GitHub Actions 会自动：
+### 配置 GitHub Secrets（首次部署必需）
+
+在启用自动部署前，需要先配置 GitHub Secrets：
+
+1. **访问 Secrets 配置页面**:
+   - https://github.com/xiaoxishui123/CapCutAPI-1.1.0/settings/secrets/actions
+
+2. **添加以下三个 Secrets**（点击 "New repository secret"）：
+
+   | Secret 名称 | 说明 | 示例值 |
+   |------------|------|--------|
+   | `DEPLOY_HOST` | 服务器 IP 地址 | `8.148.70.18` |
+   | `DEPLOY_USER` | SSH 登录用户名 | `root` |
+   | `DEPLOY_KEY` | SSH 私钥内容 | 见下方说明 |
+
+3. **获取 SSH 私钥**（在服务器上执行）：
+   ```bash
+   # 查看现有私钥
+   cat ~/.ssh/id_rsa
+
+   # 如果没有，生成新的密钥对
+   ssh-keygen -t rsa -b 4096 -C "github-actions" -f ~/.ssh/id_rsa -N ""
+
+   # 将公钥添加到 authorized_keys
+   cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+   chmod 600 ~/.ssh/authorized_keys
+
+   # 复制私钥内容到 DEPLOY_KEY
+   cat ~/.ssh/id_rsa
+   ```
+
+4. **启用自动部署**（配置完 Secrets 后）：
+   - 编辑 `.github/workflows/main.yml`
+   - 找到 `- name: Deploy to Server` 步骤
+   - 删除或注释掉 `if: false` 这一行
+
+### 自动部署流程
+
+当代码推送到 `master` 或 `main` 分支时，GitHub Actions 会自动：
 
 1. ✅ 构建 Docker 镜像（多架构：amd64 + arm64）
 2. ✅ 推送到 GHCR (`ghcr.io/xiaoxishui123/capcutapi-1-1-0:latest`)

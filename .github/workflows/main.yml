@@ -55,98 +55,133 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          port: 22
-          script: |
-            set -e
-            
-            echo "========================================"
-            echo "🚀 开始部署 CapCutAPI"
-            echo "========================================"
-            
-            # 进入项目目录
-            cd /home/CapCutAPI-1.1.0
-            echo "📂 进入项目目录: $(pwd)"
-            
-            # 登录 GitHub Container Registry
-            echo "🔐 登录 GitHub Container Registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # 获取镜像信息
-            REPO_NAME="capcutapi-1-1-0"
-            IMAGE="ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
-            echo "📦 镜像地址: $IMAGE"
-            
-            # 拉取最新镜像
-            echo "⬇️  拉取最新镜像..."
-            docker pull $IMAGE
-            
-            # 检查 docker-compose.yml 是否存在
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "⚠️  警告: 未找到 docker-compose.yml，跳过 docker-compose 重启"
-              echo "📌 请确保项目根目录存在 docker-compose.yml 文件"
-            else
-              # 停止并移除旧容器
-              echo "🗑️  停止旧容器..."
-              docker-compose down || true
-              
-              # 启动新容器
-              echo "▶️  启动新容器..."
-              docker-compose up -d
-              
-              # 等待服务启动
-              echo "⏳ 等待服务启动..."
-              sleep 5
-            fi
-            
-            # 健康检查
-            echo "🏥 执行健康检查..."
-            MAX_RETRIES=10
-            RETRY_COUNT=0
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if curl -f http://localhost:9000/get_intro_animation_types > /dev/null 2>&1; then
-                echo "✅ API 服务健康检查通过"
-                break
-              fi
-              
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                echo "❌ API 服务健康检查失败"
-                echo "📋 显示容器日志:"
-                docker-compose logs --tail 50
-                exit 1
-              fi
-              
-              echo "⏳ 重试健康检查... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 3
-            done
-            
-            # 显示部署信息
-            echo "========================================"
-            echo "✅ 部署完成！"
-            echo "========================================"
-            echo "🌐 服务地址: http://8.148.70.18:9000"
-            echo "📦 镜像版本: $(docker images --format '{{.Tag}}' $IMAGE | head -1)"
-            echo "📋 运行容器:"
-            docker-compose ps
-            echo "========================================"
-            
-            # 登出 GHCR（清理凭证）
-            docker logout ghcr.io || true
+      # ================================================================
+      # 🚨 部署步骤已禁用 - 需要先配置 GitHub Secrets
+      # ================================================================
+      # 请访问以下地址配置 Secrets:
+      # https://github.com/xiaoxishui123/CapCutAPI-1.1.0/settings/secrets/actions
+      #
+      # 需要添加的 Secrets:
+      #   - DEPLOY_HOST: 服务器 IP (例如: 8.148.70.18)
+      #   - DEPLOY_USER: SSH 用户名 (例如: root)
+      #   - DEPLOY_KEY: SSH 私钥内容 (cat ~/.ssh/id_rsa)
+      #
+      # 配置完成后，取消下面整个部署步骤的注释即可启用自动部署
+      # ================================================================
 
-      - name: Deployment Notification
+      # - name: Deploy to Server
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.DEPLOY_HOST }}
+      #     username: ${{ secrets.DEPLOY_USER }}
+      #     key: ${{ secrets.DEPLOY_KEY }}
+      #     port: 22
+      #     script: |
+      #       set -e
+      #
+      #       echo "========================================"
+      #       echo "🚀 开始部署 CapCutAPI"
+      #       echo "========================================"
+      #
+      #       # 进入项目目录
+      #       cd /home/CapCutAPI-1.1.0
+      #       echo "📂 进入项目目录: $(pwd)"
+      #
+      #       # 登录 GitHub Container Registry
+      #       echo "🔐 登录 GitHub Container Registry..."
+      #       echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      #
+      #       # 获取镜像信息
+      #       REPO_NAME="capcutapi-1-1-0"
+      #       IMAGE="ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
+      #       echo "📦 镜像地址: $IMAGE"
+      #
+      #       # 拉取最新镜像
+      #       echo "⬇️  拉取最新镜像..."
+      #       docker pull $IMAGE
+      #
+      #       # 检查 docker-compose.yml 是否存在
+      #       if [ ! -f "docker-compose.yml" ]; then
+      #         echo "⚠️  警告: 未找到 docker-compose.yml，跳过 docker-compose 重启"
+      #         echo "📌 请确保项目根目录存在 docker-compose.yml 文件"
+      #       else
+      #         # 停止并移除旧容器
+      #         echo "🗑️  停止旧容器..."
+      #         docker-compose down || true
+      #
+      #         # 启动新容器
+      #         echo "▶️  启动新容器..."
+      #         docker-compose up -d
+      #
+      #         # 等待服务启动
+      #         echo "⏳ 等待服务启动..."
+      #         sleep 5
+      #       fi
+      #
+      #       # 健康检查
+      #       echo "🏥 执行健康检查..."
+      #       MAX_RETRIES=10
+      #       RETRY_COUNT=0
+      #
+      #       while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      #         if curl -f http://localhost:9000/get_intro_animation_types > /dev/null 2>&1; then
+      #           echo "✅ API 服务健康检查通过"
+      #           break
+      #         fi
+      #
+      #         RETRY_COUNT=$((RETRY_COUNT + 1))
+      #         if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+      #           echo "❌ API 服务健康检查失败"
+      #           echo "📋 显示容器日志:"
+      #           docker-compose logs --tail 50
+      #           exit 1
+      #         fi
+      #
+      #         echo "⏳ 重试健康检查... ($RETRY_COUNT/$MAX_RETRIES)"
+      #         sleep 3
+      #       done
+      #
+      #       # 显示部署信息
+      #       echo "========================================"
+      #       echo "✅ 部署完成！"
+      #       echo "========================================"
+      #       echo "🌐 服务地址: http://8.148.70.18:9000"
+      #       echo "📦 镜像版本: $(docker images --format '{{.Tag}}' $IMAGE | head -1)"
+      #       echo "📋 运行容器:"
+      #       docker-compose ps
+      #       echo "========================================"
+      #
+      #       # 登出 GHCR（清理凭证）
+      #       docker logout ghcr.io || true
+
+      - name: Build Summary
         if: always()
         run: |
+          echo "========================================"
+          echo "📦 Docker 镜像构建完成"
+          echo "========================================"
+          echo ""
+          echo "✅ 镜像已推送到 GitHub Container Registry (GHCR)"
+          echo ""
+          echo "🏷️  镜像标签:"
+          echo "   - ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
+          echo "   - ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ env.SHORT_SHA }}"
+          echo ""
+          echo "📥 拉取镜像命令:"
+          echo "   docker pull ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
+          echo ""
           if [ "${{ job.status }}" = "success" ]; then
-            echo "✅ 部署成功！"
-            echo "🎉 CapCutAPI 已成功部署到 8.148.70.18"
-            echo "🔗 访问地址: http://8.148.70.18:9000"
+            echo "🎉 构建成功！"
+            echo ""
+            echo "⚠️  注意: 自动部署功能已禁用"
+            echo "📝 如需启用自动部署，请:"
+            echo "   1. 访问: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "   2. 添加以下 Secrets:"
+            echo "      - DEPLOY_HOST: 服务器 IP"
+            echo "      - DEPLOY_USER: SSH 用户名"
+            echo "      - DEPLOY_KEY: SSH 私钥"
+            echo "   3. 取消 .github/workflows/main.yml 中部署步骤的注释"
           else
-            echo "❌ 部署失败，请检查上面的日志"
+            echo "❌ 构建失败，请检查上面的日志"
           fi
+          echo "========================================"
