@@ -1,0 +1,92 @@
+services:
+  capcutapi:
+    # 镜像配置（优先使用 GHCR，本地开发可以使用 build）
+    # image: ghcr.io/xiaoxishui123/capcutapi-1-1-0:latest  # 生产环境使用
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: capcutapi
+
+    # 端口映射
+    ports:
+      - "9000:9000"
+
+    # 卷挂载（持久化数据）
+    volumes:
+      # 配置文件
+      - ./config.json:/app/config.json:ro
+      - ./path_config.json:/app/path_config.json:ro
+
+      # 数据库文件
+      - ./capcut.db:/app/capcut.db
+      - ./drafts.db:/app/drafts.db
+
+      # 日志目录
+      - ./logs:/app/logs
+
+      # 数据目录（可选）
+      - ./data:/app/data
+
+      # Pattern 模板（如果需要动态更新）
+      - ./pattern:/app/pattern:ro
+
+    # 环境变量（优先使用 .env 文件或在此定义）
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      # OSS 配置（建议使用 secrets 管理）
+      # - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
+      # - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
+      # - OSS_BUCKET_NAME=${OSS_BUCKET_NAME}
+      # - OSS_ENDPOINT=${OSS_ENDPOINT}
+
+    # 环境变量文件（推荐方式）
+    env_file:
+      - .env
+
+    # 重启策略
+    restart: unless-stopped
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/get_intro_animation_types"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 资源限制（可选，根据服务器配置调整）
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '1'
+    #       memory: 1G
+
+    # 网络模式
+    network_mode: bridge
+
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# 可选：如果需要 MCP Bridge 服务，可以添加
+#   mcp-bridge:
+#     build:
+#       context: ./mcp_bridge
+#       dockerfile: Dockerfile
+#     container_name: capcutapi-mcp-bridge
+#     ports:
+#       - "8082:8082"
+#     volumes:
+#       - ./mcp_bridge/config:/app/config:ro
+#       - ./logs:/app/logs
+#     depends_on:
+#       - capcutapi
+#     restart: unless-stopped

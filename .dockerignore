@@ -1,0 +1,97 @@
+# Git 相关
+.git
+.gitignore
+.gitattributes
+.github
+
+# Python 缓存和编译文件
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info
+dist
+build
+eggs
+.eggs
+lib
+lib64
+parts
+sdist
+var
+wheels
+*.manifest
+*.spec
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv
+
+# IDE 配置
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+logs/
+*.log
+
+# 数据库文件（运行时挂载）
+*.db
+*.sqlite
+*.sqlite3
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+*.cache
+
+# 测试文件
+test_*.py
+*_test.py
+tests/
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+
+# 文档文件（可选排除）
+docs/
+*.md
+!README.md
+
+# 示例和工具（可选排除）
+examples/
+tools/
+
+# 配置文件（运行时挂载，但保留示例）
+config.json
+path_config.json
+.env
+.env.*
+
+# OSS 和敏感信息
+*.pem
+*.key
+secrets/
+
+# Docker 相关
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# 其他
+*.bak
+*.backup
+.DS_Store
+Thumbs.db
