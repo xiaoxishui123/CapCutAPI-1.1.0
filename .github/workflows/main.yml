@@ -129,9 +129,9 @@ jobs:
             cd /home/CapCutAPI-1.1.0
             echo "📂 进入项目目录: $(pwd)"
 
-            # 登录 GitHub Container Registry
+            # 登录 GitHub Container Registry（使用 PAT）
             echo "🔐 登录 GitHub Container Registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # 获取镜像信息
             REPO_NAME="capcutapi-1-1-0"
