@@ -1,0 +1,152 @@
+name: Build Docker Image and Deploy to Server
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-deploy:
+    name: Build Docker Image and Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-architecture builds)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          REPO_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_.-]/-/g')
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
+          echo "Image will be tagged as:"
+          echo "  - ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
+          echo "  - ghcr.io/${{ github.repository_owner }}/$REPO_NAME:$SHORT_SHA"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image to GHCR
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ env.SHORT_SHA }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          port: 22
+          script: |
+            set -e
+            
+            echo "========================================"
+            echo "🚀 开始部署 CapCutAPI"
+            echo "========================================"
+            
+            # 进入项目目录
+            cd /home/CapCutAPI-1.1.0
+            echo "📂 进入项目目录: $(pwd)"
+            
+            # 登录 GitHub Container Registry
+            echo "🔐 登录 GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # 获取镜像信息
+            REPO_NAME="capcutapi-1-1-0"
+            IMAGE="ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
+            echo "📦 镜像地址: $IMAGE"
+            
+            # 拉取最新镜像
+            echo "⬇️  拉取最新镜像..."
+            docker pull $IMAGE
+            
+            # 检查 docker-compose.yml 是否存在
+            if [ ! -f "docker-compose.yml" ]; then
+              echo "⚠️  警告: 未找到 docker-compose.yml，跳过 docker-compose 重启"
+              echo "📌 请确保项目根目录存在 docker-compose.yml 文件"
+            else
+              # 停止并移除旧容器
+              echo "🗑️  停止旧容器..."
+              docker-compose down || true
+              
+              # 启动新容器
+              echo "▶️  启动新容器..."
+              docker-compose up -d
+              
+              # 等待服务启动
+              echo "⏳ 等待服务启动..."
+              sleep 5
+            fi
+            
+            # 健康检查
+            echo "🏥 执行健康检查..."
+            MAX_RETRIES=10
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if curl -f http://localhost:9000/get_intro_animation_types > /dev/null 2>&1; then
+                echo "✅ API 服务健康检查通过"
+                break
+              fi
+              
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                echo "❌ API 服务健康检查失败"
+                echo "📋 显示容器日志:"
+                docker-compose logs --tail 50
+                exit 1
+              fi
+              
+              echo "⏳ 重试健康检查... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 3
+            done
+            
+            # 显示部署信息
+            echo "========================================"
+            echo "✅ 部署完成！"
+            echo "========================================"
+            echo "🌐 服务地址: http://8.148.70.18:9000"
+            echo "📦 镜像版本: $(docker images --format '{{.Tag}}' $IMAGE | head -1)"
+            echo "📋 运行容器:"
+            docker-compose ps
+            echo "========================================"
+            
+            # 登出 GHCR（清理凭证）
+            docker logout ghcr.io || true
+
+      - name: Deployment Notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ 部署成功！"
+            echo "🎉 CapCutAPI 已成功部署到 8.148.70.18"
+            echo "🔗 访问地址: http://8.148.70.18:9000"
+          else
+            echo "❌ 部署失败，请检查上面的日志"
+          fi
