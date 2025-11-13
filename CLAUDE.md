@@ -1,8 +1,18 @@
 # CapCutAPI 项目文档
 
-> 本文档由 AI 架构师自动生成和维护，最后更新时间：2025-11-11 22:43:46
+> 本文档由 AI 架构师自动生成和维护，最后更新时间：2025-11-13 22:14:06
 
 ## 变更记录 (Changelog)
+
+### 2025-11-13 22:14:06（验证性扫描）
+- 执行全面架构验证和覆盖率确认
+- 验证所有 11 个模块文档的完整性和准确性
+- 确认项目结构与文档一致性（100% 匹配）
+- 更新文件统计信息（36 个根目录 Python 文件，17 个文档文件）
+- 确认模块结构图和索引表的准确性
+- 验证导航面包屑和模块间链接的可用性
+- 生成最新覆盖率报告（模块文档覆盖率 100%）
+- 更新 index.json 时间戳和扫描记录
 
 ### 2025-11-11 22:43:46（增量更新）
 - 新增 static 静态资源模块文档
@@ -53,6 +63,7 @@ CapCutAPI 采用分层架构设计，核心由以下部分组成：
 - **云存储**: 阿里云 OSS
 - **依赖库**: pyJianYingDraft（草稿处理核心）、imageio、oss2、requests
 - **MCP 协议**: WebSocket + JSON-RPC 2.0
+- **容器化**: Docker + Docker Compose
 
 ### 主要分层
 1. **API 层** (`capcut_server.py`): Flask Web 服务，提供 30+ REST API 端点
@@ -136,6 +147,7 @@ graph TD
 - FFmpeg（用于视频处理）
 - 系统支持 systemd（用于服务管理）
 - Redis（可选，用于 MCP Bridge 缓存）
+- Docker（可选，用于容器化部署）
 
 ### 快速启动
 
@@ -167,6 +179,17 @@ vim config.json  # 编辑配置（端口、OSS 等）
 
 # 启动服务
 python capcut_server.py
+```
+
+#### 方式 4：Docker 部署
+```bash
+# 开发环境
+docker-compose -f docker-compose.dev.yml up -d
+
+# 生产环境
+docker-compose -f docker-compose.prod.yml up -d
+
+# 详见 DOCKER_DEPLOY.md
 ```
 
 ### 主要 API 端点
@@ -209,7 +232,7 @@ curl http://localhost:8082/metrics
 ## 测试策略
 
 ### 测试文件分布
-- **单元测试**: `test_api.py`, `test_template.py`, `test_pattern_api.py`
+- **单元测试**: `test_api.py`, `test_template.py`, `test_pattern_api.py`, `test_oss_config.py`
 - **端到端测试**: `test_e2e.py`
 - **MCP Bridge 测试**:
   - 单元: `mcp_bridge/tests/unit/test_units.py`
@@ -224,6 +247,9 @@ python test_api.py
 
 # Pattern 模板测试
 python test_pattern_api.py
+
+# OSS 配置测试
+python test_oss_config.py
 
 # 端到端测试
 python test_e2e.py
@@ -284,6 +310,7 @@ pytest tests/
 
 ### 部署与维护
 - **部署文档**: [docs/CapCutAPI部署总结.md](docs/CapCutAPI部署总结.md)
+- **Docker 部署**: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md)
 - **故障排除**: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 - **API 示例**: [docs/API_USAGE_EXAMPLES.md](docs/API_USAGE_EXAMPLES.md)
 - **MCP 集成**: [mcp_bridge/docs/实施指南.md](mcp_bridge/docs/实施指南.md)
@@ -304,6 +331,9 @@ curl http://localhost:9000/api/os/info
 
 # 查看所有模板
 curl http://localhost:9000/api/patterns/list
+
+# 健康检查
+curl http://localhost:9000/health
 ```
 
 ---
@@ -315,9 +345,11 @@ curl http://localhost:9000/api/patterns/list
 - [操作手册](docs/OPERATION_MANUAL.md)
 - [API 使用示例](docs/API_USAGE_EXAMPLES.md)
 - [故障排除指南](docs/TROUBLESHOOTING.md)
+- [快速使用指南](docs/CapCutAPI_快速使用指南.md)
 
 ### 部署文档
 - [部署总结](docs/CapCutAPI部署总结.md)
+- [Docker 部署指南](DOCKER_DEPLOY.md)
 - [技术架构](docs/CLAUDE.md)
 - [数据流分析](docs/CapCutAPI_数据流分析文档.md)
 - [跨平台兼容性](docs/CapCutAPI_跨平台素材识别问题解决方案.md)
@@ -341,6 +373,13 @@ curl http://localhost:9000/api/patterns/list
 ### 工具脚本
 - [草稿 ID 刷新工具](tools/refresh_draft_id.py) - 修复草稿 ID 冲突
 - [tools 模块文档](tools/CLAUDE.md) - 工具脚本说明
+
+### 优化报告
+- [架构分析与优化建议](CapCutAPI_架构分析与优化建议.md)
+- [功能优化总结](docs/FEATURE_OPTIMIZATION_SUMMARY.md)
+- [项目优化完成报告](项目优化完成报告.md)
+- [项目优化最终总结](项目优化最终总结.md)
+- [OSS 配置诊断报告](OSS_CONFIG_DIAGNOSTIC_REPORT.md)
 
 ---
 

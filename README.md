@@ -899,6 +899,10 @@ export MP4_OSS_REGION="cn-xxx"
 2. 查看 [故障排除指南](docs/TROUBLESHOOTING.md)
 3. 在 [GitHub Issues](https://github.com/sun-guannan/CapCutAPI/issues) 提交问题
 
+## 🛠️ 运维巡检记录
+
+- **2025-11-13 OSS环境变量巡检**：检测 `.env` 中的 `OSS_BUCKET_NAME`、`OSS_ENDPOINT` 等变量虽然存在，但仍保留占位值（如 `zdaigfpt`、`oss-cn-region.aliyuncs.com`）。调用 `oss.upload_to_oss` 上传测试文件时出现域名解析失败，说明当前配置无法连通真实的阿里云 OSS。✅ 环境变量载入逻辑正常；❌ 需尽快替换为真实 Bucket 名称、Region、AccessKey，并使用可解析的 Endpoint。更新后请通过 `/usr/local/bin/python3.9 -c "from oss import upload_to_oss"` 的实际上传测试或相关集成测试验证。
+
 ## 🔧 MCP服务配置 | MCP Service Configuration
 
 ### Todoist MCP 配置
