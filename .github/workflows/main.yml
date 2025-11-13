@@ -1,240 +1,55 @@
-name: Build Docker Image and Deploy to Server
+name: Create and publish a Docker image
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch: {}
+    branches: ['main', 'master']
 
-permissions:
-  contents: read
-  packages: write
+env:
+  REGISTRY: ghcr.io
 
 jobs:
-  build-and-deploy:
-    name: Build Docker Image and Deploy
+  build-and-push-image:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for multi-architecture builds)
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Generate image tags
-        id: meta
+      - name: Generate lowercase image name
+        id: image_name
         run: |
-          REPO_NAME=$(echo ${{ github.event.repository.name }} | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_.-]/-/g')
-          SHORT_SHA=${GITHUB_SHA::7}
-          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-          echo "Image will be tagged as:"
-          echo "  - ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
-          echo "  - ghcr.io/${{ github.repository_owner }}/$REPO_NAME:$SHORT_SHA"
+          # 将仓库名转换为小写
+          IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "镜像名称: ghcr.io/$IMAGE_NAME"
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image to GHCR
-        id: docker_build
-        uses: docker/build-push-action@v4
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.image_name.outputs.IMAGE_NAME }}
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
-          file: ./Dockerfile
           push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ env.SHORT_SHA }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=registry
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Check Docker Build Result
+      - name: Trigger dokploy redeploy
         run: |
-          echo "================================"
-          echo "Docker 构建结果检查"
-          echo "================================"
-          echo "Image Digest: ${{ steps.docker_build.outputs.digest }}"
-          echo "Image Tags: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
-          echo ""
+          curl -X GET http://8.148.70.18:3000/api/deploy/0l5qz8pXKpN5uTOFXgWzW
 
-          if [ -z "${{ steps.docker_build.outputs.digest }}" ]; then
-            echo "❌ 警告: Docker 构建可能失败，未获取到 digest"
-          else
-            echo "✅ Docker 构建成功"
-            echo "Digest: ${{ steps.docker_build.outputs.digest }}"
-          fi
 
-      # ================================================================
-      # 🚨 部署步骤已禁用 - 需要先配置 GitHub Secrets
-      # ================================================================
-      # 请访问以下地址配置 Secrets:
-      # https://github.com/xiaoxishui123/CapCutAPI-1.1.0/settings/secrets/actions
-      #
-      # 需要添加的 Secrets:
-      #   - DEPLOY_HOST: 服务器 IP (例如: 8.148.70.18)
-      #   - DEPLOY_USER: SSH 用户名 (例如: root)
-      #   - DEPLOY_KEY: SSH 私钥内容 (cat ~/.ssh/id_rsa)
-      #
-      # 配置完成后，取消下面整个部署步骤的注释即可启用自动部署
-      # ================================================================
-
-      - name: Verify Docker Image Exists
-        run: |
-          echo "🔍 验证镜像是否成功推送到 GHCR..."
-          echo "镜像地址: ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
-
-          # 登录 GHCR
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-          # 尝试拉取镜像验证是否存在
-          if docker pull ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest; then
-            echo "✅ 镜像验证成功"
-          else
-            echo "❌ 镜像不存在或拉取失败"
-            echo "可能原因："
-            echo "1. Docker 构建步骤失败"
-            echo "2. 镜像名称不匹配"
-            echo "3. 权限不足"
-            exit 1
-          fi
-
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_KEY }}" | base64 -d > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-          echo "✅ SSH 密钥已配置"
-          ls -la ~/.ssh/deploy_key
-
-      - name: Deploy to Server via SSH
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} << 'ENDSSH'
-            set -e
-
-            echo "========================================"
-            echo "🚀 开始部署 CapCutAPI"
-            echo "========================================"
-
-            # 进入项目目录
-            cd /home/CapCutAPI-1.1.0
-            echo "📂 进入项目目录: $(pwd)"
-
-            # 登录 GitHub Container Registry（使用 PAT）
-            echo "🔐 登录 GitHub Container Registry..."
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-
-            # 获取镜像信息（使用与构建阶段相同的镜像名称）
-            REPO_NAME="${{ env.REPO_NAME }}"
-            IMAGE="ghcr.io/${{ github.repository_owner }}/$REPO_NAME:latest"
-            echo "📦 镜像地址: $IMAGE"
-
-            # 拉取最新镜像
-            echo "⬇️  拉取最新镜像..."
-            docker pull $IMAGE
-
-            # 检查 docker-compose.yml 是否存在
-            if [ ! -f "docker-compose.yml" ]; then
-              echo "⚠️  警告: 未找到 docker-compose.yml，跳过 docker-compose 重启"
-              echo "📌 请确保项目根目录存在 docker-compose.yml 文件"
-            else
-              # 停止并移除旧容器
-              echo "🗑️  停止旧容器..."
-              docker-compose down || true
-
-              # 强制清理所有相关容器（防止端口占用）
-              echo "🧹 清理所有 capcutapi 容器..."
-              docker ps -a | grep capcutapi | awk '{print $1}' | xargs -r docker stop || true
-              docker ps -a | grep capcutapi | awk '{print $1}' | xargs -r docker rm -f || true
-
-              # 检查端口 9000 是否被占用
-              echo "🔍 检查端口 9000..."
-              if netstat -tlnp | grep :9000; then
-                echo "⚠️  端口 9000 仍被占用，尝试查找并终止进程..."
-                PID=$(netstat -tlnp | grep :9000 | awk '{print $7}' | cut -d'/' -f1)
-                if [ ! -z "$PID" ]; then
-                  echo "终止进程 PID: $PID"
-                  kill -9 $PID || true
-                  sleep 2
-                fi
-              else
-                echo "✅ 端口 9000 可用"
-              fi
-
-              # 启动新容器
-              echo "▶️  启动新容器..."
-              docker-compose up -d
-
-              # 等待服务启动
-              echo "⏳ 等待服务启动..."
-              sleep 5
-            fi
-
-            # 健康检查
-            echo "🏥 执行健康检查..."
-            MAX_RETRIES=10
-            RETRY_COUNT=0
-
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              if curl -f http://localhost:9000/get_intro_animation_types > /dev/null 2>&1; then
-                echo "✅ API 服务健康检查通过"
-                break
-              fi
-
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                echo "❌ API 服务健康检查失败"
-                echo "📋 显示容器日志:"
-                docker-compose logs --tail 50
-                exit 1
-              fi
-
-              echo "⏳ 重试健康检查... ($RETRY_COUNT/$MAX_RETRIES)"
-              sleep 3
-            done
-
-            # 显示部署信息
-            echo "========================================"
-            echo "✅ 部署完成！"
-            echo "========================================"
-            echo "🌐 服务地址: http://8.148.70.18:9000"
-            echo "📦 镜像版本: $(docker images --format '{{.Tag}}' $IMAGE | head -1)"
-            echo "📋 运行容器:"
-            docker-compose ps
-            echo "========================================"
-
-            # 登出 GHCR（清理凭证）
-            docker logout ghcr.io || true
-          ENDSSH
-
-      - name: Deployment Notification
-        if: always()
-        run: |
-          echo "========================================"
-          echo "📦 构建与部署流程完成"
-          echo "========================================"
-          echo ""
-          echo "✅ 镜像已推送到 GitHub Container Registry (GHCR)"
-          echo "🏷️  镜像标签:"
-          echo "   - ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:latest"
-          echo "   - ghcr.io/${{ github.repository_owner }}/${{ env.REPO_NAME }}:${{ env.SHORT_SHA }}"
-          echo ""
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "🎉 构建和部署成功！"
-            echo "🌐 服务地址: http://8.148.70.18:9000"
-            echo ""
-            echo "📋 查看服务状态："
-            echo "   curl http://8.148.70.18:9000/get_intro_animation_types"
-          else
-            echo "❌ 构建或部署失败，请检查上面的日志"
-          fi
-          echo "========================================"

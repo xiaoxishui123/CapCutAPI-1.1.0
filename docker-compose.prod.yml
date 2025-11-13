@@ -1,10 +1,7 @@
 services:
   capcutapi:
-    # 镜像配置（优先使用 GHCR，本地开发可以使用 build）
-    # image: ghcr.io/xiaoxishui123/capcutapi-1.1.0:latest  # 生产环境使用（仅用于 CI/CD 拉取镜像）
-    build:  # Dokploy 和本地开发时启用
-      context: .
-      dockerfile: Dockerfile
+    # 生产环境：使用 GHCR 预构建镜像
+    image: ghcr.io/xiaoxishui123/capcutapi-1.1.0:latest
 
     container_name: capcutapi
 
@@ -35,11 +32,6 @@ services:
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
-      # OSS 配置（建议使用 secrets 管理）
-      # - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
-      # - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
-      # - OSS_BUCKET_NAME=${OSS_BUCKET_NAME}
-      # - OSS_ENDPOINT=${OSS_ENDPOINT}
 
     # 环境变量文件（推荐方式）
     env_file:
@@ -56,16 +48,6 @@ services:
       retries: 3
       start_period: 40s
 
-    # 资源限制（可选，根据服务器配置调整）
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '2'
-    #       memory: 2G
-    #     reservations:
-    #       cpus: '1'
-    #       memory: 1G
-
     # 网络模式
     network_mode: bridge
 
@@ -75,18 +57,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-# 可选：如果需要 MCP Bridge 服务，可以添加
-#   mcp-bridge:
-#     build:
-#       context: ./mcp_bridge
-#       dockerfile: Dockerfile
-#     container_name: capcutapi-mcp-bridge
-#     ports:
-#       - "8082:8082"
-#     volumes:
-#       - ./mcp_bridge/config:/app/config:ro
-#       - ./logs:/app/logs
-#     depends_on:
-#       - capcutapi
-#     restart: unless-stopped
