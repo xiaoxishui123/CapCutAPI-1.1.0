@@ -1,0 +1,530 @@
+openapi: 3.0.3
+info:
+  title: CapCutAPI v2
+  description: |
+    剪映/CapCut API v2 - 视频草稿生成和管理服务
+
+    **新版本特性：**
+    - RESTful 设计风格
+    - 统一的错误响应格式
+    - 自动验证和修复机制
+    - 完整的日志和限流保护
+
+    **迁移指南：** 详见 [API_V1_TO_V2_MIGRATION.md](API_V1_TO_V2_MIGRATION.md)
+
+    **废弃警告：** v1 端点将于 2025-02-15 下线
+  version: 2.0.0
+  contact:
+    name: CapCutAPI Team
+    url: https://github.com/capcutapi/capcutapi
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:9000
+    description: 本地开发服务器
+  - url: http://8.148.70.18:9000
+    description: 生产服务器
+
+tags:
+  - name: Download
+    description: 草稿下载相关端点
+  - name: Status
+    description: 草稿状态检查
+
+paths:
+  /api/v2/drafts/{draft_id}/download/url:
+    post:
+      tags:
+        - Download
+      summary: 生成下载链接
+      description: |
+        生成草稿的下载链接，智能选择 OSS 或本地下载方式。
+
+        **功能特性：**
+        - 自动验证草稿存在性
+        - 智能选择存储方式（OSS/本地）
+        - 支持自定义路径和操作系统
+        - 返回标准化的下载信息
+      operationId: generateDownloadUrlV2
+      parameters:
+        - $ref: '#/components/parameters/DraftIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_os:
+                  type: string
+                  enum: [windows, linux, darwin]
+                  default: windows
+                  description: 客户端操作系统
+                draft_folder:
+                  type: string
+                  default: ""
+                  description: 草稿文件夹路径（可选）
+                force_save:
+                  type: boolean
+                  default: false
+                  description: 是否强制重新保存草稿
+            examples:
+              basic:
+                summary: 基本请求
+                value:
+                  client_os: "windows"
+              custom_path:
+                summary: 自定义路径
+                value:
+                  client_os: "linux"
+                  draft_folder: "/home/user/drafts"
+      responses:
+        '200':
+          description: 下载链接生成成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          draft_id:
+                            type: string
+                            description: 草稿 ID
+                          download_url:
+                            type: string
+                            format: uri
+                            description: 下载链接
+                          file_size:
+                            type: integer
+                            description: 文件大小（字节）
+                          expires_in:
+                            type: integer
+                            description: 链接有效期（秒）
+                          download_method:
+                            type: string
+                            enum: [oss, local]
+                            description: 下载方式
+              examples:
+                oss:
+                  summary: OSS 下载
+                  value:
+                    success: true
+                    message: "下载链接生成成功"
+                    data:
+                      draft_id: "dfd_cat_1763382269_293b5e69"
+                      download_url: "https://oss.example.com/drafts/xxx.zip"
+                      file_size: 1234567
+                      expires_in: 3600
+                      download_method: "oss"
+                local:
+                  summary: 本地下载
+                  value:
+                    success: true
+                    message: "下载链接生成成功"
+                    data:
+                      draft_id: "dfd_cat_1763382269_293b5e69"
+                      download_url: "http://localhost:9000/preview?draft_id=xxx"
+                      download_method: "local"
+        '404':
+          $ref: '#/components/responses/DraftNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v2/drafts/{draft_id}/download/stream:
+    get:
+      tags:
+        - Download
+      summary: 流式下载草稿
+      description: |
+        直接下载草稿文件（流式传输）。
+
+        **功能特性：**
+        - 代理下载草稿文件
+        - 支持自动修复缺失文件
+        - 自动限流保护（10次/分钟）
+        - 完整的错误处理和日志
+      operationId: streamDownloadV2
+      parameters:
+        - $ref: '#/components/parameters/DraftIdPath'
+        - $ref: '#/components/parameters/ClientOS'
+        - $ref: '#/components/parameters/DraftFolder'
+      responses:
+        '200':
+          description: 文件流
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: 'attachment; filename="draft_xxx.zip"'
+            Content-Type:
+              schema:
+                type: string
+              description: application/zip
+        '404':
+          $ref: '#/components/responses/DraftNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v2/drafts/batch/download:
+    post:
+      tags:
+        - Download
+      summary: 批量下载草稿
+      description: |
+        批量下载多个草稿。
+
+        **功能特性：**
+        - 支持批量下载（最多 50 个）
+        - 每个草稿独立处理
+        - 详细的成功/失败统计
+        - 标准化的错误响应
+      operationId: batchDownloadV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - draft_ids
+              properties:
+                draft_ids:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  maxItems: 50
+                  description: 草稿 ID 列表（最多 50 个）
+                client_os:
+                  type: string
+                  enum: [windows, linux, darwin]
+                  default: windows
+                  description: 客户端操作系统
+                draft_folder:
+                  type: string
+                  default: ""
+                  description: 草稿文件夹路径（可选）
+            examples:
+              basic:
+                summary: 基本批量下载
+                value:
+                  draft_ids: ["dfd_cat_xxx_1", "dfd_cat_xxx_2", "dfd_cat_xxx_3"]
+                  client_os: "windows"
+      responses:
+        '200':
+          description: 批量下载处理完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                            description: 总数
+                          succeeded:
+                            type: integer
+                            description: 成功数
+                          failed:
+                            type: integer
+                            description: 失败数
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                draft_id:
+                                  type: string
+                                success:
+                                  type: boolean
+                                download_url:
+                                  type: string
+                                  format: uri
+                                error:
+                                  type: string
+                                error_code:
+                                  type: integer
+              examples:
+                success:
+                  summary: 批量下载成功
+                  value:
+                    success: true
+                    message: "批量下载完成：成功 2 个，失败 1 个"
+                    data:
+                      total: 3
+                      succeeded: 2
+                      failed: 1
+                      results:
+                        - draft_id: "dfd_cat_xxx_1"
+                          success: true
+                          download_url: "https://oss.example.com/xxx_1.zip"
+                        - draft_id: "dfd_cat_xxx_2"
+                          success: true
+                          download_url: "https://oss.example.com/xxx_2.zip"
+                        - draft_id: "dfd_cat_xxx_3"
+                          success: false
+                          error: "草稿不存在"
+                          error_code: 4001
+        '400':
+          $ref: '#/components/responses/InvalidParameter'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v2/drafts/{draft_id}/status:
+    get:
+      tags:
+        - Status
+      summary: 检查草稿状态
+      description: |
+        检查草稿在 OSS/数据库/缓存 中的状态。
+
+        **功能特性：**
+        - 检查草稿多维度状态
+        - 返回详细的可用性信息
+        - 不触发任何修改操作
+        - 可用于诊断问题
+      operationId: checkDraftStatusV2
+      parameters:
+        - $ref: '#/components/parameters/DraftIdPath'
+        - $ref: '#/components/parameters/ClientOS'
+        - $ref: '#/components/parameters/DraftFolder'
+      responses:
+        '200':
+          description: 状态检查完成
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          draft_id:
+                            type: string
+                          exists_in_oss:
+                            type: boolean
+                            description: 是否存在于 OSS
+                          exists_in_database:
+                            type: boolean
+                            description: 是否存在于数据库
+                          exists_in_cache:
+                            type: boolean
+                            description: 是否存在于缓存
+                          available_for_download:
+                            type: boolean
+                            description: 是否可以下载
+                          file_size:
+                            type: integer
+                            description: 文件大小（字节）
+                          last_modified:
+                            type: string
+                            format: date-time
+                            description: 最后修改时间
+              examples:
+                available:
+                  summary: 草稿可用
+                  value:
+                    success: true
+                    message: "状态检查完成"
+                    data:
+                      draft_id: "dfd_cat_xxx"
+                      exists_in_oss: true
+                      exists_in_database: true
+                      exists_in_cache: true
+                      available_for_download: true
+                      file_size: 1234567
+                      last_modified: "2025-11-17T12:00:00Z"
+                unavailable:
+                  summary: 草稿不可用
+                  value:
+                    success: true
+                    message: "状态检查完成"
+                    data:
+                      draft_id: "dfd_cat_xxx"
+                      exists_in_oss: false
+                      exists_in_database: true
+                      exists_in_cache: false
+                      available_for_download: false
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    DraftIdPath:
+      name: draft_id
+      in: path
+      required: true
+      description: 草稿 ID
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9_-]+$'
+        example: "dfd_cat_1763382269_293b5e69"
+
+    ClientOS:
+      name: client_os
+      in: query
+      required: false
+      description: 客户端操作系统
+      schema:
+        type: string
+        enum: [windows, linux, darwin]
+        default: windows
+
+    DraftFolder:
+      name: draft_folder
+      in: query
+      required: false
+      description: 草稿文件夹路径
+      schema:
+        type: string
+        default: ""
+
+  schemas:
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "操作成功"
+        data:
+          type: object
+          description: 响应数据（具体结构因端点而异）
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - error_type
+        - error_code
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: 错误描述
+        error_type:
+          type: string
+          description: 错误类型（枚举值）
+          enum:
+            - INVALID_DRAFT_ID
+            - DRAFT_NOT_FOUND
+            - INVALID_PARAMETER
+            - MISSING_PARAMETER
+            - FILE_NOT_FOUND
+            - RATE_LIMIT_EXCEEDED
+            - INTERNAL_ERROR
+            - OSS_ERROR
+            - DOWNLOAD_FAILED
+        error_code:
+          type: integer
+          description: 错误码（4xxx 客户端错误，5xxx 服务器错误）
+        suggestion:
+          type: string
+          description: 解决建议
+        details:
+          type: object
+          description: 额外的错误详情
+
+  responses:
+    DraftNotFound:
+      description: 草稿不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "草稿不存在"
+            error_type: "DRAFT_NOT_FOUND"
+            error_code: 4001
+            suggestion: "请确认草稿ID是否正确，或尝试重新创建草稿"
+            details:
+              draft_id: "dfd_cat_xxx"
+
+    InvalidParameter:
+      description: 参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "参数格式错误"
+            error_type: "INVALID_PARAMETER"
+            error_code: 4002
+            suggestion: "请检查请求参数是否符合API规范"
+            details:
+              parameter: "draft_ids"
+              reason: "必须是数组类型"
+
+    RateLimitExceeded:
+      description: 请求过于频繁
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  details:
+                    type: object
+                    properties:
+                      retry_after:
+                        type: integer
+                        description: 建议重试的秒数
+          example:
+            success: false
+            error: "请求过于频繁"
+            error_type: "RATE_LIMIT_EXCEEDED"
+            error_code: 4029
+            suggestion: "请稍后再试，或联系管理员提高限额"
+            details:
+              retry_after: 30
+
+    InternalError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: "服务器内部错误"
+            error_type: "INTERNAL_ERROR"
+            error_code: 5000
+            suggestion: "请稍后重试，如果问题持续请联系技术支持"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API 密钥（未来版本支持）
+
+security: []
