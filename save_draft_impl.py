@@ -328,6 +328,49 @@ def update_media_metadata(script, draft_id=None):
     
     # script.recalculate_duration()  # 该方法在pyJianYingDraft库中不存在，已注释
 
+
+def regenerate_and_upload_draft(draft_id: str, materials: list) -> Dict:
+    """
+    🔧 修复：当草稿文件不存在时，根据数据库中的材料数据重新生成草稿并上传
+
+    Args:
+        draft_id: 草稿ID
+        materials: 材料列表（从数据库中获取）
+
+    Returns:
+        Dict: {'success': bool, 'draft_url': str, 'error': str}
+    """
+    try:
+        logger.info(f"[重新生成草稿] 开始处理: {draft_id}")
+
+        # 检查草稿是否在缓存中
+        script = get_draft(draft_id)
+        if script is None:
+            error_msg = f"草稿 {draft_id} 不在缓存中，无法重新生成"
+            logger.error(error_msg)
+            return {'success': False, 'error': error_msg}
+
+        # 使用默认配置重新保存草稿
+        result = save_draft_impl(draft_id, draft_folder=None, client_os="windows")
+
+        if result.get('success'):
+            logger.info(f"[重新生成草稿] 成功: {draft_id}")
+            return {
+                'success': True,
+                'draft_url': result.get('draft_url', ''),
+                'task_id': result.get('task_id', '')
+            }
+        else:
+            error_msg = result.get('error', '未知错误')
+            logger.error(f"[重新生成草稿] 失败: {error_msg}")
+            return {'success': False, 'error': error_msg}
+
+    except Exception as e:
+        error_msg = f"重新生成草稿异常: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return {'success': False, 'error': error_msg}
+
+
 if __name__ == "__main__":
     # Example usage for testing
     pass

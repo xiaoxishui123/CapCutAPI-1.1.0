@@ -126,14 +126,14 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
     print(f"[ensure_customized_zip] client_os={client_os}")
     print(f"[ensure_customized_zip] draft_folder='{draft_folder}'")
     print(f"[ensure_customized_zip] REWRITE_VERSION={REWRITE_VERSION}")
-    
+
     bucket = _ensure_bucket()
     base_key = f"{draft_id}.zip"
     # 在key中加入版本号，当修改重写逻辑后更新版本号可使旧缓存失效
     # 🔧 修复：即使draft_folder为空也加入版本号（相对路径模式）
     key_suffix = _hash_str(f"{REWRITE_VERSION}|{client_os}|{draft_folder}")
     custom_key = f"{draft_id}__{client_os}__{key_suffix}.zip"
-    
+
     print(f"[ensure_customized_zip] 计算的key: {custom_key}")
 
     # If already exists, return directly
@@ -144,16 +144,33 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
     except Exception:
         # proceed to attempt to create
         pass
-    
+
     print(f"[ensure_customized_zip] ⚡ OSS缓存不存在，开始生成新版本")
+
+    # 🔧 修复：检查基础版本是否存在
+    try:
+        if not bucket.object_exists(base_key):
+            error_msg = f"基础草稿文件不存在: {base_key}"
+            print(f"[ensure_customized_zip] ❌ {error_msg}")
+            raise FileNotFoundError(error_msg)
+    except Exception as check_err:
+        print(f"[ensure_customized_zip] ❌ 检查基础文件失败: {check_err}")
+        raise
 
     # Download base zip into memory/tempfile
     with tempfile.TemporaryDirectory() as td:
         base_zip_path = os.path.join(td, base_key)
-        with open(base_zip_path, "wb") as f:
-            # stream download via SDK
-            obj = bucket.get_object(base_key)
-            f.write(obj.read())
+        try:
+            with open(base_zip_path, "wb") as f:
+                # stream download via SDK
+                print(f"[ensure_customized_zip] 开始下载基础文件: {base_key}")
+                obj = bucket.get_object(base_key)
+                f.write(obj.read())
+            print(f"[ensure_customized_zip] ✅ 基础文件下载完成")
+        except Exception as download_err:
+            error_msg = f"下载基础草稿文件失败: {download_err}"
+            print(f"[ensure_customized_zip] ❌ {error_msg}")
+            raise Exception(error_msg)
         # Read, modify draft_info.json and draft_meta_info.json, write new zip
         custom_zip_path = os.path.join(td, custom_key)
         with zipfile.ZipFile(base_zip_path, "r") as zin, zipfile.ZipFile(custom_zip_path, "w", zipfile.ZIP_DEFLATED) as zout:

@@ -3086,9 +3086,64 @@ def download_draft_proxy(draft_id):
         logger.error(f"代理下载失败: {e}", exc_info=True)
         import traceback
         traceback.print_exc()
+
+        # 🔧 修复：检查是否是文件不存在的错误，尝试重新生成
+        error_str = str(e)
+        if "基础草稿文件不存在" in error_str or "NoSuchKey" in error_str or "FileNotFoundError" in str(type(e)):
+            logger.warning(f"[代理下载] 基础文件不存在，尝试重新生成: {draft_id}")
+
+            try:
+                # 获取草稿材料
+                materials = get_draft_materials(draft_id)
+                if materials:
+                    from save_draft_impl import regenerate_and_upload_draft
+                    logger.info(f"[代理下载] 开始重新生成草稿: {draft_id}")
+
+                    # 重新生成草稿
+                    regenerate_result = regenerate_and_upload_draft(draft_id, materials)
+
+                    if regenerate_result['success']:
+                        logger.info(f"[代理下载] 草稿重新生成成功，重试下载: {draft_id}")
+
+                        # 等待草稿完全上传（异步任务）
+                        import time
+                        time.sleep(3)
+
+                        # 重新尝试生成下载链接
+                        from customize_zip import get_customized_signed_url
+                        draft_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+
+                        # 重新下载
+                        import requests as req
+                        file_response = req.get(draft_url, stream=True)
+
+                        if file_response.status_code == 200:
+                            filename = f"{draft_id}.zip"
+                            from urllib.parse import quote
+                            encoded_filename = quote(filename, safe='')
+
+                            def generate():
+                                for chunk in file_response.iter_content(chunk_size=8192):
+                                    if chunk:
+                                        yield chunk
+
+                            response = Response(generate(), mimetype='application/zip')
+                            response.headers['Content-Disposition'] = f'attachment; filename="{encoded_filename}"'
+                            response.headers['Content-Type'] = 'application/zip'
+                            response.headers['X-Content-Type-Options'] = 'nosniff'
+                            response.headers['Access-Control-Allow-Origin'] = '*'
+
+                            logger.info(f"[代理下载] 重新生成后下载成功: {filename}")
+                            return response
+
+            except Exception as regen_error:
+                logger.error(f"[代理下载] 重新生成失败: {regen_error}")
+                traceback.print_exc()
+
         return jsonify({
             'success': False,
-            'error': f'代理下载失败: {str(e)}'
+            'error': f'代理下载失败: {error_str}',
+            'error_type': 'DOWNLOAD_FAILED'
         }), 500
 
 @app.route('/api/drafts/download/custom/<draft_id>', methods=['POST'])
@@ -3540,11 +3595,63 @@ def draft_download_api():
             logger.error(f"生成定制化下载链接失败: {custom_error}")
             import traceback
             traceback.print_exc()
-            
-            # customize_zip失败，降级到返回配置信息
+
+            # 🔧 修复：检查是否是基础文件不存在的错误
+            error_str = str(custom_error)
+            if "基础草稿文件不存在" in error_str or "NoSuchKey" in error_str or "FileNotFoundError" in str(type(custom_error)):
+                logger.warning(f"基础草稿文件不存在，尝试重新生成: {draft_id}")
+
+                # 尝试重新生成草稿并上传
+                try:
+                    from save_draft_impl import regenerate_and_upload_draft
+                    logger.info(f"开始重新生成草稿: {draft_id}")
+
+                    # 重新生成草稿
+                    regenerate_result = regenerate_and_upload_draft(draft_id, materials)
+
+                    if regenerate_result['success']:
+                        logger.info(f"草稿重新生成成功，重试下载: {draft_id}")
+
+                        # 重新尝试生成下载链接
+                        custom_download_url = get_customized_signed_url(draft_id, client_os, draft_folder)
+
+                        from urllib.parse import urlencode
+                        params = urlencode({
+                            'client_os': client_os,
+                            'draft_folder': draft_folder
+                        })
+                        proxy_download_url = f"/api/draft/download/proxy/{draft_id}?{params}"
+
+                        return jsonify({
+                            'success': True,
+                            'message': '草稿已重新生成，下载链接已就绪',
+                            'download_url': proxy_download_url,
+                            'original_url': custom_download_url,
+                            'regenerated': True,
+                            'client_os': client_os,
+                            'custom_path': draft_folder if draft_folder else '(相对路径)'
+                        })
+                    else:
+                        logger.error(f"草稿重新生成失败: {regenerate_result.get('error')}")
+
+                except Exception as regen_error:
+                    logger.error(f"重新生成草稿失败: {regen_error}")
+                    traceback.print_exc()
+
+                # 重新生成失败，返回友好的错误信息
+                return jsonify({
+                    'success': False,
+                    'error': '草稿文件不存在于云存储',
+                    'error_type': 'FILE_NOT_FOUND',
+                    'draft_id': draft_id,
+                    'materials_count': len(materials),
+                    'suggestion': '请尝试重新保存草稿，或联系管理员'
+                }), 404
+
+            # 其他错误，返回通用错误信息
             return jsonify({
                 'success': False,
-                'error': f'下载失败: {str(custom_error)}',
+                'error': f'下载失败: {error_str}',
                 'draft_id': draft_id,
                 'materials_count': len(materials)
             }), 500
@@ -4895,11 +5002,18 @@ def health_check():
 
         # 检查OSS连接（如果启用）
         oss_status = "disabled"
+        oss_details = {}
         if IS_UPLOAD_DRAFT:
             try:
-                bucket = _ensure_bucket_v4()
-                # 简单的存在性检查,不实际上传
+                from oss import _ensure_bucket
+                bucket = _ensure_bucket()
+                # 尝试列出bucket中的对象（限制1个）
                 oss_status = "healthy"
+                oss_details = {
+                    "bucket": OSS_CONFIG.get('bucket_name', 'unknown'),
+                    "region": OSS_CONFIG.get('region', 'unknown'),
+                    "endpoint": OSS_CONFIG.get('endpoint', 'unknown')
+                }
             except Exception as oss_error:
                 oss_status = f"unhealthy: {str(oss_error)}"
                 logger.error(f"OSS健康检查失败: {oss_error}", exc_info=True)
@@ -4910,7 +5024,7 @@ def health_check():
         # 整体健康状态
         overall_status = "healthy" if db_status == "healthy" and (oss_status in ["healthy", "disabled"]) else "unhealthy"
 
-        return jsonify({
+        response_data = {
             'status': overall_status,
             'timestamp': datetime.now().isoformat(),
             'version': 'v1.1.0',
@@ -4925,7 +5039,13 @@ def health_check():
                 }
             },
             'uptime': 'N/A'  # 可以添加启动时间跟踪
-        }), 200 if overall_status == "healthy" else 503
+        }
+
+        # 如果有OSS详情，添加到响应中
+        if oss_details:
+            response_data['oss_details'] = oss_details
+
+        return jsonify(response_data), 200 if overall_status == "healthy" else 503
 
     except Exception as e:
         logger.error(f"健康检查失败: {e}", exc_info=True)
@@ -4966,6 +5086,76 @@ def liveness_check():
         'alive': True,
         'timestamp': datetime.now().isoformat()
     }), 200
+
+
+@app.route('/api/drafts/check/<draft_id>', methods=['GET'])
+def check_draft_exists(draft_id):
+    """检查草稿文件是否存在于OSS中"""
+    try:
+        from oss import _ensure_bucket
+
+        bucket = _ensure_bucket()
+        base_key = f"{draft_id}.zip"
+
+        # 检查基础文件是否存在
+        base_exists = False
+        try:
+            base_exists = bucket.object_exists(base_key)
+        except Exception as check_err:
+            logger.warning(f"检查基础文件失败: {check_err}")
+
+        # 检查数据库中的草稿记录
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("SELECT id, status, created_at FROM drafts WHERE id = ?", (draft_id,))
+        draft_record = c.fetchone()
+        conn.close()
+
+        # 检查缓存
+        in_cache = draft_id in DRAFT_CACHE
+
+        response_data = {
+            'draft_id': draft_id,
+            'exists_in_oss': base_exists,
+            'exists_in_database': draft_record is not None,
+            'exists_in_cache': in_cache,
+            'base_key': base_key
+        }
+
+        if draft_record:
+            response_data['draft_info'] = {
+                'status': draft_record[1],
+                'created_at': draft_record[2]
+            }
+
+        # 检查定制化版本（可选）
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
+
+        if client_os:
+            from customize_zip import _hash_str, REWRITE_VERSION
+            key_suffix = _hash_str(f"{REWRITE_VERSION}|{client_os}|{draft_folder}")
+            custom_key = f"{draft_id}__{client_os}__{key_suffix}.zip"
+
+            custom_exists = False
+            try:
+                custom_exists = bucket.object_exists(custom_key)
+            except Exception:
+                pass
+
+            response_data['customized_version'] = {
+                'key': custom_key,
+                'exists': custom_exists
+            }
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        logger.error(f"检查草稿失败: {e}", exc_info=True)
+        return jsonify({
+            'error': str(e),
+            'draft_id': draft_id
+        }), 500
 
 
 @app.route('/metrics', methods=['GET'])
