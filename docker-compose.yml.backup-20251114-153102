@@ -66,9 +66,8 @@ services:
     #       cpus: '1'
     #       memory: 1G
 
-    # 网络模式（加入 Dify 网络以实现容器间通信）
-    networks:
-      - docker_default
+    # 网络模式
+    network_mode: bridge
 
     # 日志配置
     logging:
@@ -91,7 +90,3 @@ services:
 #     depends_on:
 #       - capcutapi
 #     restart: unless-stopped
-# 网络配置
-networks:
-  docker_default:
-    external: true  # 使用 Dify 的现有网络

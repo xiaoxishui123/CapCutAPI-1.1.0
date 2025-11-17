@@ -111,6 +111,20 @@ from exceptions import (
 )
 from log_config import setup_logging, setup_access_logger, PerformanceLogger, log_api_request, log_api_response
 
+# ===== 新架构模块导入 (v1.2.0+) =====
+from utils import (
+    download_decorators,
+    require_draft_exists,
+    deprecated_endpoint,
+    create_success_response,
+    create_error_response,
+    ErrorCode,
+    draft_not_found_error,
+    invalid_parameter_error,
+    missing_parameter_error
+)
+from services import get_download_service
+
 def _ensure_bucket_v4():
     """创建OSS Bucket实例（使用V4签名）"""
     auth = oss2.AuthV4(OSS_CONFIG['access_key_id'], OSS_CONFIG['access_key_secret'])
@@ -1421,6 +1435,10 @@ def mirror_to_oss():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/generate_draft_url', methods=['POST'])
+@deprecated_endpoint(
+    new_endpoint='/api/v2/drafts/<draft_id>/download/url',
+    sunset_date='2025-02-15'
+)
 def generate_draft_url():
     data = request.get_json(silent=True) or {}
     
@@ -2941,6 +2959,10 @@ def get_draft_title(draft_id):
         return f"{now.month}月{now.day}日"
 
 @app.route('/api/drafts/download/proxy/<draft_id>', methods=['GET'])
+@deprecated_endpoint(
+    new_endpoint='/api/v2/drafts/<draft_id>/download/stream',
+    sunset_date='2025-02-15'
+)
 def download_draft_proxy(draft_id):
     """代理下载草稿文件 - 解决跨域问题"""
     try:
@@ -3230,6 +3252,10 @@ def download_draft_to_custom_path(draft_id):
         }), 500
 
 @app.route('/api/drafts/batch-download', methods=['POST'])
+@deprecated_endpoint(
+    new_endpoint='/api/v2/drafts/batch/download',
+    sunset_date='2025-02-15'
+)
 def batch_download_drafts():
     """批量下载草稿"""
     try:
@@ -3284,6 +3310,299 @@ def batch_download_drafts():
             'success': False,
             'error': f'批量下载失败: {str(e)}'
         }), 500
+
+
+# ==================== API v2 端点（新架构，推荐使用）====================
+#
+# v2 API 特性：
+# - RESTful 设计风格
+# - 统一的装饰器（验证、日志、限流、自动修复）
+# - 标准化的错误响应格式
+# - 服务层架构（业务逻辑与路由分离）
+#
+# 迁移建议：
+# - v1 端点将在 90 天后废弃
+# - 请尽快迁移到 v2 端点
+# - 详见迁移指南: docs/API_V1_TO_V2_MIGRATION.md
+#
+# ==================================================================
+
+@app.route('/api/v2/drafts/<draft_id>/download/url', methods=['POST'])
+@download_decorators(
+    require_exists=True,
+    auto_regenerate=False,
+    enable_rate_limit=False,
+    enable_logging=True
+)
+def generate_download_url_v2(draft_id, materials=None):
+    """
+    生成下载链接（v2版本）
+
+    功能：
+    - 智能选择 OSS 或本地下载方式
+    - 支持自定义路径和操作系统
+    - 返回标准化的下载信息
+
+    请求体:
+        {
+            "client_os": "windows|linux|darwin",
+            "draft_folder": "/path/to/folder",
+            "force_save": false
+        }
+
+    响应:
+        {
+            "success": true,
+            "data": {
+                "draft_id": "xxx",
+                "download_url": "https://...",
+                "file_size": 12345,
+                "expires_in": 3600,
+                "download_method": "oss|local"
+            }
+        }
+    """
+    try:
+        data = request.get_json() or {}
+        client_os = data.get('client_os', 'windows')
+        draft_folder = data.get('draft_folder', '')
+        force_save = data.get('force_save', False)
+
+        # 使用下载服务
+        service = get_download_service()
+        result = service.get_download_url(
+            draft_id=draft_id,
+            client_os=client_os,
+            draft_folder=draft_folder,
+            force_save=force_save
+        )
+
+        if not result.get('success'):
+            return create_error_response(
+                ErrorCode.DOWNLOAD_FAILED,
+                message=result.get('error', '生成下载链接失败')
+            )
+
+        return create_success_response(
+            data=result.get('data'),
+            message='下载链接生成成功'
+        )
+
+    except Exception as e:
+        logger.error(f"[v2] 生成下载链接失败: {e}", exc_info=True)
+        return create_error_response(
+            ErrorCode.INTERNAL_ERROR,
+            details={'error': str(e)}
+        )
+
+
+@app.route('/api/v2/drafts/<draft_id>/download/stream', methods=['GET'])
+@download_decorators(
+    require_exists=True,
+    auto_regenerate=True,
+    enable_rate_limit=True,
+    enable_logging=True
+)
+def stream_download_v2(draft_id, materials=None):
+    """
+    流式下载草稿（v2版本）
+
+    功能：
+    - 代理下载草稿文件
+    - 支持自动修复缺失文件
+    - 支持限流保护
+    - 完整的错误处理和日志
+
+    查询参数:
+        - client_os: 客户端操作系统（默认 windows）
+        - draft_folder: 草稿文件夹路径（可选）
+
+    响应:
+        - 成功: 文件流（application/zip）
+        - 失败: JSON 错误响应
+    """
+    try:
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
+
+        # 使用下载服务
+        service = get_download_service()
+        response = service.stream_download(
+            draft_id=draft_id,
+            client_os=client_os,
+            draft_folder=draft_folder,
+            auto_regenerate=True
+        )
+
+        # 如果返回 tuple，说明是 Flask Response
+        if isinstance(response, tuple):
+            return response
+
+        return response
+
+    except Exception as e:
+        logger.error(f"[v2] 流式下载失败: {e}", exc_info=True)
+        return create_error_response(
+            ErrorCode.DOWNLOAD_FAILED,
+            details={'error': str(e)}
+        )
+
+
+@app.route('/api/v2/drafts/batch/download', methods=['POST'])
+@download_decorators(
+    require_exists=False,  # 批量下载不需要单个草稿验证
+    auto_regenerate=False,
+    enable_rate_limit=True,
+    enable_logging=True
+)
+def batch_download_v2():
+    """
+    批量下载草稿（v2版本）
+
+    功能：
+    - 支持批量下载多个草稿
+    - 每个草稿独立处理
+    - 返回详细的处理结果
+
+    请求体:
+        {
+            "draft_ids": ["id1", "id2", "id3"],
+            "client_os": "windows|linux|darwin",
+            "draft_folder": "/path/to/folder"
+        }
+
+    响应:
+        {
+            "success": true,
+            "data": {
+                "total": 3,
+                "succeeded": 2,
+                "failed": 1,
+                "results": [
+                    {
+                        "draft_id": "id1",
+                        "success": true,
+                        "download_url": "https://..."
+                    },
+                    {
+                        "draft_id": "id2",
+                        "success": false,
+                        "error": "草稿不存在"
+                    }
+                ]
+            }
+        }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return missing_parameter_error('request body')
+
+        draft_ids = data.get('draft_ids', [])
+
+        if not draft_ids:
+            return missing_parameter_error('draft_ids')
+
+        if not isinstance(draft_ids, list):
+            return invalid_parameter_error('draft_ids', '必须是数组类型')
+
+        if len(draft_ids) > 50:
+            return invalid_parameter_error('draft_ids', '单次最多支持50个草稿')
+
+        client_os = data.get('client_os', 'windows')
+        draft_folder = data.get('draft_folder', '')
+
+        # 使用下载服务
+        service = get_download_service()
+        results = service.batch_download(
+            draft_ids=draft_ids,
+            client_os=client_os,
+            draft_folder=draft_folder
+        )
+
+        # 统计结果
+        succeeded = sum(1 for r in results if r.get('success'))
+        failed = len(results) - succeeded
+
+        return create_success_response(
+            data={
+                'total': len(results),
+                'succeeded': succeeded,
+                'failed': failed,
+                'results': results
+            },
+            message=f'批量下载完成：成功 {succeeded} 个，失败 {failed} 个'
+        )
+
+    except Exception as e:
+        logger.error(f"[v2] 批量下载失败: {e}", exc_info=True)
+        return create_error_response(
+            ErrorCode.INTERNAL_ERROR,
+            details={'error': str(e)}
+        )
+
+
+@app.route('/api/v2/drafts/<draft_id>/status', methods=['GET'])
+@download_decorators(
+    require_exists=False,  # 状态检查不强制要求存在
+    auto_regenerate=False,
+    enable_rate_limit=False,
+    enable_logging=False  # 状态检查不记录日志
+)
+def check_draft_status_v2(draft_id):
+    """
+    检查草稿状态（v2版本）
+
+    功能：
+    - 检查草稿在 OSS/数据库/缓存 中的状态
+    - 返回详细的可用性信息
+    - 不触发任何修改操作
+
+    查询参数:
+        - client_os: 客户端操作系统（默认 windows）
+        - draft_folder: 草稿文件夹路径（可选）
+
+    响应:
+        {
+            "success": true,
+            "data": {
+                "draft_id": "xxx",
+                "exists_in_oss": true,
+                "exists_in_database": true,
+                "exists_in_cache": true,
+                "available_for_download": true,
+                "file_size": 12345,
+                "last_modified": "2025-11-17T12:00:00Z"
+            }
+        }
+    """
+    try:
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
+
+        # 使用下载服务
+        service = get_download_service()
+        status = service.check_draft_exists(
+            draft_id=draft_id,
+            client_os=client_os,
+            draft_folder=draft_folder
+        )
+
+        return create_success_response(
+            data=status,
+            message='状态检查完成'
+        )
+
+    except Exception as e:
+        logger.error(f"[v2] 状态检查失败: {e}", exc_info=True)
+        return create_error_response(
+            ErrorCode.INTERNAL_ERROR,
+            details={'error': str(e)}
+        )
+
+
+# ==================== API v1 端点（已废弃，将在 90 天后移除）====================
 
 @app.route('/api/draft/long_poll_status', methods=['GET'])
 def long_poll_draft_status():
