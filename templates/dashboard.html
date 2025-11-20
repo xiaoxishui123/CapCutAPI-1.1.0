@@ -682,17 +682,26 @@
                 const originalText = downloadBtn.innerHTML;
                 downloadBtn.innerHTML = '📥 准备中...';
                 downloadBtn.disabled = true;
-                
-                // 使用正确的API端点
-                const response = await fetch(`/api/drafts/download/${draftId}`);
+
+                // 使用v2 API端点获取下载链接
+                const response = await fetch(`/api/v2/drafts/${draftId}/download/url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        client_os: 'windows',
+                        draft_folder: ''
+                    })
+                });
                 const contentType = response.headers.get('content-type');
                 
                 if (response.ok && contentType && contentType.includes('application/json')) {
                     const data = await response.json();
                     if (data.success) {
                         // 如果返回了下载链接，直接跳转
-                        if (data.download_url && data.download_url[0] && data.download_url[0].trim() !== '') {
-                            window.open(data.download_url[0], '_blank');
+                        if (data.data && data.data.download_url && data.data.download_url.trim() !== '') {
+                            window.open(data.data.download_url, '_blank');
                             alert('下载链接已生成，请在新窗口中下载');
                         } else {
                             // 否则使用生成草稿URL的接口
