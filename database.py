@@ -79,35 +79,36 @@ def get_all_drafts():
     conn = sqlite3.connect('capcut.db')
     c = conn.cursor()
     c.execute("""
-        SELECT 
-            d.id, 
+        SELECT
+            d.id,
             d.status,
             d.progress,
             d.message,
             d.created_at,
             d.last_modified,
+            d.draft_name,
             COUNT(m.id) as materials_count
         FROM drafts d
         LEFT JOIN materials m ON d.id = m.draft_id
         GROUP BY d.id
         ORDER BY d.last_modified DESC
     """)
-    
+
     drafts = []
     for row in c.fetchall():
         draft = {
             'id': row[0],
-            'name': row[0],  # 使用ID作为名称
+            'name': row[6] if row[6] else row[0],  # 使用draft_name，如果没有则使用ID
             'status': row[1] or 'initialized',
             'progress': row[2] or 0,
             'message': row[3] or '',
             'created_time': row[4] or '未知',
             'modified_time': row[5] or '未知',
-            'materials_count': row[6] or 0,
+            'materials_count': row[7] or 0,
             'duration': '00:00'  # 默认时长
         }
         drafts.append(draft)
-    
+
     conn.close()
     return drafts
 
@@ -127,24 +128,53 @@ def get_draft_status(draft_id):
     """获取草稿状态和进度信息"""
     conn = sqlite3.connect('capcut.db')
     c = conn.cursor()
-    c.execute("SELECT status, progress, message, last_modified FROM drafts WHERE id = ?", (draft_id,))
+    c.execute("SELECT status, progress, message, last_modified, draft_name FROM drafts WHERE id = ?", (draft_id,))
     result = c.fetchone()
     conn.close()
-    
+
     if result:
         return {
             'status': result[0],
             'progress': result[1] or 0,
             'message': result[2] or '',
-            'last_modified': result[3]
+            'last_modified': result[3],
+            'draft_name': result[4] if len(result) > 4 else None
         }
     else:
         return {
             'status': 'not_found',
             'progress': 0,
             'message': '草稿不存在',
-            'last_modified': None
+            'last_modified': None,
+            'draft_name': None
         }
+
+
+def update_draft_name(draft_id, draft_name):
+    """更新草稿名称"""
+    conn = sqlite3.connect('capcut.db')
+    c = conn.cursor()
+    # 确保草稿存在
+    c.execute("INSERT OR IGNORE INTO drafts (id, draft_name) VALUES (?, ?)", (draft_id, draft_name))
+    # 更新名称
+    c.execute("UPDATE drafts SET draft_name = ?, last_modified = CURRENT_TIMESTAMP WHERE id = ?",
+              (draft_name, draft_id))
+    conn.commit()
+    conn.close()
+
+
+def get_draft_name(draft_id):
+    """获取草稿名称"""
+    conn = sqlite3.connect('capcut.db')
+    c = conn.cursor()
+    c.execute("SELECT draft_name FROM drafts WHERE id = ?", (draft_id,))
+    result = c.fetchone()
+    conn.close()
+
+    if result and result[0]:
+        return result[0]
+    else:
+        return draft_id  # 如果没有设置名称，返回draft_id作为默认名称
 
 def save_draft_to_db(draft_id, script_data, width=1920, height=1080):
     """保存草稿完整数据到数据库"""

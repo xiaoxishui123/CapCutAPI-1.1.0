@@ -139,10 +139,12 @@ class DraftDownloadService:
         Returns:
             Dict: {
                 'success': bool,
-                'draft_url': str,
-                'storage': str,  # 'oss' or 'local'
-                'client_os': str,
-                'draft_folder': str
+                'data': {
+                    'download_url': str,
+                    'storage': str,  # 'oss' or 'local'
+                    'client_os': str,
+                    'draft_folder': str
+                }
             }
         """
         try:
@@ -164,21 +166,35 @@ class DraftDownloadService:
                             custom_url = get_customized_signed_url(draft_id, client_os, draft_folder)
                             return {
                                 'success': True,
-                                'draft_url': custom_url,
-                                'storage': 'oss',
-                                'client_os': client_os,
-                                'draft_folder': draft_folder
+                                'data': {
+                                    'download_url': custom_url,
+                                    'storage': 'oss',
+                                    'client_os': client_os,
+                                    'draft_folder': draft_folder
+                                }
+                            }
+                        except FileNotFoundError as e:
+                            # 🔧 修复：基础文件不存在，不应该返回基础URL（因为它也是无效的）
+                            logger.error(f"基础草稿文件不存在: {e}")
+                            return {
+                                'success': False,
+                                'error': f'基础草稿文件不存在: {draft_id}',
+                                'error_type': 'FILE_NOT_FOUND',
+                                'suggestion': '请尝试重新保存草稿'
                             }
                         except Exception as e:
+                            # 其他错误：降级使用基础URL
                             logger.warning(f"生成定制化URL失败，使用基础URL: {e}")
 
                     # 返回基础签名URL
                     return {
                         'success': True,
-                        'draft_url': signed_url,
-                        'storage': 'oss',
-                        'client_os': client_os,
-                        'draft_folder': draft_folder
+                        'data': {
+                            'download_url': signed_url,
+                            'storage': 'oss',
+                            'client_os': client_os,
+                            'draft_folder': draft_folder
+                        }
                     }
 
                 # 文件不存在，如果需要强制保存
@@ -187,9 +203,11 @@ class DraftDownloadService:
                     task_info = save_draft_impl(draft_id, draft_folder, client_os)
                     return {
                         'success': True,
-                        'status': 'processing',
-                        'task_id': task_info.get('task_id', draft_id),
-                        'message': '保存任务已启动，请轮询状态'
+                        'data': {
+                            'status': 'processing',
+                            'task_id': task_info.get('task_id', draft_id),
+                            'message': '保存任务已启动，请轮询状态'
+                        }
                     }
 
             # 返回本地路径
@@ -199,10 +217,12 @@ class DraftDownloadService:
 
             return {
                 'success': True,
-                'draft_url': f"{DRAFT_DOMAIN}{PREVIEW_ROUTER}?draft_id={safe_id}",
-                'storage': 'local',
-                'client_os': client_os,
-                'draft_folder': draft_folder
+                'data': {
+                    'download_url': f"{DRAFT_DOMAIN}{PREVIEW_ROUTER}?draft_id={safe_id}",
+                    'storage': 'local',
+                    'client_os': client_os,
+                    'draft_folder': draft_folder
+                }
             }
 
         except Exception as e:
@@ -239,6 +259,7 @@ class DraftDownloadService:
             file_response = requests.get(draft_url, stream=True)
 
             if file_response.status_code == 200:
+                # 使用草稿ID作为文件名
                 filename = f"{draft_id}.zip"
                 encoded_filename = quote(filename, safe='')
 
@@ -293,6 +314,16 @@ class DraftDownloadService:
                 result = self.get_download_url(draft_id, client_os, draft_folder)
                 result['draft_id'] = draft_id
                 results.append(result)
+            except FileNotFoundError as e:
+                # 🔧 修复：文件不存在错误，返回明确的错误信息
+                logger.error(f"批量下载失败 {draft_id}: 基础文件不存在 - {e}")
+                results.append({
+                    'draft_id': draft_id,
+                    'success': False,
+                    'error': f'基础草稿文件不存在: {draft_id}',
+                    'error_type': 'FILE_NOT_FOUND',
+                    'suggestion': '请尝试重新保存草稿'
+                })
             except Exception as e:
                 logger.error(f"批量下载失败 {draft_id}: {e}")
                 results.append({
@@ -343,6 +374,8 @@ class DraftDownloadService:
 
                 if file_response.status_code == 200:
                     from urllib.parse import quote
+
+                    # 使用草稿ID作为文件名
                     filename = f"{draft_id}.zip"
                     encoded_filename = quote(filename, safe='')
 

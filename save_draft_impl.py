@@ -218,8 +218,31 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
         
         if IS_UPLOAD_DRAFT and not is_custom_download:
             # 正常OSS上传模式
+            # 获取文件大小
+            file_size = os.path.getsize(zip_file_path)
+
+            # 上传到 OSS
             update_draft_status(draft_id, 'processing', 90, '正在上传至云存储')
             draft_url = upload_to_oss(zip_file_path)
+
+            # 🆕 立即验证 OSS 文件
+            logger.info(f"[{draft_id}] OSS上传完成，开始验证...")
+
+            if verify_oss_file(draft_id):
+                logger.info(f"[{draft_id}] ✅ OSS文件验证通过")
+                # 更新数据库：标记文件已上传和验证
+                conn = sqlite3.connect('capcut.db')
+                c = conn.cursor()
+                c.execute("""
+                    UPDATE drafts
+                    SET oss_uploaded = 1, oss_verified = 1, file_size = ?
+                    WHERE id = ?
+                """, (file_size, draft_id))
+                conn.commit()
+                conn.close()
+            else:
+                raise Exception("OSS文件验证失败")
+
             # 删除本地文件
             if os.path.exists(draft_path):
                 shutil.rmtree(draft_path)
@@ -369,6 +392,35 @@ def regenerate_and_upload_draft(draft_id: str, materials: list) -> Dict:
         error_msg = f"重新生成草稿异常: {str(e)}"
         logger.error(error_msg, exc_info=True)
         return {'success': False, 'error': error_msg}
+
+
+def verify_oss_file(draft_id: str) -> bool:
+    """验证 OSS 文件是否存在且完整"""
+    try:
+        from oss import _ensure_bucket
+
+        bucket = _ensure_bucket()
+        key = f"{draft_id}.zip"
+
+        # 检查文件是否存在
+        if not bucket.object_exists(key):
+            logger.error(f"[验证] OSS文件不存在: {key}")
+            return False
+
+        # 检查文件大小
+        meta = bucket.head_object(key)
+        file_size = meta.content_length
+
+        if file_size < 1024:  # 文件小于1KB，可能损坏
+            logger.error(f"[验证] 文件过小: {file_size} bytes")
+            return False
+
+        logger.info(f"[验证] 文件存在且完整: {key}, {file_size/1024/1024:.2f}MB")
+        return True
+
+    except Exception as e:
+        logger.error(f"[验证] 验证失败: {e}")
+        return False
 
 
 if __name__ == "__main__":

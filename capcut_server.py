@@ -754,6 +754,7 @@ def create_draft_service():
 
         # 获取参数
         draft_id = data.get('draft_id')  # 用户指定的草稿ID
+        draft_name = data.get('name', data.get('draft_name', '未命名草稿'))  # 草稿名称
         width = data.get('width', 1080)
         height = data.get('height', 1920)
 
@@ -771,14 +772,18 @@ def create_draft_service():
 
         # 创建新草稿
         draft_id, script = get_or_create_draft(draft_id=draft_id, width=width, height=height)
-        
+
+        # 存储草稿名称到数据库
+        from database import update_draft_name
+        update_draft_name(draft_id, draft_name)
+
         # 初始化草稿缓存，确保预览功能能够识别草稿存在
         if draft_id not in draft_materials_cache:
             draft_materials_cache[draft_id] = []
             # 添加基本草稿信息到缓存
             basic_info = {
                 "type": "draft_info",
-                "name": data.get('name', '未命名草稿'),
+                "name": draft_name,
                 "width": width,
                 "height": height,
                 "created_at": datetime.now().isoformat(),
@@ -3448,6 +3453,90 @@ def stream_download_v2(draft_id, materials=None):
         )
 
 
+@app.route('/api/draft/download', methods=['POST'])
+def download_draft_unified():
+    """
+    统一草稿下载接口（兼容性路由）
+
+    处理来自前端的下载请求，根据参数返回下载链接或流式下载
+
+    请求体:
+        {
+            "draft_id": "dfd_cat_xxx",
+            "use_custom_path": false,
+            "draft_folder": "",
+            "client_os": "windows"
+        }
+
+    响应:
+        {
+            "success": true,
+            "download_url": "https://...",
+            "draft_id": "dfd_cat_xxx",
+            "custom_path": "/path/to/folder"
+        }
+    """
+    try:
+        data = request.get_json() or {}
+        draft_id = data.get('draft_id')
+
+        if not draft_id:
+            return jsonify({
+                'success': False,
+                'error': '缺少draft_id参数'
+            }), 400
+
+        client_os = data.get('client_os', 'windows')
+        draft_folder = data.get('draft_folder', '')
+        use_custom_path = data.get('use_custom_path', False)
+
+        # 检查草稿是否存在
+        materials = get_draft_materials(draft_id)
+        if not materials:
+            return jsonify({
+                'success': False,
+                'error': f'草稿 {draft_id} 不存在'
+            }), 404
+
+        # 使用下载服务生成链接
+        service = get_download_service()
+        result = service.get_download_url(
+            draft_id=draft_id,
+            client_os=client_os,
+            draft_folder=draft_folder,
+            force_save=False
+        )
+
+        if result.get('success'):
+            # 从新的返回结构中提取数据
+            data_obj = result.get('data', {})
+            return jsonify({
+                'success': True,
+                'data': {
+                    'download_url': data_obj.get('download_url'),
+                    'storage': data_obj.get('storage', 'oss'),
+                    'client_os': data_obj.get('client_os', client_os),
+                    'draft_folder': data_obj.get('draft_folder', draft_folder)
+                },
+                'draft_id': draft_id,
+                'custom_path': draft_folder,
+                'message': '下载链接生成成功'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result.get('error', '生成下载链接失败'),
+                'draft_id': draft_id
+            }), 500
+
+    except Exception as e:
+        logger.error(f"下载草稿失败: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/api/v2/drafts/batch/download', methods=['POST'])
 @download_decorators(
     require_exists=False,  # 批量下载不需要单个草稿验证
@@ -3588,6 +3677,33 @@ def check_draft_status_v2(draft_id):
             client_os=client_os,
             draft_folder=draft_folder
         )
+
+        # 🆕 查询数据库获取新增的验证字段
+        import sqlite3
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("""
+            SELECT status, progress, message, oss_uploaded, oss_verified,
+                   file_size, estimated_time
+            FROM drafts
+            WHERE id = ?
+        """, (draft_id,))
+        result = c.fetchone()
+        conn.close()
+
+        # 🆕 添加新字段到状态信息
+        if result:
+            status['draft_status'] = result[0]  # 保存状态
+            status['progress'] = result[1]  # 进度
+            status['message'] = result[2]  # 消息
+            status['oss_uploaded'] = bool(result[3])  # OSS 上传标记
+            status['oss_verified'] = bool(result[4])  # OSS 验证标记
+            status['file_size'] = result[5] or 0  # 文件大小
+            status['estimated_time'] = result[6] or 0  # 预估时间
+            # 判断是否可以安全下载
+            status['ready_for_download'] = (
+                result[0] == 'completed' and bool(result[4])
+            )
 
         return create_success_response(
             data=status,
@@ -4692,9 +4808,18 @@ def draft_downloader():
                 'success': False,
                 'error': '缺少draft_id参数'
             }), 400
-        
-        # 重定向到正确的下载API
-        return redirect(f'/api/drafts/download/{draft_id}')
+
+        # 获取可选参数
+        client_os = request.args.get('client_os', 'windows')
+        draft_folder = request.args.get('draft_folder', '')
+
+        # 重定向到正确的下载API（使用v2流式下载）
+        from urllib.parse import urlencode
+        params = {'client_os': client_os}
+        if draft_folder:
+            params['draft_folder'] = draft_folder
+
+        return redirect(f'/api/v2/drafts/{draft_id}/download/stream?{urlencode(params)}')
         
     except Exception as e:
         logger.error(f"草稿下载路由错误: {e}", exc_info=True)
@@ -5026,6 +5151,12 @@ def check_draft_exists(draft_id):
             'error': str(e),
             'draft_id': draft_id
         }), 500
+
+
+@app.route('/api/v2/test', methods=['GET'])
+def test_v2_route():
+    """测试 v2 路由是否工作"""
+    return jsonify({'message': 'v2 route works!', 'success': True}), 200
 
 
 @app.route('/metrics', methods=['GET'])

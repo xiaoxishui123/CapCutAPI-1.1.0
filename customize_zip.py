@@ -21,6 +21,106 @@ def _hash_str(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()[:12]
 
 
+def _check_base_file_with_retry(bucket, base_key: str, draft_id: str, max_wait_seconds: int = 30) -> bool:
+    """
+    智能检查基础文件是否存在，支持重试机制
+
+    解决 OSS 最终一致性问题：
+    - 如果草稿刚保存完成，OSS 可能还在同步中
+    - 使用指数退避重试策略，最多等待 max_wait_seconds 秒
+
+    Args:
+        bucket: OSS bucket 实例
+        base_key: 基础文件的 key (如 "draft_id.zip")
+        draft_id: 草稿 ID
+        max_wait_seconds: 最大等待时间（秒）
+
+    Returns:
+        bool: 文件是否存在
+    """
+    import sqlite3
+    from datetime import datetime
+
+    # 1️⃣ 先快速检查一次
+    print(f"[重试检查] 第一次快速检查: {base_key}")
+    try:
+        if bucket.object_exists(base_key):
+            print(f"[重试检查] ✅ 文件存在（第一次检查）")
+            return True
+    except Exception as e:
+        print(f"[重试检查] ⚠️ 第一次检查失败: {e}")
+
+    # 2️⃣ 查询草稿状态，判断是否需要重试
+    print(f"[重试检查] 查询草稿状态...")
+    try:
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("""
+            SELECT status, created_at, oss_uploaded, oss_verified
+            FROM drafts
+            WHERE id = ?
+        """, (draft_id,))
+        result = c.fetchone()
+        conn.close()
+
+        if not result:
+            print(f"[重试检查] ❌ 草稿不存在于数据库")
+            return False
+
+        status, created_at, oss_uploaded, oss_verified = result
+        print(f"[重试检查] 草稿状态: status={status}, oss_uploaded={oss_uploaded}, oss_verified={oss_verified}")
+
+        # 3️⃣ 判断是否需要重试
+        # 条件：草稿状态为 'completed' 或 'processing'，且创建时间在最近 2 分钟内
+        if status not in ['completed', 'processing']:
+            print(f"[重试检查] ⚠️ 草稿状态不是 completed/processing，不重试")
+            return False
+
+        # 计算草稿创建时间（秒）
+        try:
+            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            time_since_created = (datetime.now() - created_time).total_seconds()
+            print(f"[重试检查] 草稿创建于 {time_since_created:.1f} 秒前")
+
+            # 如果创建时间超过 5 分钟，不重试（文件应该已经同步）
+            if time_since_created > 300:
+                print(f"[重试检查] ⚠️ 草稿创建超过 5 分钟，文件应该存在，不重试")
+                return False
+        except Exception as e:
+            print(f"[重试检查] ⚠️ 解析创建时间失败: {e}，继续重试")
+
+    except Exception as e:
+        print(f"[重试检查] ⚠️ 查询数据库失败: {e}，继续重试")
+
+    # 4️⃣ 开始指数退避重试
+    print(f"[重试检查] 🔄 开始重试策略（最多 {max_wait_seconds} 秒）")
+    retry_delays = [1, 2, 4, 8, 15]  # 指数退避：1s, 2s, 4s, 8s, 15s（总计30秒）
+    total_waited = 0
+
+    for attempt, delay in enumerate(retry_delays, start=1):
+        if total_waited >= max_wait_seconds:
+            print(f"[重试检查] ⏰ 已达到最大等待时间 {max_wait_seconds} 秒")
+            break
+
+        print(f"[重试检查] 等待 {delay} 秒后重试（第 {attempt}/{len(retry_delays)} 次）...")
+        time.sleep(delay)
+        total_waited += delay
+
+        # 检查文件是否存在
+        try:
+            if bucket.object_exists(base_key):
+                print(f"[重试检查] ✅ 文件存在（第 {attempt} 次重试成功，共等待 {total_waited} 秒）")
+                return True
+            else:
+                print(f"[重试检查] ⏳ 文件仍不存在（第 {attempt} 次重试）")
+        except Exception as e:
+            print(f"[重试检查] ⚠️ 第 {attempt} 次检查失败: {e}")
+
+    # 5️⃣ 所有重试都失败
+    print(f"[重试检查] ❌ 文件不存在（已重试 {len(retry_delays)} 次，总计等待 {total_waited} 秒）")
+    return False
+
+
 def _rewrite_paths_in_json(data, draft_id: str, client_os: str, draft_folder: str) -> dict:
     """
     Recursively rewrite any paths that contain assets/*
@@ -120,6 +220,8 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
     """
     Ensure an OSS object exists for the customized zip.
     Returns (object_key, created)
+
+    🔧 修复：添加智能重试机制，解决 OSS 最终一致性导致的下载失败问题
     """
     print(f"\n[ensure_customized_zip] 开始处理")
     print(f"[ensure_customized_zip] draft_id={draft_id}")
@@ -147,15 +249,13 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
 
     print(f"[ensure_customized_zip] ⚡ OSS缓存不存在，开始生成新版本")
 
-    # 🔧 修复：检查基础版本是否存在
-    try:
-        if not bucket.object_exists(base_key):
-            error_msg = f"基础草稿文件不存在: {base_key}"
-            print(f"[ensure_customized_zip] ❌ {error_msg}")
-            raise FileNotFoundError(error_msg)
-    except Exception as check_err:
-        print(f"[ensure_customized_zip] ❌ 检查基础文件失败: {check_err}")
-        raise
+    # 🔧 修复：智能检查基础版本是否存在（支持重试）
+    base_file_exists = _check_base_file_with_retry(bucket, base_key, draft_id)
+
+    if not base_file_exists:
+        error_msg = f"基础草稿文件不存在: {base_key}（已重试多次）"
+        print(f"[ensure_customized_zip] ❌ {error_msg}")
+        raise FileNotFoundError(error_msg)
 
     # Download base zip into memory/tempfile
     with tempfile.TemporaryDirectory() as td:
