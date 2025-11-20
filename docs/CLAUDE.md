@@ -172,6 +172,80 @@
 
 ---
 
+### 6. 功能实施与优化文档
+
+#### 架构分析
+- **[ARCHITECTURE_ANALYSIS.md](ARCHITECTURE_ANALYSIS.md)**: 架构分析与优化建议
+  - 项目架构分析
+  - 性能优化建议
+  - 代码质量改进
+  - 最佳实践
+
+#### OSS 配置诊断
+- **[OSS_CONFIG_DIAGNOSTIC.md](OSS_CONFIG_DIAGNOSTIC.md)**: OSS 配置诊断报告
+  - OSS 配置检查
+  - 常见问题诊断
+  - 配置优化建议
+
+#### 输入验证
+- **[INPUT_VALIDATION_SUMMARY.md](INPUT_VALIDATION_SUMMARY.md)**: 输入验证功能实施总结
+  - 输入验证设计
+  - 验证规则实现
+  - 测试结果
+
+#### 日志系统与健康检查
+- **[LOGGING_HEALTH_CHECK_SUMMARY.md](LOGGING_HEALTH_CHECK_SUMMARY.md)**: 日志系统与健康检查优化
+  - 日志系统设计
+  - 健康检查端点
+  - 监控指标
+
+#### Validators 使用指南
+- **[VALIDATORS_GUIDE.md](VALIDATORS_GUIDE.md)**: Validators 使用指南
+  - 验证器介绍
+  - 使用示例
+  - 最佳实践
+
+#### 异步保存最佳实践
+- **[ASYNC_SAVE_BEST_PRACTICES.md](ASYNC_SAVE_BEST_PRACTICES.md)**: 异步保存优化最佳实践
+  - 异步保存设计
+  - 性能优化
+  - 实施指南
+  - 测试验证
+
+---
+
+### 7. 下载功能文档
+
+#### 下载 API 优化
+- **[DOWNLOAD_API_OPTIMIZATION_FINAL.md](DOWNLOAD_API_OPTIMIZATION_FINAL.md)**: 下载 API 优化总结
+  - 优化目标和背景
+  - 实施方案
+  - 性能提升
+  - 测试结果
+
+#### V2 API 实施
+- **[STAGE4_V2_API_REPORT.md](STAGE4_V2_API_REPORT.md)**: V2 API 实施报告
+  - API v2 设计
+  - 端点实现
+  - 性能对比
+  - 迁移指南
+
+#### Failed to Fetch 错误修复
+- **[DOWNLOAD_FAILED_TO_FETCH_FIX.md](DOWNLOAD_FAILED_TO_FETCH_FIX.md)**: Failed to Fetch 错误修复报告
+  - 问题分析
+  - 根因定位
+  - 修复方案
+  - 测试验证
+
+#### 下载进度条日志
+- **[DOWNLOAD_PROGRESS_LOG_GUIDE.md](DOWNLOAD_PROGRESS_LOG_GUIDE.md)**: 下载进度条日志功能说明
+  - 功能设计
+  - 实现细节
+  - 使用方法
+  - 效果展示
+
+---
+
 ## 文档使用指南
 
 ### 快速查找
@@ -265,12 +339,14 @@
 
 ## 文档统计
 
-- **总文档数**: 17+ 篇
+- **总文档数**: 28 篇
 - **核心文档**: 4 篇
 - **部署文档**: 3 篇
 - **专题文档**: 4 篇
 - **功能报告**: 4 篇
-- **MCP 文档**: 4+ 篇
+- **MCP 文档**: 4 篇
+- **功能实施与优化文档**: 6 篇
+- **下载功能文档**: 4 篇
 
 ---
 
