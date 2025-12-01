@@ -260,7 +260,7 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
             else:
                 # 普通本地保存模式，保留文件
                 logger.info(f"Task {task_id}: 本地保存模式，文件保存在: {draft_path}")
-                logger.info(f"草稿文件已复制到临时目录: {temp_target_path}")
+                # 🔧 修复：移除对未定义变量 temp_target_path 的引用
         
         update_draft_status(draft_id, 'completed', 100, draft_url)
         logger.info(f"Task {task_id} completed, draft URL: {draft_url}")

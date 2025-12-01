@@ -435,16 +435,20 @@ def deprecated_endpoint(new_endpoint: str = None, sunset_date: str = None) -> Ca
     def decorator(f: Callable) -> Callable:
         @wraps(f)
         def wrapper(*args, **kwargs):
-            # 记录废弃警告
+            # 记录废弃警告（中文日志）
             endpoint_name = f.__name__
-            warning_msg = f"[DEPRECATED] 端点 {endpoint_name} 已废弃"
+            warning_msg_cn = f"[DEPRECATED] 端点 {endpoint_name} 已废弃"
+            # 🔧 修复：HTTP响应头只能使用ASCII字符，使用英文消息
+            warning_msg_ascii = f"[DEPRECATED] Endpoint {endpoint_name} is deprecated"
 
             if new_endpoint:
-                warning_msg += f"，请迁移到 {new_endpoint}"
+                warning_msg_cn += f"，请迁移到 {new_endpoint}"
+                warning_msg_ascii += f", please migrate to {new_endpoint}"
             if sunset_date:
-                warning_msg += f"，将于 {sunset_date} 下线"
+                warning_msg_cn += f"，将于 {sunset_date} 下线"
+                warning_msg_ascii += f", will be sunset on {sunset_date}"
 
-            logger.warning(warning_msg)
+            logger.warning(warning_msg_cn)
 
             # 执行原函数
             response = f(*args, **kwargs)
@@ -456,26 +460,25 @@ def deprecated_endpoint(new_endpoint: str = None, sunset_date: str = None) -> Ca
             else:
                 flask_response = make_response(response)
 
-            # 添加废弃警告头
+            # 添加废弃警告头（使用ASCII消息，避免UnicodeEncodeError）
             flask_response.headers['X-API-Deprecated'] = 'true'
-            flask_response.headers['X-API-Deprecation-Info'] = warning_msg
+            flask_response.headers['X-API-Deprecation-Info'] = warning_msg_ascii
 
             if new_endpoint:
                 flask_response.headers['X-API-Alternative'] = new_endpoint
             if sunset_date:
                 flask_response.headers['X-API-Sunset'] = sunset_date
 
-            # 在响应体中也添加警告（如果是 JSON 响应）
+            # 在响应体中也添加警告（如果是 JSON 响应，使用中文消息）
             if flask_response.is_json:
                 data = flask_response.get_json()
                 if isinstance(data, dict):
                     data['_deprecation_warning'] = {
-                        'message': warning_msg,
+                        'message': warning_msg_cn,
                         'deprecated': True,
                         'alternative': new_endpoint,
                         'sunset_date': sunset_date
                     }
-                    flask_response.set_data(flask_response.get_json().__class__.__name__)
                     import json
                     flask_response.data = json.dumps(data, ensure_ascii=False)
 

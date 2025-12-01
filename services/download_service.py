@@ -7,15 +7,29 @@
 3. 批量下载处理
 4. 自动修复机制
 5. 草稿状态检查
+
+优化记录：
+- 2025-12-01: 对大文件（>10MB）使用 OSS 直链重定向，避免代理下载超时
+- 2025-12-01: 🔧 修复大文件定制化超时问题 - 对于>50MB的文件，异步处理定制化
 """
 
 import logging
 import time
-from typing import Dict, List, Tuple, Optional
-from flask import Response
+import threading
+from typing import Dict, List, Tuple, Optional, Union
+from flask import Response, redirect, jsonify
 import requests
 
 logger = logging.getLogger(__name__)
+
+# 大文件阈值：超过此大小使用 OSS 直链而非代理下载（10MB）
+LARGE_FILE_THRESHOLD = 10 * 1024 * 1024  # 10MB
+
+# 🆕 定制化超时阈值：超过此大小的文件使用异步定制化处理（50MB）
+CUSTOMIZATION_SIZE_THRESHOLD = 50 * 1024 * 1024  # 50MB
+
+# 🆕 定制化任务状态缓存
+_customization_tasks = {}
 
 
 class DraftDownloadService:
@@ -130,6 +144,10 @@ class DraftDownloadService:
         """
         生成草稿下载链接
 
+        🔧 2025-12-01 优化：
+        - 对于大文件（>50MB），先返回基础版本URL，后台异步生成定制化版本
+        - 避免定制化处理超时导致 HTTP 502 错误
+
         Args:
             draft_id: 草稿ID
             client_os: 客户端操作系统
@@ -148,8 +166,8 @@ class DraftDownloadService:
             }
         """
         try:
-            from customize_zip import get_customized_signed_url
-            from oss import get_signed_draft_url_if_exists
+            from customize_zip import get_customized_signed_url, ensure_customized_zip, _hash_str, REWRITE_VERSION
+            from oss import get_signed_draft_url_if_exists, _ensure_bucket
             from settings.local import IS_UPLOAD_DRAFT
 
             logger.info(f"生成下载链接: draft_id={draft_id}, client_os={client_os}")
@@ -160,8 +178,81 @@ class DraftDownloadService:
                 signed_url, exists = get_signed_draft_url_if_exists(draft_id)
 
                 if exists and signed_url:
+                    # 🆕 检查文件大小
+                    file_size = 0
+                    try:
+                        bucket = _ensure_bucket()
+                        base_key = f"{draft_id}.zip"
+                        if bucket.object_exists(base_key):
+                            meta = bucket.head_object(base_key)
+                            file_size = meta.content_length
+                            logger.info(f"草稿文件大小: {file_size/1024/1024:.2f} MB")
+                    except Exception as e:
+                        logger.warning(f"获取文件大小失败: {e}")
+
                     # 如果需要定制化
                     if draft_folder or client_os != 'windows':
+                        # 🆕 先检查定制化版本是否已存在
+                        try:
+                            key_suffix = _hash_str(f"{REWRITE_VERSION}|{client_os}|{draft_folder}")
+                            custom_key = f"{draft_id}__{client_os}__{key_suffix}.zip"
+                            bucket = _ensure_bucket()
+                            
+                            if bucket.object_exists(custom_key):
+                                # 定制化版本已存在，直接返回
+                                logger.info(f"定制化版本已存在: {custom_key}")
+                                custom_url = bucket.sign_url('GET', custom_key, 24*60*60, slash_safe=True)
+                                return {
+                                    'success': True,
+                                    'data': {
+                                        'download_url': custom_url,
+                                        'storage': 'oss',
+                                        'client_os': client_os,
+                                        'draft_folder': draft_folder,
+                                        'customized': True
+                                    }
+                                }
+                        except Exception as e:
+                            logger.warning(f"检查定制化版本失败: {e}")
+
+                        # 🆕 对于大文件，使用异步定制化
+                        if file_size > CUSTOMIZATION_SIZE_THRESHOLD:
+                            logger.warning(f"文件较大 ({file_size/1024/1024:.2f}MB)，使用异步定制化")
+                            
+                            # 启动后台定制化任务
+                            task_key = f"{draft_id}_{client_os}_{draft_folder}"
+                            if task_key not in _customization_tasks:
+                                _customization_tasks[task_key] = 'processing'
+                                
+                                def async_customize():
+                                    try:
+                                        logger.info(f"[异步定制化] 开始处理: {draft_id}")
+                                        ensure_customized_zip(draft_id, client_os, draft_folder)
+                                        _customization_tasks[task_key] = 'completed'
+                                        logger.info(f"[异步定制化] 完成: {draft_id}")
+                                    except Exception as e:
+                                        _customization_tasks[task_key] = f'failed: {e}'
+                                        logger.error(f"[异步定制化] 失败: {e}")
+                                
+                                thread = threading.Thread(target=async_customize, daemon=True)
+                                thread.start()
+                            
+                            # 返回基础版本URL（让用户先下载）
+                            return {
+                                'success': True,
+                                'data': {
+                                    'download_url': signed_url,
+                                    'storage': 'oss',
+                                    'client_os': client_os,
+                                    'draft_folder': draft_folder,
+                                    'customized': False,
+                                    'large_file': True,
+                                    'file_size': file_size,
+                                    'message': f'文件较大 ({file_size/1024/1024:.1f}MB)，使用基础版本下载。定制化版本正在后台生成中，稍后重新下载即可获取'
+                                }
+                            }
+                        
+                        # 正常大小的文件，同步生成定制化版本
                         try:
                             custom_url = get_customized_signed_url(draft_id, client_os, draft_folder)
                             return {
@@ -170,7 +261,8 @@ class DraftDownloadService:
                                     'download_url': custom_url,
                                     'storage': 'oss',
                                     'client_os': client_os,
-                                    'draft_folder': draft_folder
+                                    'draft_folder': draft_folder,
+                                    'customized': True
                                 }
                             }
                         except FileNotFoundError as e:
@@ -233,32 +325,62 @@ class DraftDownloadService:
             }
 
     def stream_download(self, draft_id: str, client_os: str = 'windows',
-                       draft_folder: str = '', auto_regenerate: bool = True) -> Tuple[Response, int]:
+                       draft_folder: str = '', auto_regenerate: bool = True,
+                       force_proxy: bool = False) -> Union[Tuple[Response, int], Response]:
         """
         流式下载草稿文件
+        
+        🔧 优化：对于大文件（>10MB），自动返回 OSS 直链重定向，避免代理下载超时
 
         Args:
             draft_id: 草稿ID
             client_os: 客户端操作系统
             draft_folder: 草稿文件夹路径
             auto_regenerate: 是否自动重新生成
+            force_proxy: 是否强制使用代理下载（忽略文件大小）
 
         Returns:
-            Tuple[Response, int]: (Flask响应对象, 状态码)
+            Union[Tuple[Response, int], Response]: Flask响应对象
         """
         try:
             from customize_zip import get_customized_signed_url
             from urllib.parse import quote
 
-            logger.info(f"代理下载: draft_id={draft_id}, client_os={client_os}")
+            logger.info(f"下载请求: draft_id={draft_id}, client_os={client_os}, force_proxy={force_proxy}")
 
             # 生成定制化URL
             draft_url = get_customized_signed_url(draft_id, client_os, draft_folder)
 
-            # 从OSS获取文件
-            file_response = requests.get(draft_url, stream=True)
+            # 🔧 优化：先用 GET + stream=True 获取响应头，检查文件大小
+            logger.info(f"开始检查文件大小: {draft_id}")
+            file_response = requests.get(draft_url, stream=True, timeout=300)
 
             if file_response.status_code == 200:
+                # 获取文件大小
+                content_length = int(file_response.headers.get('content-length', 0))
+                
+                # 🔧 优化：如果文件大于阈值，关闭连接并返回重定向
+                if not force_proxy and content_length > LARGE_FILE_THRESHOLD:
+                    file_size_mb = content_length / 1024 / 1024
+                    logger.info(f"🔄 检测到大文件: {file_size_mb:.2f}MB > {LARGE_FILE_THRESHOLD/1024/1024}MB")
+                    logger.info(f"🔗 返回 OSS 直链重定向，避免代理下载超时")
+                    
+                    # 关闭流式连接，释放资源
+                    file_response.close()
+                    
+                    return jsonify({
+                        'success': True,
+                        'redirect': True,
+                        'download_url': draft_url,
+                        'file_size': content_length,
+                        'file_size_mb': round(file_size_mb, 2),
+                        'message': '文件较大，使用 OSS 直接下载以提高稳定性',
+                        'draft_id': draft_id
+                    }), 200
+                
+                # 小文件：继续代理下载
+                logger.info(f"小文件 ({content_length} bytes)，使用代理下载")
+                
                 # 使用草稿ID作为文件名
                 filename = f"{draft_id}.zip"
                 encoded_filename = quote(filename, safe='')
@@ -274,10 +396,11 @@ class DraftDownloadService:
                 response.headers['X-Content-Type-Options'] = 'nosniff'
                 response.headers['Access-Control-Allow-Origin'] = '*'
 
-                if 'content-length' in file_response.headers:
-                    response.headers['Content-Length'] = file_response.headers['content-length']
+                if content_length:
+                    response.headers['Content-Length'] = str(content_length)
+                    response.headers['X-File-Size'] = str(content_length)
 
-                logger.info(f"代理下载成功: {filename}")
+                logger.info(f"代理下载成功: {filename} ({content_length} bytes)")
                 return response, 200
             else:
                 logger.warning(f"OSS文件不存在或无法访问: {file_response.status_code}")
