@@ -277,11 +277,40 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
             found_draft_info = False
             found_meta_info = False
             
+            # 🔧 检测并移除顶级目录前缀（解决两层嵌套问题）
+            # 检测ZIP是否有统一的顶级目录（如 dfd_cat_xxx/）
+            top_level_dir = None
+            all_names = zin.namelist()
+            if all_names:
+                first_parts = set()
+                for name in all_names:
+                    parts = name.replace("\\", "/").split("/")
+                    if parts[0]:
+                        first_parts.add(parts[0])
+                # 如果所有文件都在同一个顶级目录下，且该目录与draft_id匹配
+                if len(first_parts) == 1:
+                    potential_top = list(first_parts)[0]
+                    if potential_top == draft_id or potential_top.startswith(draft_id):
+                        top_level_dir = potential_top
+                        print(f"[ZIP处理] 检测到顶级目录: {top_level_dir}/, 将移除此前缀")
+            
             for item in zin.infolist():
-                filename_lower = item.filename.replace("\\", "/").lower()
+                filename = item.filename.replace("\\", "/")
+                filename_lower = filename.lower()
                 
-                if filename_lower == "draft_info.json":
-                    print(f"[ZIP处理] 找到 draft_info.json")
+                # 🔧 移除顶级目录前缀
+                if top_level_dir and filename.startswith(f"{top_level_dir}/"):
+                    new_filename = filename[len(top_level_dir) + 1:]  # 移除 "dfd_cat_xxx/" 前缀
+                    if not new_filename:  # 跳过顶级目录本身
+                        continue
+                else:
+                    new_filename = filename
+                
+                # 🔧 修复：支持ZIP内部有顶级目录的情况（如 dfd_cat_xxx/draft_info.json）
+                basename_lower = new_filename.lower().split("/")[-1] if "/" in new_filename else new_filename.lower()
+                
+                if basename_lower == "draft_info.json":
+                    print(f"[ZIP处理] 找到 draft_info.json: {filename} -> {new_filename}")
                     # 重写 draft_info.json 中的素材路径
                     raw = zin.read(item)
                     try:
@@ -302,14 +331,15 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
                     else:
                         data = raw
                         print(f"[ZIP处理] draft_info.json 保持原样")
-                    zi = zipfile.ZipInfo(item.filename)
+                    # 🔧 使用移除顶级目录后的新文件名
+                    zi = zipfile.ZipInfo(new_filename)
                     zi.date_time = item.date_time
                     zi.compress_type = zipfile.ZIP_DEFLATED
                     zout.writestr(zi, data)
                     found_draft_info = True
                 
-                elif filename_lower == "draft_meta_info.json":
-                    print(f"[ZIP处理] 找到 draft_meta_info.json")
+                elif basename_lower == "draft_meta_info.json":
+                    print(f"[ZIP处理] 找到 draft_meta_info.json: {filename} -> {new_filename}")
                     # 重写 draft_meta_info.json 中的 draft_root_path 和 draft_fold_path
                     raw = zin.read(item)
                     try:
@@ -331,16 +361,20 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
                     else:
                         data = raw
                         print(f"[ZIP处理] draft_meta_info.json 保持原样")
-                    zi = zipfile.ZipInfo(item.filename)
+                    # 🔧 使用移除顶级目录后的新文件名
+                    zi = zipfile.ZipInfo(new_filename)
                     zi.date_time = item.date_time
                     zi.compress_type = zipfile.ZIP_DEFLATED
                     zout.writestr(zi, data)
                     found_meta_info = True
                 
                 else:
-                    # copy other entries
+                    # 🔧 复制其他文件，使用移除顶级目录后的新文件名
                     data = zin.read(item)
-                    zout.writestr(item, data)
+                    zi = zipfile.ZipInfo(new_filename)
+                    zi.date_time = item.date_time
+                    zi.compress_type = item.compress_type
+                    zout.writestr(zi, data)
             
             # Log if files are missing (for debugging)
             if not found_draft_info:
