@@ -1641,53 +1641,67 @@
                 updateProgress(85, '正在准备下载文件...');
                 addDownloadLog('开始下载文件...', 'info');
 
-                // 🔧 2025-12-01 修复：优先使用浏览器原生下载，避免大文件 fetch 超时
+                // 🔧 修复：优先使用API返回的OSS下载链接
+                let fetchUrl;
                 const ossUrl = data.data.download_url;
 
                 if (ossUrl && ossUrl.startsWith('http')) {
-                    // 🔧 使用浏览器原生下载（不通过 fetch，避免大文件卡住）
-                    addDownloadLog('使用浏览器原生下载（最快速方式）', 'info');
-                    addDownloadLog('正在触发浏览器下载...', 'info');
-                    
-                    // 方法1：直接使用 window.open 触发下载
-                    const downloadWindow = window.open(ossUrl, '_blank');
-                    
-                    // 如果 window.open 被阻止，使用备用方法
-                    if (!downloadWindow || downloadWindow.closed || typeof downloadWindow.closed === 'undefined') {
-                        addDownloadLog('使用备用下载方式...', 'info');
-                        
-                        // 方法2：使用隐藏的 iframe 触发下载
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = ossUrl;
-                        document.body.appendChild(iframe);
-                        
-                        // 3秒后移除 iframe
-                        setTimeout(() => {
-                            document.body.removeChild(iframe);
-                        }, 3000);
-                    }
-                    
-                    // 立即显示成功状态
-                    updateProgress(100, '✅ 下载已开始！请检查浏览器下载管理器');
-                    addDownloadLog('✅ 下载已触发！', 'success');
-                    addDownloadLog('文件正在后台下载，请查看浏览器下载管理器', 'info');
-                    addDownloadLog(`文件名: ${draftId}.zip`, 'info');
-                    addDownloadLog('提示：按 Ctrl+J 或点击浏览器右上角下载图标查看进度', 'info');
-                    updateProgressButton('关闭', '#28a745');
-                    if (downloadBtn) downloadBtn.disabled = false;
-                    return; // 浏览器原生下载已触发，直接返回
+                    // 尝试直接从OSS下载
+                    fetchUrl = ossUrl;
+                    addDownloadLog('使用 OSS 直接下载', 'info');
+                } else {
+                    // 降级使用代理下载
+                    fetchUrl = `/api/v2/drafts/${draftId}/download/stream`;
+                    addDownloadLog('使用服务器代理下载', 'info');
                 }
 
-                // 🔧 备用方案：如果没有 HTTP 链接，才使用代理下载（几乎不会执行到这里）
-                addDownloadLog('使用服务器代理下载（备用方式）', 'info');
-                const proxyUrl = `/api/v2/drafts/${draftId}/download/stream`;
-
+                // 使用更可靠的下载方式
                 try {
+                    // 方式1：尝试直接下载（推荐）
                     addDownloadLog('正在连接下载服务器...', 'info');
-                    const downloadResponse = await fetch(proxyUrl);
+                    const downloadResponse = await fetch(fetchUrl);
 
                     if (!downloadResponse.ok) {
+                        // 🔧 如果OSS直接下载失败，尝试使用代理下载
+                        if (fetchUrl === ossUrl && ossUrl) {
+                            addDownloadLog(`OSS 直接下载失败 (HTTP ${downloadResponse.status})`, 'warning');
+                            addDownloadLog('尝试使用备用下载方式（代理下载）...', 'info');
+                            const proxyUrl = `/api/v2/drafts/${draftId}/download/stream`;
+                            const proxyResponse = await fetch(proxyUrl);
+
+                            if (!proxyResponse.ok) {
+                                const errorText = await proxyResponse.text();
+                                addDownloadLog(`代理下载也失败 (HTTP ${proxyResponse.status})`, 'error');
+                                throw new Error(`代理下载也失败 (HTTP ${proxyResponse.status}): ${errorText || proxyResponse.statusText}`);
+                            }
+
+                            // 使用代理响应继续下载
+                            addDownloadLog('正在通过代理接收文件...', 'info');
+                            const proxyBlob = await proxyResponse.blob();
+                            const fileSizeMB = (proxyBlob.size / 1024 / 1024).toFixed(2);
+                            addDownloadLog(`代理下载成功！文件大小: ${fileSizeMB} MB`, 'success');
+
+                            const blobUrl = window.URL.createObjectURL(proxyBlob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.download = `${draftId}.zip`;
+                            link.style.display = 'none';
+                            document.body.appendChild(link);
+                            addDownloadLog(`触发浏览器下载: ${draftId}.zip`, 'info');
+                            link.click();
+                            setTimeout(() => {
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(blobUrl);
+                            }, 100);
+
+                            updateProgress(100, '✅ 下载完成！请检查浏览器下载文件夹');
+                            addDownloadLog('下载完成！请在浏览器下载文件夹中查找文件', 'success');
+                            updateProgressButton('关闭', '#28a745');
+                            if (downloadBtn) downloadBtn.disabled = false;
+                            return; // 提前返回
+                        }
+
+                        // 其他情况：提供详细的错误信息
                         const errorText = await downloadResponse.text();
                         const errorMsg = `下载请求失败 (HTTP ${downloadResponse.status}): ${errorText || downloadResponse.statusText}`;
                         addDownloadLog(errorMsg, 'error');
@@ -2120,14 +2134,6 @@
                         addDownloadLog(`下载 URL: ${data.data.download_url.substring(0, 60)}...`, 'info');
                         addDownloadLog(`目标路径: ${data.data.draft_folder || '默认路径'}`, 'info');
                         addDownloadLog(`系统类型: ${data.data.client_os}`, 'info');
-                        
-                        // 🆕 检查是否是大文件
-                        if (data.data.large_file) {
-                            const fileSizeMB = (data.data.file_size / 1024 / 1024).toFixed(1);
-                            addDownloadLog(`⚠️ 大文件检测: ${fileSizeMB} MB`, 'warning');
-                            addDownloadLog('使用基础版本下载（定制化版本正在后台生成）', 'info');
-                            addDownloadLog('提示：稍后重新下载即可获取完整的定制化版本', 'info');
-                        }
 
                         // 有下载链接，使用增强的下载方法
                         await triggerCustomDownloadWithProgress(data.data.download_url, draftId, data.data);
@@ -2162,102 +2168,72 @@
         
         /**
          * 带进度提示的自定义下载触发
-         * 🔧 2025-12-01 优化：强制使用浏览器原生下载，避免大文件fetch超时
          */
         async function triggerCustomDownloadWithProgress(downloadUrl, draftId, data) {
             try {
-                updateProgress(95, '正在准备下载...');
-                
-                // 🔧 2025-12-01 修复：对于所有HTTP链接，强制使用浏览器原生下载
-                // 不再使用fetch下载大文件到内存，避免卡住
+                updateProgress(95, '正在下载文件...');
+
+                // 🔧 修复：优先使用API返回的downloadUrl，如果不可用则使用代理下载
+                let fetchUrl;
                 if (downloadUrl && downloadUrl.startsWith('http')) {
-                    addDownloadLog('使用浏览器原生下载（推荐方式）', 'info');
-                    addDownloadLog('正在触发浏览器下载...', 'info');
-                    
-                    // 方法1：使用 window.open 触发下载（更可靠）
-                    const downloadWindow = window.open(downloadUrl, '_blank');
-                    
-                    // 如果window.open被阻止，使用备用方法
-                    if (!downloadWindow || downloadWindow.closed || typeof downloadWindow.closed === 'undefined') {
-                        addDownloadLog('使用备用下载方式...', 'info');
-                        
-                        // 方法2：使用隐藏的iframe触发下载
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = downloadUrl;
-                        document.body.appendChild(iframe);
-                        
-                        // 3秒后移除iframe
-                        setTimeout(() => {
-                            document.body.removeChild(iframe);
-                        }, 3000);
-                    }
-                    
-                    // 显示成功状态
-                    updateProgress(100, '✅ 下载已开始！请检查浏览器下载管理器');
-                    addDownloadLog('✅ 下载已触发！', 'success');
-                    addDownloadLog('文件正在后台下载，请查看浏览器下载管理器', 'info');
-                    addDownloadLog(`文件名: ${draftId}.zip`, 'info');
-                    
-                    const statusTextElement = document.getElementById('downloadStatusText');
-                    if (statusTextElement) {
-                        statusTextElement.innerHTML = `
-                            <div style="text-align: center; line-height: 1.6;">
-                                <strong style="color: #28a745; font-size: 18px;">✅ 下载已开始！</strong><br>
-                                <small style="color: #666; font-size: 14px;">
-                                    文件正在后台下载中...<br>
-                                    <strong>请查看浏览器下载管理器</strong><br>
-                                    (按 Ctrl+J 或点击浏览器右上角下载图标)
-                                </small>
-                            </div>
-                        `;
-                    }
-                    
-                    updateProgressButton('关闭', '#28a745');
-                    return;  // 直接返回，不再使用fetch
+                    // 直接使用OSS下载链接
+                    fetchUrl = downloadUrl;
+                    addDownloadLog('使用 OSS 直接下载', 'info');
+                } else {
+                    // 使用流式代理下载作为fallback
+                    fetchUrl = `/api/v2/drafts/${draftId}/download/stream?client_os=${data.client_os || 'windows'}&draft_folder=${encodeURIComponent(data.draft_folder || '')}`;
+                    addDownloadLog('使用服务器代理下载', 'info');
                 }
-                
-                // 只有在没有HTTP链接时才使用代理下载（几乎不会走到这里）
-                const proxyUrl = `/api/v2/drafts/${draftId}/download/stream?client_os=${data.client_os || 'windows'}&draft_folder=${encodeURIComponent(data.draft_folder || '')}`;
-                addDownloadLog('使用服务器代理下载（备用方式）', 'info');
+
+                // 🔧 修复：使用 try-catch 处理 fetch 异常，支持自动 fallback
+                let response;
+                let blob;
 
                 try {
+                    // 尝试下载文件
                     addDownloadLog('正在连接下载服务器...', 'info');
-                    const response = await fetch(proxyUrl);
+                    response = await fetch(fetchUrl);
 
                     if (!response.ok) {
+                        // HTTP 错误（404, 500 等）
                         const errorText = await response.text();
                         throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
                     }
 
+                    // 获取文件 blob
                     addDownloadLog('正在接收文件数据...', 'info');
-                    const blob = await response.blob();
+                    blob = await response.blob();
                     const fileSizeMB = (blob.size / 1024 / 1024).toFixed(2);
                     addDownloadLog(`下载成功！文件大小: ${fileSizeMB} MB`, 'success');
 
                 } catch (fetchError) {
-                    addDownloadLog(`代理下载失败: ${fetchError.message}`, 'error');
-                    
-                    // 最后尝试：如果有 OSS 链接但之前没有尝试过 fetch
-                    if (downloadUrl && downloadUrl.startsWith('http')) {
-                        addDownloadLog('最后尝试：使用 OSS fetch 下载...', 'info');
-                        
+                    // 🔧 Fetch 失败（网络错误、CORS、超时等），尝试代理下载
+                    addDownloadLog(`直接下载失败: ${fetchError.message}`, 'warning');
+
+                    // 如果是 OSS 直接下载失败，fallback 到代理下载
+                    if (fetchUrl === downloadUrl || fetchError.message.includes('Failed to fetch')) {
+                        addDownloadLog('尝试使用备用下载方式（代理下载）...', 'info');
+                        const proxyUrl = `/api/v2/drafts/${draftId}/download/stream?client_os=${data.client_os || 'windows'}&draft_folder=${encodeURIComponent(data.draft_folder || '')}`;
+
                         try {
-                            const ossResponse = await fetch(downloadUrl);
-                            
-                            if (!ossResponse.ok) {
-                                throw new Error(`OSS 下载失败 (HTTP ${ossResponse.status})`);
+                            const proxyResponse = await fetch(proxyUrl);
+
+                            if (!proxyResponse.ok) {
+                                const errorText = await proxyResponse.text();
+                                throw new Error(`代理下载失败 (HTTP ${proxyResponse.status}): ${errorText || proxyResponse.statusText}`);
                             }
-                            
-                            blob = await ossResponse.blob();
+
+                            addDownloadLog('正在通过代理接收文件...', 'info');
+                            blob = await proxyResponse.blob();
                             const fileSizeMB = (blob.size / 1024 / 1024).toFixed(2);
-                            addDownloadLog(`OSS 下载成功！文件大小: ${fileSizeMB} MB`, 'success');
-                            
-                        } catch (ossError) {
-                            addDownloadLog(`OSS 下载也失败: ${ossError.message}`, 'error');
-                            throw new Error(`下载失败：代理下载和 OSS 直接下载都失败了。${ossError.message}`);
+                            addDownloadLog(`代理下载成功！文件大小: ${fileSizeMB} MB`, 'success');
+
+                        } catch (proxyError) {
+                            addDownloadLog(`代理下载也失败: ${proxyError.message}`, 'error');
+                            throw new Error(`下载失败：直接下载和代理下载都失败了。${proxyError.message}`);
                         }
                     } else {
+                        // 其他错误，直接抛出
                         throw fetchError;
                     }
                 }
