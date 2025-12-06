@@ -432,24 +432,19 @@ class DraftDownloadService:
                 # 获取文件大小
                 content_length = int(file_response.headers.get('content-length', 0))
                 
-                # 🔧 优化：如果文件大于阈值，关闭连接并返回重定向
+                # 🔧 优化：如果文件大于阈值，使用 HTTP 302 重定向到 OSS 直链
+                # 这样前端 fetch() 会自动跟随重定向，且 OSS 会提供 Content-Length 头
                 if not force_proxy and content_length > LARGE_FILE_THRESHOLD:
                     file_size_mb = content_length / 1024 / 1024
                     logger.info(f"🔄 检测到大文件: {file_size_mb:.2f}MB > {LARGE_FILE_THRESHOLD/1024/1024}MB")
-                    logger.info(f"🔗 返回 OSS 直链重定向，避免代理下载超时")
+                    logger.info(f"🔗 使用 HTTP 302 重定向到 OSS 直链，支持实时下载进度")
                     
                     # 关闭流式连接，释放资源
                     file_response.close()
                     
-                    return jsonify({
-                        'success': True,
-                        'redirect': True,
-                        'download_url': draft_url,
-                        'file_size': content_length,
-                        'file_size_mb': round(file_size_mb, 2),
-                        'message': '文件较大，使用 OSS 直接下载以提高稳定性',
-                        'draft_id': draft_id
-                    }), 200
+                    # 🆕 使用 HTTP 302 重定向，让浏览器自动跟随到 OSS
+                    # 这样可以获得正确的 Content-Length 头，支持实时进度显示
+                    return redirect(draft_url, code=302)
                 
                 # 小文件：继续代理下载
                 logger.info(f"小文件 ({content_length} bytes)，使用代理下载")
