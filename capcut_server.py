@@ -284,6 +284,7 @@ def get_draft_materials(draft_id):
     """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统
     
     🔧 优化：同时从script_data中提取字幕、背景音乐等额外素材
+    🔧 修复：从script_data.tracks中获取真实的target_timerange时长（修复变速视频时长不匹配问题）
     """
     # 首先检查内存缓存
     if draft_id in draft_materials_cache:
@@ -296,6 +297,9 @@ def get_draft_materials(draft_id):
     extra_materials = _extract_materials_from_script_data(draft_id)
     
     if db_materials:
+        # 🔧 修复：从script_data.tracks获取真实时间信息，修正变速素材的时长
+        db_materials = _fix_materials_timing_from_script_data(draft_id, db_materials)
+        
         # 合并数据库素材和script_data中的额外素材
         all_materials = db_materials + extra_materials
         draft_materials_cache[draft_id] = all_materials
@@ -305,6 +309,117 @@ def get_draft_materials(draft_id):
     scanned_materials = _scan_draft_directory(draft_id)
     all_materials = scanned_materials + extra_materials
     return all_materials
+
+
+def _fix_materials_timing_from_script_data(draft_id, materials):
+    """从script_data.tracks中获取真实的target_timerange时长，修复变速素材的时长问题
+    
+    问题背景：
+    - 数据库中存储的duration是源素材的原始时长（source_timerange.duration）
+    - 但在剪映中如果设置了变速（如0.5x），实际显示的时长是target_timerange.duration
+    - 这导致预览页面显示的时长与剪映中不一致
+    
+    解决方案：
+    - 从script_data.tracks中读取每个片段的target_timerange
+    - 用真实的时间信息覆盖数据库中的源素材时长
+    """
+    import pickle
+    import base64
+    
+    try:
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("SELECT script_data FROM drafts WHERE id = ?", (draft_id,))
+        result = c.fetchone()
+        conn.close()
+        
+        if not result or not result[0]:
+            logger.debug(f"草稿 {draft_id} 没有script_data，跳过时间修正")
+            return materials
+        
+        # 解码并反序列化script_data
+        decoded = base64.b64decode(result[0])
+        script_data = pickle.loads(decoded)
+        
+        if not hasattr(script_data, 'tracks') or not isinstance(script_data.tracks, dict):
+            logger.debug(f"草稿 {draft_id} 的script_data没有tracks字典，跳过时间修正")
+            return materials
+        
+        # 从tracks中提取真实的时间信息
+        # 结构: tracks = {'video_main': Track, 'audio_voice': Track, ...}
+        track_timing_info = {}  # {track_name: [{start, duration}, ...]}
+        
+        for track_name, track_obj in script_data.tracks.items():
+            if not hasattr(track_obj, 'segments'):
+                continue
+            
+            segments = track_obj.segments if hasattr(track_obj, 'segments') else []
+            if not segments:
+                continue
+            
+            track_timing_info[track_name] = []
+            
+            for seg in segments:
+                seg_dict = seg.__dict__ if hasattr(seg, '__dict__') else {}
+                target_tr = seg_dict.get('target_timerange')
+                
+                if target_tr:
+                    tr_dict = target_tr.__dict__ if hasattr(target_tr, '__dict__') else {}
+                    # 剪映的时间单位是微秒，转换为秒
+                    start = tr_dict.get('start', 0) / 1000000
+                    duration = tr_dict.get('duration', 0) / 1000000
+                    
+                    track_timing_info[track_name].append({
+                        'start': start,
+                        'duration': duration
+                    })
+        
+        if not track_timing_info:
+            logger.debug(f"草稿 {draft_id} 没有可用的轨道时间信息，跳过时间修正")
+            return materials
+        
+        logger.info(f"📊 从script_data.tracks提取到时间信息: {list(track_timing_info.keys())}")
+        
+        # 按track_name分组素材，然后用script_data中的时间信息修正
+        materials_by_track = {}
+        for mat in materials:
+            track_name = mat.get('track_name', 'unknown')
+            if track_name not in materials_by_track:
+                materials_by_track[track_name] = []
+            materials_by_track[track_name].append(mat)
+        
+        # 修正每个轨道的素材时间
+        for track_name, track_mats in materials_by_track.items():
+            timing_info = track_timing_info.get(track_name, [])
+            
+            if not timing_info:
+                logger.debug(f"  轨道 {track_name} 没有时间信息，跳过")
+                continue
+            
+            # 按原始start时间排序（通常都是0）
+            track_mats.sort(key=lambda x: float(x.get('start', 0) or 0))
+            
+            # 用script_data中的真实时间覆盖
+            for i, mat in enumerate(track_mats):
+                if i < len(timing_info):
+                    old_duration = mat.get('duration', 0)
+                    new_start = timing_info[i]['start']
+                    new_duration = timing_info[i]['duration']
+                    
+                    mat['start'] = new_start
+                    mat['duration'] = new_duration
+                    mat['end'] = new_start + new_duration
+                    
+                    # 只在时长发生变化时记录日志
+                    if abs(float(old_duration or 0) - new_duration) > 0.1:
+                        logger.info(f"  ✓ 修正 {track_name}[{i}] 时长: {old_duration}s → {new_duration}s (start={new_start}s)")
+        
+        logger.info(f"✅ 完成素材时间修正，共处理 {len(materials)} 个素材")
+        return materials
+        
+    except Exception as e:
+        logger.warning(f"从script_data修正素材时间失败: {e}")
+        return materials
 
 
 def _extract_materials_from_script_data(draft_id):
@@ -337,43 +452,32 @@ def _extract_materials_from_script_data(draft_id):
             logger.debug(f"解析script_data失败: {e}")
             return extra_materials
         
-        # 🆕 获取已有素材的时长信息，用于计算字幕时间
-        # 注意：数据库中的start时间可能都是0，需要自己计算累加时间
-        db_materials = get_draft_materials_from_db(draft_id)
-        video_durations = []
-        audio_voice_durations = []
+        # 🔧 修复：直接从 script_data.tracks.subtitle 获取字幕的真实时间信息
+        # 而不是基于视频时长来估算（之前的方法导致字幕时间不准确）
         
-        for mat in db_materials:
-            track_name = mat.get('track_name', '')
-            mat_type = mat.get('type', '')
-            duration = float(mat.get('duration', 5) or 5)
-            if duration <= 0:
-                duration = 5
-            
-            if mat_type == 'video':
-                video_durations.append(duration)
-            elif track_name == 'audio_voice' or (mat_type == 'audio' and 'voice' in track_name.lower()):
-                audio_voice_durations.append(duration)
+        # 从 tracks.subtitle 获取字幕轨道的真实时间信息
+        subtitle_timing_info = []
+        if hasattr(script_data, 'tracks') and isinstance(script_data.tracks, dict):
+            subtitle_track = script_data.tracks.get('subtitle')
+            if subtitle_track and hasattr(subtitle_track, 'segments'):
+                for seg in subtitle_track.segments:
+                    seg_dict = seg.__dict__ if hasattr(seg, '__dict__') else {}
+                    target_tr = seg_dict.get('target_timerange')
+                    if target_tr:
+                        tr_dict = target_tr.__dict__ if hasattr(target_tr, '__dict__') else {}
+                        start = tr_dict.get('start', 0) / 1000000  # 微秒转秒
+                        duration = tr_dict.get('duration', 0) / 1000000
+                        subtitle_timing_info.append({
+                            'start': start,
+                            'duration': duration
+                        })
         
-        # 使用视频时长来计算累加时间（因为字幕通常与视频同步）
-        durations = video_durations if video_durations else audio_voice_durations
-        
-        # 计算累加时间
-        reference_times = []
-        cumulative_time = 0
-        for duration in durations:
-            reference_times.append({
-                'start': cumulative_time,
-                'duration': duration
-            })
-            cumulative_time += duration
-        
-        logger.info(f"📊 计算出 {len(reference_times)} 个参考时间点用于字幕")
+        logger.info(f"📊 从script_data.tracks.subtitle提取到 {len(subtitle_timing_info)} 个字幕时间信息")
         
         # 提取字幕(texts)
         if hasattr(script_data, 'materials') and hasattr(script_data.materials, 'texts'):
             texts = script_data.materials.texts
-            logger.info(f"📝 从script_data中提取到 {len(texts)} 个字幕")
+            logger.info(f"📝 从script_data.materials.texts提取到 {len(texts)} 个字幕内容")
             
             for i, text_data in enumerate(texts):
                 try:
@@ -392,19 +496,19 @@ def _extract_materials_from_script_data(draft_id):
                     except:
                         text_content = str(content_str)[:50]
                     
-                    # 🆕 使用视频/音频的时间来计算字幕时间
-                    if i < len(reference_times):
-                        time_info = reference_times[i]
+                    # 🔧 修复：使用从tracks.subtitle提取的真实时间信息
+                    if i < len(subtitle_timing_info):
+                        time_info = subtitle_timing_info[i]
                     else:
-                        # 如果字幕数量超过参考时间，使用累加时间
-                        if reference_times:
-                            last_time = reference_times[-1]
+                        # 如果字幕数量超过轨道片段数，使用估算时间（通常不应该发生）
+                        if subtitle_timing_info:
+                            last_time = subtitle_timing_info[-1]
                             time_info = {
-                                'start': last_time['start'] + last_time['duration'] + (i - len(reference_times)) * 5,
-                                'duration': 5
+                                'start': last_time['start'] + last_time['duration'],
+                                'duration': 2.0  # 默认2秒
                             }
                         else:
-                            time_info = {'start': i * 5, 'duration': 5}
+                            time_info = {'start': i * 2, 'duration': 2}  # 默认每2秒一个
                     
                     subtitle_material = {
                         'id': text_id,
@@ -418,7 +522,12 @@ def _extract_materials_from_script_data(draft_id):
                         'source': 'script_data'
                     }
                     extra_materials.append(subtitle_material)
-                    logger.info(f"  ✓ 字幕 #{i+1}: {text_content[:20]}... start={time_info['start']:.2f}s")
+                    
+                    # 减少日志输出，只记录前几个
+                    if i < 3:
+                        logger.info(f"  ✓ 字幕 #{i+1}: {text_content[:15]}... start={time_info['start']:.2f}s, duration={time_info['duration']:.2f}s")
+                    elif i == 3:
+                        logger.info(f"  ... (还有 {len(texts) - 3} 个字幕)")
                 except Exception as e:
                     logger.warning(f"解析字幕 #{i+1} 失败: {e}")
         
