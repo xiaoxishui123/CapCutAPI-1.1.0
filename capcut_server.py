@@ -281,19 +281,217 @@ def add_material_to_cache(draft_id, material_info):
         logger.error(f'持久化素材到数据库失败: {e}', exc_info=True)
 
 def get_draft_materials(draft_id):
-    """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统"""
+    """获取草稿素材信息 - 优先从缓存获取，然后从数据库获取，最后扫描文件系统
+    
+    🔧 优化：同时从script_data中提取字幕、背景音乐等额外素材
+    """
     # 首先检查内存缓存
     if draft_id in draft_materials_cache:
         return draft_materials_cache[draft_id]
     
     # 如果缓存中没有，从数据库获取
     db_materials = get_draft_materials_from_db(draft_id)
+    
+    # 🆕 从script_data中提取额外素材（字幕、图片等）
+    extra_materials = _extract_materials_from_script_data(draft_id)
+    
     if db_materials:
-        draft_materials_cache[draft_id] = db_materials
-        return db_materials
+        # 合并数据库素材和script_data中的额外素材
+        all_materials = db_materials + extra_materials
+        draft_materials_cache[draft_id] = all_materials
+        return all_materials
     
     # 如果数据库中也没有，扫描草稿目录中的实际文件
-    return _scan_draft_directory(draft_id)
+    scanned_materials = _scan_draft_directory(draft_id)
+    all_materials = scanned_materials + extra_materials
+    return all_materials
+
+
+def _extract_materials_from_script_data(draft_id):
+    """从script_data中提取额外素材（字幕、图片等）
+    
+    script_data是pickle序列化后base64编码的剪映草稿数据，
+    其中包含字幕(texts)、图片等不在materials表中的素材
+    """
+    import pickle
+    import base64
+    import json as json_module
+    
+    extra_materials = []
+    
+    try:
+        conn = sqlite3.connect('capcut.db')
+        c = conn.cursor()
+        c.execute("SELECT script_data FROM drafts WHERE id = ?", (draft_id,))
+        result = c.fetchone()
+        conn.close()
+        
+        if not result or not result[0]:
+            return extra_materials
+        
+        # 解码base64并反序列化pickle
+        try:
+            decoded = base64.b64decode(result[0])
+            script_data = pickle.loads(decoded)
+        except Exception as e:
+            logger.debug(f"解析script_data失败: {e}")
+            return extra_materials
+        
+        # 🆕 获取已有素材的时长信息，用于计算字幕时间
+        # 注意：数据库中的start时间可能都是0，需要自己计算累加时间
+        db_materials = get_draft_materials_from_db(draft_id)
+        video_durations = []
+        audio_voice_durations = []
+        
+        for mat in db_materials:
+            track_name = mat.get('track_name', '')
+            mat_type = mat.get('type', '')
+            duration = float(mat.get('duration', 5) or 5)
+            if duration <= 0:
+                duration = 5
+            
+            if mat_type == 'video':
+                video_durations.append(duration)
+            elif track_name == 'audio_voice' or (mat_type == 'audio' and 'voice' in track_name.lower()):
+                audio_voice_durations.append(duration)
+        
+        # 使用视频时长来计算累加时间（因为字幕通常与视频同步）
+        durations = video_durations if video_durations else audio_voice_durations
+        
+        # 计算累加时间
+        reference_times = []
+        cumulative_time = 0
+        for duration in durations:
+            reference_times.append({
+                'start': cumulative_time,
+                'duration': duration
+            })
+            cumulative_time += duration
+        
+        logger.info(f"📊 计算出 {len(reference_times)} 个参考时间点用于字幕")
+        
+        # 提取字幕(texts)
+        if hasattr(script_data, 'materials') and hasattr(script_data.materials, 'texts'):
+            texts = script_data.materials.texts
+            logger.info(f"📝 从script_data中提取到 {len(texts)} 个字幕")
+            
+            for i, text_data in enumerate(texts):
+                try:
+                    # 解析字幕内容
+                    if isinstance(text_data, dict):
+                        content_str = text_data.get('content', '{}')
+                        text_id = text_data.get('id', f'subtitle_{i}')
+                    else:
+                        content_str = getattr(text_data, 'content', '{}')
+                        text_id = getattr(text_data, 'id', f'subtitle_{i}')
+                    
+                    # 解析content JSON获取文本内容
+                    try:
+                        content_json = json_module.loads(content_str) if isinstance(content_str, str) else content_str
+                        text_content = content_json.get('text', '字幕') if isinstance(content_json, dict) else str(content_str)
+                    except:
+                        text_content = str(content_str)[:50]
+                    
+                    # 🆕 使用视频/音频的时间来计算字幕时间
+                    if i < len(reference_times):
+                        time_info = reference_times[i]
+                    else:
+                        # 如果字幕数量超过参考时间，使用累加时间
+                        if reference_times:
+                            last_time = reference_times[-1]
+                            time_info = {
+                                'start': last_time['start'] + last_time['duration'] + (i - len(reference_times)) * 5,
+                                'duration': 5
+                            }
+                        else:
+                            time_info = {'start': i * 5, 'duration': 5}
+                    
+                    subtitle_material = {
+                        'id': text_id,
+                        'type': 'subtitle',
+                        'name': text_content[:30] + ('...' if len(text_content) > 30 else ''),
+                        'content': text_content,
+                        'start': time_info['start'],
+                        'duration': time_info['duration'],
+                        'end': time_info['start'] + time_info['duration'],
+                        'track_name': 'subtitle',
+                        'source': 'script_data'
+                    }
+                    extra_materials.append(subtitle_material)
+                    logger.info(f"  ✓ 字幕 #{i+1}: {text_content[:20]}... start={time_info['start']:.2f}s")
+                except Exception as e:
+                    logger.warning(f"解析字幕 #{i+1} 失败: {e}")
+        
+        # 提取图片素材
+        if hasattr(script_data, 'materials') and hasattr(script_data.materials, 'videos'):
+            # 检查是否有图片类型的素材（在videos列表中但实际是图片）
+            videos = script_data.materials.videos
+            for i, video in enumerate(videos):
+                try:
+                    if hasattr(video, 'material_type') and video.material_type == 'photo':
+                        path = getattr(video, 'path', '') or getattr(video, 'replace_path', '')
+                        name = getattr(video, 'material_name', f'图片_{i+1}')
+                        
+                        image_material = {
+                            'id': getattr(video, 'material_id', f'image_{i}'),
+                            'type': 'image',
+                            'name': name,
+                            'path': path,
+                            'start': 0,
+                            'duration': 5,
+                            'track_name': 'image',
+                            'source': 'script_data'
+                        }
+                        extra_materials.append(image_material)
+                        logger.info(f"  ✓ 图片素材: {name}")
+                except Exception as e:
+                    logger.debug(f"检查图片素材失败: {e}")
+        
+    except Exception as e:
+        logger.error(f"从script_data提取素材失败: {e}", exc_info=True)
+    
+    return extra_materials
+
+
+def _get_subtitle_times_from_tracks(script_data):
+    """从轨道数据中获取字幕的时间信息"""
+    subtitle_times = {}
+    
+    try:
+        if not hasattr(script_data, 'tracks'):
+            return subtitle_times
+        
+        # 遍历轨道寻找文本轨道
+        for track in script_data.tracks:
+            if isinstance(track, str):
+                continue
+            
+            track_type = getattr(track, 'type', '')
+            if track_type == 'text':
+                segments = getattr(track, 'segments', [])
+                for seg in segments:
+                    if isinstance(seg, str):
+                        continue
+                    
+                    # 获取segment引用的素材ID
+                    material_id = getattr(seg, 'material_id', None)
+                    if not material_id:
+                        continue
+                    
+                    # 获取时间范围
+                    target_timerange = getattr(seg, 'target_timerange', None)
+                    if target_timerange:
+                        # 时间单位是微秒，需要转换为秒
+                        start = getattr(target_timerange, 'start', 0) / 1000000
+                        duration = getattr(target_timerange, 'duration', 5000000) / 1000000
+                        subtitle_times[material_id] = {
+                            'start': start,
+                            'duration': duration
+                        }
+    except Exception as e:
+        logger.debug(f"获取字幕时间信息失败: {e}")
+    
+    return subtitle_times
 
 def _scan_draft_directory(draft_id):
     """扫描草稿目录中的文件"""
@@ -1380,8 +1578,8 @@ def mirror_to_oss():
     if not src_url:
         return jsonify({"success": False, "error": "url required"}), 400
     try:
-        # stream download
-        r = requests.get(src_url, timeout=20, stream=True)
+        # stream download - 增加超时时间支持大文件（视频）
+        r = requests.get(src_url, timeout=300, stream=True)
         r.raise_for_status()
         content_type = r.headers.get('Content-Type', '')
         
@@ -1400,6 +1598,12 @@ def mirror_to_oss():
             'audio/ogg': '.ogg',
             'audio/flac': '.flac',
             'audio/mp4': '.m4a',
+            # 视频（新增）
+            'video/mp4': '.mp4',
+            'video/webm': '.webm',
+            'video/quicktime': '.mov',
+            'video/x-msvideo': '.avi',
+            'video/mpeg': '.mpeg',
         }
         
         # 优先使用映射表
@@ -1419,6 +1623,8 @@ def mirror_to_oss():
                 ext = '.mp3'
             elif 'wav' in ct_lower:
                 ext = '.wav'
+            elif 'mp4' in ct_lower or 'video' in ct_lower:
+                ext = '.mp4'
             else:
                 ext = '.bin'  # 默认
         
@@ -1433,7 +1639,11 @@ def mirror_to_oss():
         headers = {'Content-Type': content_type} if content_type else {}
         logger.info(f"📦 镜像到OSS - 对象名: {object_name}, MIME: {content_type}")
         
-        bucket.put_object(object_name, r.raw, headers=headers)
+        # 读取内容到内存（OSS SDK 需要可 seek 的对象）
+        file_content = r.content
+        logger.info(f"📦 文件大小: {len(file_content) / 1024 / 1024:.2f} MB")
+        
+        bucket.put_object(object_name, file_content, headers=headers)
         signed = bucket.sign_url('GET', object_name, 24*60*60, slash_safe=True)
         return jsonify({"success": True, "oss_url": signed, "object": object_name})
     except Exception as e:
@@ -4539,7 +4749,9 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
         'effect': {'label': '特效', 'icon': '✨', 'order': 5, 'color': '#E91E63'},
         'sticker': {'label': '贴纸', 'icon': '🏷️', 'order': 6, 'color': '#FF5722'},
         'audio': {'label': '音频', 'icon': '🎵', 'order': 7, 'color': '#607D8B'},
-        'unknown': {'label': '其他', 'icon': '📄', 'order': 8, 'color': '#9E9E9E'}
+        'audio_voice': {'label': '语音', 'icon': '🎤', 'order': 7, 'color': '#4DB6AC'},  # 🆕 语音轨道
+        'audio_bgm': {'label': '背景音乐', 'icon': '🎼', 'order': 8, 'color': '#7E57C2'},  # 🆕 背景音乐轨道
+        'unknown': {'label': '其他', 'icon': '📄', 'order': 9, 'color': '#9E9E9E'}
     }
     
     # 标准化素材类型名称
@@ -4613,12 +4825,63 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
                     cumulative_time += duration
                     logger.info(f"  ✓ 音频 start={audio['start']:.2f}s, duration={duration:.2f}s")
     
+    # 【智能处理】修正视频素材的start时间
+    # 🎯 优化：强制将所有视频素材按时间顺序排列在一个轨道上显示（类似音频的显示方式）
+    video_materials = [m for m in materials if normalize_material_type(m.get('type', 'unknown')) == 'video']
+    
+    if len(video_materials) > 1:
+        # 检查是否所有视频start都是0（或非常接近0，容差0.1秒）
+        all_start_zero = all(float(v.get('start', v.get('start_time', 0)) or 0) < 0.1 for v in video_materials)
+        
+        # 🆕 检查是否存在时间重叠的视频素材
+        has_overlap = False
+        if not all_start_zero:
+            # 按start时间排序检查重叠
+            sorted_videos = sorted(video_materials, key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            for i in range(len(sorted_videos) - 1):
+                curr_start = float(sorted_videos[i].get('start', sorted_videos[i].get('start_time', 0)) or 0)
+                curr_duration = float(sorted_videos[i].get('duration', sorted_videos[i].get('length', 0)) or 0)
+                if curr_duration <= 0:
+                    curr_duration = 5
+                curr_end = curr_start + curr_duration
+                next_start = float(sorted_videos[i+1].get('start', sorted_videos[i+1].get('start_time', 0)) or 0)
+                if next_start < curr_end - 0.01:  # 有重叠（0.01秒容差）
+                    has_overlap = True
+                    break
+        
+        # 如果所有start都是0，或者存在时间重叠，则重新计算时间顺序
+        if all_start_zero or has_overlap:
+            reason = "start都是0" if all_start_zero else "存在时间重叠"
+            logger.info(f"🎥 检测到{len(video_materials)}个视频素材{reason}，自动计算时间顺序以便在单轨道显示...")
+            # 按添加顺序排序（优先使用added_at，其次使用原始顺序）
+            video_materials.sort(key=lambda x: (x.get('added_at', ''), materials.index(x) if x in materials else 0))
+            # 累加计算start时间
+            cumulative_time = 0
+            for video in video_materials:
+                video['start'] = cumulative_time
+                video['start_time'] = cumulative_time
+                duration = float(video.get('duration', video.get('length', 0)) or 0)
+                if duration <= 0:
+                    duration = 5  # 默认时长5秒
+                video['end'] = cumulative_time + duration
+                video['_merged_track'] = True  # 标记已合并轨道
+                cumulative_time += duration
+                logger.info(f"  ✓ 视频 '{video.get('name', 'unknown')[:20]}' start={video['start']:.2f}s, duration={duration:.2f}s")
+    
     # 按类型分组素材
     materials_by_type = {}
     for material in materials:
         # 获取并标准化素材类型
         raw_type = material.get('type', material.get('material_type', 'unknown'))
         material_type = normalize_material_type(raw_type)
+        
+        # 🆕 将音频按轨道名称进一步细分（背景音乐与语音分开显示）
+        if material_type == 'audio':
+            track_name = material.get('track_name', '')
+            if track_name == 'audio_bgm' or 'bgm' in track_name.lower():
+                material_type = 'audio_bgm'  # 背景音乐单独分组
+            else:
+                material_type = 'audio_voice'  # 语音音频分组
         
         if material_type not in materials_by_type:
             materials_by_type[material_type] = []
@@ -4694,13 +4957,39 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
         type_materials = materials_by_type[material_type]
         track_info = track_types.get(material_type, track_types['unknown'])
         
-        # 将该类型的素材分配到子轨道
-        subtracks = assign_to_subtracks(type_materials)
-        
-        # 调试日志：打印子轨道分配情况
-        logger.info(f"【{material_type}】类型分配到 {len(subtracks)} 个子轨道")
-        for idx, subtrack in enumerate(subtracks):
-            logger.info(f"  子轨道 #{idx+1}: {len(subtrack)} 个素材")
+        # 🎯 优化：视频、音频、字幕等类型强制在一个轨道上按时间顺序显示
+        if material_type == 'video':
+            # 视频素材：强制所有视频在一个轨道上显示（按时间排序）
+            type_materials.sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            subtracks = [type_materials]  # 所有视频放在一个子轨道
+            logger.info(f"🎥【{material_type}】类型强制合并为 1 个轨道，共 {len(type_materials)} 个素材")
+        elif material_type == 'audio':
+            # 音频素材：同样强制在一个轨道上显示（按时间排序）
+            type_materials.sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            subtracks = [type_materials]  # 所有音频放在一个子轨道
+            logger.info(f"🎵【{material_type}】类型强制合并为 1 个轨道，共 {len(type_materials)} 个素材")
+        elif material_type == 'audio_voice':
+            # 🆕 语音音频：强制在一个轨道上显示（按时间排序）
+            type_materials.sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            subtracks = [type_materials]
+            logger.info(f"🎤【{material_type}】类型强制合并为 1 个轨道，共 {len(type_materials)} 个素材")
+        elif material_type == 'audio_bgm':
+            # 🆕 背景音乐：强制在一个轨道上显示（按时间排序）
+            type_materials.sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            subtracks = [type_materials]
+            logger.info(f"🎼【{material_type}】类型强制合并为 1 个轨道，共 {len(type_materials)} 个素材")
+        elif material_type == 'subtitle':
+            # 字幕素材：强制在一个轨道上显示（按时间排序）
+            type_materials.sort(key=lambda x: float(x.get('start', x.get('start_time', 0)) or 0))
+            subtracks = [type_materials]  # 所有字幕放在一个子轨道
+            logger.info(f"💬【{material_type}】类型强制合并为 1 个轨道，共 {len(type_materials)} 个素材")
+        else:
+            # 其他类型：使用原来的子轨道分配逻辑
+            subtracks = assign_to_subtracks(type_materials)
+            # 调试日志：打印子轨道分配情况
+            logger.info(f"【{material_type}】类型分配到 {len(subtracks)} 个子轨道")
+            for idx, subtrack in enumerate(subtracks):
+                logger.info(f"  子轨道 #{idx+1}: {len(subtrack)} 个素材")
         
         # 为每个子轨道生成HTML
         for subtrack_idx, subtrack_materials in enumerate(subtracks):
