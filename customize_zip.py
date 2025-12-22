@@ -14,7 +14,8 @@ ASSET_DIRS = ("assets/audio/", "assets/image/", "assets/video/")
 
 # 版本号：修改路径重写逻辑后需要更新此版本号，以使OSS缓存失效
 # v6: 新增自动刷新draft_id和时间戳功能，彻底解决剪映重命名问题
-REWRITE_VERSION = "v6_refresh_draft_id"
+# v7: 修复空draft_folder时使用默认路径，解决剪映打开草稿空白问题
+REWRITE_VERSION = "v7_fix_empty_folder"
 
 
 def _hash_str(s: str) -> str:
@@ -222,7 +223,28 @@ def ensure_customized_zip(draft_id: str, client_os: str, draft_folder: str) -> T
     Returns (object_key, created)
 
     🔧 修复：添加智能重试机制，解决 OSS 最终一致性导致的下载失败问题
+    🔧 修复（2025-12-09）：当 draft_folder 为空时，使用配置的默认路径
     """
+    # 🔧 关键修复：当 draft_folder 为空时，使用配置的默认路径
+    # 解决剪映打开草稿显示空白的问题（因为相对路径剪映无法定位素材）
+    if not draft_folder:
+        try:
+            from settings.local import WINDOWS_DRAFT_FOLDER, LINUX_DRAFT_FOLDER
+            if client_os == 'windows':
+                draft_folder = WINDOWS_DRAFT_FOLDER or "F:\\jianyin\\cgwz\\JianyingPro Drafts"
+                # 确保Windows路径使用反斜杠
+                draft_folder = draft_folder.replace('/', '\\')
+            else:
+                draft_folder = LINUX_DRAFT_FOLDER or "/data/jianying/drafts"
+            print(f"[ensure_customized_zip] 使用默认草稿路径: {draft_folder}")
+        except ImportError:
+            # 如果无法导入设置，使用硬编码的默认值
+            if client_os == 'windows':
+                draft_folder = "F:\\jianyin\\cgwz\\JianyingPro Drafts"
+            else:
+                draft_folder = "/data/jianying/drafts"
+            print(f"[ensure_customized_zip] 无法读取配置，使用默认路径: {draft_folder}")
+    
     print(f"\n[ensure_customized_zip] 开始处理")
     print(f"[ensure_customized_zip] draft_id={draft_id}")
     print(f"[ensure_customized_zip] client_os={client_os}")

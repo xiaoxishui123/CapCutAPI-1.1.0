@@ -1,0 +1,13 @@
+# MCP protocol support (optional)
+#
+# Install:
+#   pip install -r requirements-mcp.txt
+#
+# Notes:
+# - This file is intentionally minimal: it only contains what `mcp_server.py` needs.
+# - Your main HTTP server dependencies remain in `requirements.txt`.
+
+mcp>=1.0.0
+aiohttp>=3.8.6
+
+

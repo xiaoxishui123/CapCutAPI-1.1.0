@@ -402,6 +402,29 @@ python3 simple_mcp_server.py
 
 ---
 
+### 🟣 官方风格 MCP（兼容上游 VectCutAPI 的启动方式）
+
+上游仓库（[VectCutAPI](https://github.com/sun-guannan/VectCutAPI/tree/main)）在 README 中描述使用 `python mcp_server.py` 启动 MCP。
+为降低迁移成本，本项目已补齐 `mcp_server.py`（stdio 模式），它会**把 MCP 调用转发到本项目现有的 HTTP API**（默认 `http://localhost:9000`）。
+
+**安装 MCP 依赖（可选）**:
+```bash
+pip install -r requirements-mcp.txt
+```
+
+**启动 MCP（stdio）**:
+```bash
+python3 mcp_server.py
+```
+
+**常用环境变量**:
+- `CAPCUT_API_URL`: CapCutAPI HTTP 服务地址（默认 `http://localhost:9000`）
+- `CAPCUT_API_TIMEOUT`: 超时时间（秒，默认 30）
+
+> 说明：你仍然可以继续使用 `simple_mcp_server.py`（更轻）或 `mcp_bridge/`（更强）。`mcp_server.py` 只是提供“官方命名/官方启动方式”的兼容入口，不会影响现有服务。
+
+---
+
 ### 🟡 企业版 MCP Bridge - 生产环境推荐
 
 **MCP Bridge服务地址**: http://8.148.70.18:8082

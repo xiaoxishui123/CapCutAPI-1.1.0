@@ -32,7 +32,7 @@ from urllib.parse import quote
 # ===== 第三方库导入 =====
 import oss2
 import requests
-from flask import Flask, request, jsonify, Response, render_template, redirect
+from flask import Flask, request, jsonify, Response, render_template, redirect, send_file
 
 # ===== pyJianYingDraft 相关导入 =====
 import pyJianYingDraft as draft
@@ -101,6 +101,7 @@ from validators import (
     validate_file_path,
     validate_required_fields
 )
+from draft_cover import set_draft_cover_config
 from exceptions import (
     CapCutAPIException,
     DraftNotFoundException,
@@ -124,6 +125,8 @@ from utils import (
     missing_parameter_error
 )
 from services import get_download_service
+from render_service import submit_render as submit_render_task, get_render_status as get_render_status_task
+from sticker_assets import set_sticker_resource, list_sticker_resources
 
 def _ensure_bucket_v4():
     """创建OSS Bucket实例（使用V4签名）"""
@@ -1394,13 +1397,16 @@ def add_image():
     start = data.get('start', 0)
     
     # 🔧 修复：支持 duration 参数（工作流使用）或 end 参数（直接调用）
+    # 🔧 再次修复：确保 duration > 0 才使用，否则使用默认值
     duration = data.get('duration')
-    if duration is not None:
-        # 如果传递了 duration，计算 end = start + duration
+    if duration is not None and duration > 0:
+        # 如果传递了有效的 duration，计算 end = start + duration
         end = start + duration
     else:
-        # 否则使用 end 参数（向后兼容）
-        end = data.get('end', start + 3.0)  # 默认持续3秒
+        # 否则使用 end 参数（向后兼容），如果 end 也无效则默认3秒
+        end = data.get('end', 0)
+        if end <= start:
+            end = start + 3.0  # 默认持续3秒
     
     draft_id = data.get('draft_id')
     transform_y = data.get('transform_y', 0)
@@ -1651,6 +1657,75 @@ def save_draft():
     except Exception as e:
         return handle_api_error(f"保存草稿时发生错误: {str(e)}", e)
 
+@app.route('/set_draft_cover', methods=['POST'])
+def set_draft_cover():
+    """设置草稿封面（在下一次 save_draft 导出时生效）
+
+    最小风险设计：
+    - 这里只保存“封面配置”，不立即改动草稿文件（因为草稿尚未导出到磁盘）
+    - 真正写入 `draft_cover.jpg` 发生在 save_draft 导出阶段（见 save_draft_impl.py）
+
+    Body:
+    {
+      "draft_id": "dfd_xxx",
+      "cover_image_url": "https://.../cover.png",   # 可选：直接用图片当封面（优先）
+      "video_url": "https://.../video.mp4",         # 可选：从视频截一帧当封面
+      "time_point": 1.5                              # 可选：截帧时间点（秒，默认 0）
+    }
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        draft_id = (data.get('draft_id') or '').strip()
+        if not draft_id:
+            return handle_api_error("缺少必需参数 'draft_id'")
+
+        # 验证draft_id
+        is_valid, error_msg = validate_draft_id(draft_id)
+        if not is_valid:
+            return jsonify({'success': False, 'error': f'draft_id验证失败: {error_msg}'}), 400
+
+        cover_image_url = (data.get('cover_image_url') or '').strip() or None
+        video_url = (data.get('video_url') or '').strip() or None
+        time_point = data.get('time_point', 0.0)
+
+        # 至少提供一种输入
+        if not cover_image_url and not video_url:
+            return jsonify({'success': False, 'error': "必须提供 cover_image_url 或 video_url 其中之一"}), 400
+
+        # URL 校验（允许内网地址）
+        if cover_image_url:
+            ok, msg = validate_url(cover_image_url, allow_internal=True)
+            if not ok:
+                return jsonify({'success': False, 'error': f'cover_image_url验证失败: {msg}'}), 400
+        if video_url:
+            ok, msg = validate_url(video_url, allow_internal=True)
+            if not ok:
+                return jsonify({'success': False, 'error': f'video_url验证失败: {msg}'}), 400
+
+        # time_point 校验（允许 0）
+        try:
+            time_point = float(time_point or 0.0)
+            if time_point < 0:
+                return jsonify({'success': False, 'error': 'time_point 不能为负数'}), 400
+        except Exception:
+            return jsonify({'success': False, 'error': 'time_point 必须是数字'}), 400
+
+        cfg = set_draft_cover_config(
+            draft_id=draft_id,
+            cover_image_url=cover_image_url,
+            video_url=video_url,
+            time_point=time_point,
+        )
+
+        return jsonify(create_standard_response(success=True, output={
+            "draft_id": draft_id,
+            "cover_config_saved": True,
+            "cover_config": cfg,
+            "note": "封面会在下一次调用 /save_draft 导出时写入 draft_cover.jpg"
+        }))
+    except Exception as e:
+        return handle_api_error(f"设置草稿封面时发生错误: {str(e)}", e)
+
 @app.route('/query_draft_status', methods=['POST'])
 def query_draft_status():
     """查询草稿任务状态"""
@@ -1757,6 +1832,143 @@ def mirror_to_oss():
         return jsonify({"success": True, "oss_url": signed, "object": object_name})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/submit_render', methods=['POST'])
+def submit_render():
+    """提交云渲染任务（导出 mp4）
+
+    MVP 说明（非常重要）：
+    - 当前仅渲染“视频轨道”的片段并按时间拼接
+    - 字幕/贴纸/特效/转场暂不支持（后续可迭代）
+
+    Body:
+    {
+      "draft_id": "dfd_xxx",
+      "width": 1080,     # 可选：输出宽
+      "height": 1920,    # 可选：输出高
+      "fps": 30          # 可选：输出帧率
+    }
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        draft_id = (data.get("draft_id") or "").strip()
+        if not draft_id:
+            return jsonify({"success": False, "error": "draft_id required"}), 400
+
+        is_valid, error_msg = validate_draft_id(draft_id)
+        if not is_valid:
+            return jsonify({"success": False, "error": f"draft_id验证失败: {error_msg}"}), 400
+
+        try:
+            width = int(data.get("width", 1080))
+            height = int(data.get("height", 1920))
+            fps = int(data.get("fps", 30))
+        except Exception:
+            return jsonify({"success": False, "error": "width/height/fps must be integers"}), 400
+
+        # 可选：是否上传到 MP4 OSS（默认 True）
+        upload_to_oss = data.get("upload_to_oss", True)
+        if isinstance(upload_to_oss, str):
+            upload_to_oss = upload_to_oss.strip().lower() in ["1", "true", "yes", "y"]
+        upload_to_oss = bool(upload_to_oss)
+
+        from render_service import RenderOptions
+        result = submit_render_task(draft_id=draft_id, options=RenderOptions(width=width, height=height, fps=fps, upload_to_oss=upload_to_oss))
+        return jsonify(result)
+    except Exception as e:
+        return handle_api_error(f"提交渲染任务时发生错误: {str(e)}", e)
+
+
+@app.route('/get_render_status', methods=['GET'])
+def get_render_status():
+    """查询渲染任务状态
+
+    Query:
+      /get_render_status?task_id=rnd_xxx
+    """
+    try:
+        task_id = (request.args.get("task_id") or "").strip()
+        if not task_id:
+            return jsonify({"success": False, "error": "task_id required"}), 400
+        return jsonify(get_render_status_task(task_id))
+    except Exception as e:
+        return handle_api_error(f"查询渲染状态时发生错误: {str(e)}", e)
+
+
+@app.route('/register_sticker_resource', methods=['POST'])
+def register_sticker_resource():
+    """注册贴纸资源映射（resource_id -> 可渲染图片URL）
+
+    为什么需要它：
+    - 草稿贴纸只保存 `resource_id`（剪映内置素材编号）
+    - 云渲染服务器无法直接拿到剪映客户端内置贴纸图片
+    - 所以需要你提供一张可下载的贴纸图片 URL，才能在最终 mp4 上叠加
+
+    Body:
+    {
+      "resource_id": "xxxxx",
+      "image_url": "https://example.com/sticker.png"
+    }
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        resource_id = (data.get("resource_id") or "").strip()
+        image_url = (data.get("image_url") or "").strip()
+        if not resource_id or not image_url:
+            return jsonify({"success": False, "error": "resource_id and image_url required"}), 400
+
+        ok, msg = validate_url(image_url, allow_internal=True)
+        if not ok:
+            return jsonify({"success": False, "error": f"image_url验证失败: {msg}"}), 400
+
+        item = set_sticker_resource(resource_id, image_url)
+        return jsonify(create_standard_response(success=True, output=item))
+    except Exception as e:
+        return handle_api_error(f"注册贴纸资源映射时发生错误: {str(e)}", e)
+
+
+@app.route('/registered_sticker_resources', methods=['GET'])
+def registered_sticker_resources():
+    """查看已注册的贴纸映射表（最多返回200条）"""
+    try:
+        limit = request.args.get("limit", "200")
+        try:
+            limit_i = int(limit)
+        except Exception:
+            limit_i = 200
+        items = list_sticker_resources(limit=limit_i)
+        return jsonify(create_standard_response(success=True, output={"count": len(items), "items": items}))
+    except Exception as e:
+        return handle_api_error(f"读取贴纸资源映射时发生错误: {str(e)}", e)
+
+
+@app.route('/render/download', methods=['GET'])
+def download_render_result():
+    """下载渲染产物（当未配置 MP4 OSS 时使用）
+
+    Query:
+      /render/download?task_id=rnd_xxx
+    """
+    try:
+        task_id = (request.args.get("task_id") or "").strip()
+        if not task_id:
+            return jsonify({"success": False, "error": "task_id required"}), 400
+
+        # 直接复用 render_service 的状态查询（其中会包含 file_path）
+        status = get_render_status_task(task_id)
+        if not status.get("success"):
+            return jsonify(status), 404
+
+        file_path = (status.get("file_path") or "").strip()
+        if not file_path:
+            return jsonify({"success": False, "error": "render file_path not available (maybe uploaded to OSS)"}), 400
+        if not os.path.exists(file_path):
+            return jsonify({"success": False, "error": f"file not found: {file_path}"}), 404
+
+        return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path))
+    except Exception as e:
+        return handle_api_error(f"下载渲染文件时发生错误: {str(e)}", e)
 
 @app.route('/generate_draft_url', methods=['POST'])
 @deprecated_endpoint(
@@ -4929,7 +5141,8 @@ def generate_timeline_html_for_template(materials, total_duration, draft_id=None
                 cumulative_time = 0
                 for audio in track_audios:
                     audio['start'] = cumulative_time
-                    duration = float(audio.get('duration', 0))
+                    # 🔧 修复：处理duration为None的情况
+                    duration = float(audio.get('duration') or 0)
                     audio['end'] = cumulative_time + duration
                     cumulative_time += duration
                     logger.info(f"  ✓ 音频 start={audio['start']:.2f}s, duration={duration:.2f}s")

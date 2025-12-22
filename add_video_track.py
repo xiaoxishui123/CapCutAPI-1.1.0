@@ -102,7 +102,8 @@ def add_video_track(
         script.add_track(draft.Track_type.video, relative_index=relative_index)
     
     # If duration parameter is passed, use it preferentially; otherwise use default duration of 0 seconds, and get the real duration when downloading the draft
-    if duration is not None:
+    # 🔧 修复：检查 duration > 0，因为服务端可能传入 duration=0
+    if duration is not None and duration > 0:
         # Use the passed duration, skip duration retrieval and check
         video_duration = duration
     else:
@@ -141,7 +142,8 @@ def add_video_track(
         print('replace_path:', draft_video_path)
 
     # Set video end time
-    video_end = end if end is not None else video_duration
+    # 🔧 修复：检查 end > 0，因为服务端默认值是 0，0 不应该作为有效的结束时间
+    video_end = end if (end is not None and end > 0) else video_duration
     
     # Calculate source video duration
     source_duration = video_end - start

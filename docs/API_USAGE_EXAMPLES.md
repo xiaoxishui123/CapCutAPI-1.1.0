@@ -168,6 +168,123 @@ requests.post("http://8.148.70.18:9000/generate_draft_url?force_save=true", json
 })
 ```
 
+---
+
+## 🖼️ 草稿封面（Draft Cover）
+
+> 重要理解：草稿文件夹是在 `/save_draft` 导出阶段生成的，所以封面也会在导出时写入 `draft_cover.jpg`。
+> 你可以先调用 `/set_draft_cover` 保存“封面配置”，再调用 `/save_draft` 导出草稿。
+
+### 方式 1：用图片 URL 作为封面（推荐）
+
+```python
+import requests
+
+# 1) 保存封面配置（不会立刻生成文件）
+resp = requests.post("http://8.148.70.18:9000/set_draft_cover", json={
+    "draft_id": "my_draft_001",
+    "cover_image_url": "https://example.com/cover.png"
+})
+print(resp.json())
+
+# 2) 导出草稿（导出时写入 draft_cover.jpg）
+resp = requests.post("http://8.148.70.18:9000/save_draft", json={
+    "draft_id": "my_draft_001",
+    "client_os": "windows"
+})
+print(resp.json())
+```
+
+### 方式 2：从视频截取某一帧作为封面
+
+```python
+import requests
+
+resp = requests.post("http://8.148.70.18:9000/set_draft_cover", json={
+    "draft_id": "my_draft_001",
+    "video_url": "https://example.com/video.mp4",
+    "time_point": 1.5
+})
+print(resp.json())
+
+resp = requests.post("http://8.148.70.18:9000/save_draft", json={
+    "draft_id": "my_draft_001",
+    "client_os": "windows"
+})
+print(resp.json())
+```
+
+---
+
+## ☁️ 云渲染导出 MP4（submit_render / get_render_status）
+
+> 说明：当前云渲染已支持：
+> - **视频轨道**（视频片段拼接）
+> - **图片轨道**（图片按时长转成视频片段参与拼接）
+> - **音频轨道混音**（按时间轴对齐并混音后封装进最终 MP4）
+> - **文本/字幕轨道**（基础叠字：按时间段显示；目前不支持花字/气泡/描边/背景等高级样式）
+> - **贴纸轨道（增强版）**：支持位置/缩放/透明度，并支持 **旋转/翻转**（前提仍是先把贴纸 `resource_id` 映射到一张图片 URL）
+>
+> 仍未支持：字幕/贴纸/特效/转场（后续可以逐步加）。
+
+### 0) 贴纸为什么需要“映射”？
+
+草稿里的贴纸只有 `resource_id`（剪映内置素材编号），服务器拿不到剪映客户端内置贴纸文件。
+所以需要你先注册一个映射：`resource_id -> sticker_image_url`，云渲染才能把贴纸叠到视频上。
+
+### 0.1) 注册贴纸资源映射
+
+```python
+import requests
+
+resp = requests.post("http://8.148.70.18:9000/register_sticker_resource", json={
+    "resource_id": "你的贴纸resource_id",
+    "image_url": "https://example.com/sticker.png"
+})
+print(resp.json())
+```
+
+### 0.2) 查看已注册的映射
+
+```python
+import requests
+
+resp = requests.get("http://8.148.70.18:9000/registered_sticker_resources").json()
+print(resp)
+```
+
+### 1) 提交渲染任务
+
+```python
+import requests
+
+resp = requests.post("http://8.148.70.18:9000/submit_render", json={
+    "draft_id": "my_draft_001",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+})
+print(resp.json())
+
+task_id = resp.json().get("task_id")
+```
+
+### 2) 轮询查询进度，拿到最终 mp4 地址
+
+```python
+import requests, time
+
+task_id = "你的task_id"
+while True:
+    r = requests.get("http://8.148.70.18:9000/get_render_status", params={"task_id": task_id}).json()
+    print(r)
+    if r.get("status") in ("completed", "failed", "not_found"):
+        break
+    time.sleep(2)
+
+print("最终视频URL:", r.get("video_url"))
+```
+
 ## 获取支持的选项
 
 ### 获取动画类型

@@ -60,6 +60,29 @@ drafts/*/
 *.zip
 !example*.zip
 
+# ========== 本项目额外：避免误提交本地运行生成物/大文件 ==========
+# 本地草稿导出目录（大量文件/很大）
+dfd_*/
+
+# 封面测试目录/文件
+cover_test_*/
+render_tmp/
+render_test_*.png
+
+# 本地备份/文档备份目录
+.backup_*/
+.doc_backup/
+
+# 本地运行产物/缓存
+nohup.out
+draft_cover_store.json
+sticker_resource_map.json
+sticker_resource_map.json.tmp
+
+# 数据库备份（已有 *.db，但这里补充常见命名）
+*.db.backup*
+capcut.db.backup*
+
 # 测试文件
 test_*.html
 preview_*.html

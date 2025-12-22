@@ -494,12 +494,34 @@ class DraftDownloadService:
         1. 查找本地草稿文件夹或 zip 文件
         2. 转换 draft_info.json 中的路径
         3. 打包并提供下载
+        
+        🔧 修复（2025-12-09）：当 draft_folder 为空时，自动使用配置的默认路径
+        解决剪映打开草稿显示空白的问题（因为相对路径剪映无法定位素材）
         """
         import os
         import zipfile
         import tempfile
         import json
         from urllib.parse import quote
+        
+        # 🔧 关键修复：当 draft_folder 为空时，使用配置的默认路径
+        if not draft_folder:
+            try:
+                from settings.local import WINDOWS_DRAFT_FOLDER, LINUX_DRAFT_FOLDER
+                if client_os == 'windows':
+                    draft_folder = WINDOWS_DRAFT_FOLDER or "F:\\jianyin\\cgwz\\JianyingPro Drafts"
+                    # 确保Windows路径使用反斜杠
+                    draft_folder = draft_folder.replace('/', '\\')
+                else:
+                    draft_folder = LINUX_DRAFT_FOLDER or "/data/jianying/drafts"
+                logger.info(f"[本地模式] 使用默认草稿路径: {draft_folder}")
+            except ImportError:
+                # 如果无法导入设置，使用硬编码的默认值
+                if client_os == 'windows':
+                    draft_folder = "F:\\jianyin\\cgwz\\JianyingPro Drafts"
+                else:
+                    draft_folder = "/data/jianying/drafts"
+                logger.warning(f"[本地模式] 无法读取配置，使用默认路径: {draft_folder}")
         
         logger.info(f"[本地模式] 开始处理: {draft_id}")
         
@@ -529,15 +551,19 @@ class DraftDownloadService:
             output_zip = os.path.join(temp_dir, f"{draft_id}.zip")
             
             try:
-                # 如果已有 zip 文件，使用它作为基础
-                if os.path.exists(zip_path):
-                    logger.info(f"[本地模式] 使用现有 ZIP 文件: {zip_path}")
-                    base_zip = zip_path
-                else:
-                    # 从目录创建 zip
-                    logger.info(f"[本地模式] 从目录创建 ZIP")
+                # 🔧 修复：优先使用目录而不是 ZIP 缓存，确保包含最新的素材文件
+                # 只有当目录不存在时才使用 ZIP 缓存
+                if os.path.exists(draft_dir):
+                    # 从目录创建 zip（使用最新文件）
+                    logger.info(f"[本地模式] 从目录创建 ZIP（优先使用目录以获取最新素材）")
                     base_zip = os.path.join(temp_dir, "base.zip")
                     self._zip_directory(draft_dir, base_zip)
+                elif os.path.exists(zip_path):
+                    # 目录不存在，才使用 ZIP 缓存
+                    logger.info(f"[本地模式] 目录不存在，使用 ZIP 缓存: {zip_path}")
+                    base_zip = zip_path
+                else:
+                    raise FileNotFoundError(f"草稿目录和ZIP文件都不存在: {draft_id}")
                 
                 # 转换路径并创建新 zip
                 logger.info(f"[本地模式] 开始路径转换: client_os={client_os}, draft_folder='{draft_folder}'")
@@ -738,10 +764,11 @@ class DraftDownloadService:
         # 遍历所有素材并重写路径
         materials = info.get('materials', {})
         
-        # 处理视频
+        # 处理视频（注意：图片素材也可能存储在 videos 中）
         for video in materials.get('videos', []):
             if video.get('path'):
-                video['path'] = rewrite_path(video['path'], 'video')
+                # 🔧 修复：根据实际路径或文件扩展名判断资产类型，而不是强制使用 'video'
+                video['path'] = rewrite_path(video['path'])  # 让 rewrite_path 自动判断类型
         
         # 处理音频
         for audio in materials.get('audios', []):

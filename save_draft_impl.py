@@ -7,7 +7,7 @@ from util import zip_draft, is_windows_path
 from oss import upload_to_oss
 from typing import Dict, Literal
 from draft_cache import DRAFT_CACHE, get_draft
-from downloader import download_file, download_audio
+from downloader import download_file, download_audio, download_image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import imageio.v2 as imageio
 import subprocess
@@ -24,6 +24,7 @@ from settings import IS_CAPCUT_ENV, IS_UPLOAD_DRAFT
 from os_path_config import get_os_path_config, get_default_draft_path
 # 导入新的路径工具模块
 from path_utils import normalize_path, is_absolute_path, ensure_directory_exists, validate_path
+from draft_cover import apply_draft_cover_if_configured
 
 logger = logging.getLogger('flask_video_generator')
 
@@ -151,16 +152,31 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
 
                 asset_type = 'audio'
                 if isinstance(material, draft.Video_material):
-                    asset_type = 'image' if material.material_type == 'photo' else 'video'
+                    # 🔧 修复：根据多种方式判断是否为图片
+                    # 1. 优先检查 material_type
+                    # 2. 然后检查文件名扩展名
+                    # 3. 最后检查路径中是否包含 'image'
+                    is_image = False
+                    if material.material_type == 'photo':
+                        is_image = True
+                    elif material.material_name and material.material_name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                        is_image = True
+                    elif hasattr(material, 'path') and material.path and 'image' in material.path.lower():
+                        is_image = True
+                    asset_type = 'image' if is_image else 'video'
                 
                 material.replace_path = build_asset_path(draft_folder, draft_id, asset_type, material.material_name)
                 local_path = os.path.join(draft_path, "assets", asset_type, material.material_name)
                 
-                # 🔧 修复：音频使用专门的下载函数（支持重试和验证）
+                # 🔧 修复：根据素材类型使用专门的下载函数
                 if asset_type == 'audio':
+                    # 音频使用 download_audio（支持重试和验证）
                     future = executor.submit(download_audio, remote_url, draft_path, material.material_name)
+                elif asset_type == 'image':
+                    # 图片使用 download_image（使用ffmpeg，支持OSS签名URL和格式转换）
+                    future = executor.submit(download_image, remote_url, draft_path, material.material_name)
                 else:
-                    # 图片和视频都使用 download_file（更稳定，支持OSS签名URL）
+                    # 视频使用通用下载函数
                     future = executor.submit(download_file, remote_url, local_path)
                 future_to_material[future] = material
 
@@ -185,25 +201,60 @@ def save_draft_background(draft_id: str, draft_folder: str, task_id: str, client
 
         script.dump(os.path.join(draft_path, "draft_info.json"))
 
-        # 🔧 修复：清空draft_meta_info.json中的绝对路径（相对路径模式）
-        if use_relative_path:
-            meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
-            if os.path.exists(meta_info_path):
-                try:
-                    with open(meta_info_path, 'r', encoding='utf-8') as f:
-                        meta_info = json.load(f)
-                    
-                    # 清空路径字段，使用相对路径
+        # 🆕 草稿封面：如果用户通过 /set_draft_cover 设置了封面，这里在导出时写入 draft_cover.jpg
+        # 并更新 draft_info.json / draft_meta_info.json
+        try:
+            apply_draft_cover_if_configured(draft_id=draft_id, draft_path=draft_path)
+        except Exception as e:
+            # 封面属于非关键功能：失败不影响主流程
+            logger.warning(f"[{draft_id}] 应用草稿封面失败（将忽略，不影响保存）: {e}")
+
+        # 🔧 根本修复：始终更新draft_meta_info.json中的路径
+        # 原因：模板文件中的draft_meta_info.json包含Mac路径（/Users/...）
+        # 如果不更新，剪映打开时会因为路径不一致而显示空白
+        meta_info_path = os.path.join(draft_path, "draft_meta_info.json")
+        if os.path.exists(meta_info_path):
+            try:
+                with open(meta_info_path, 'r', encoding='utf-8') as f:
+                    meta_info = json.load(f)
+                
+                if use_relative_path:
+                    # 相对路径模式：清空路径字段
                     meta_info["draft_root_path"] = ""
                     meta_info["draft_fold_path"] = ""
-                    meta_info["draft_name"] = draft_id
-                    
-                    with open(meta_info_path, 'w', encoding='utf-8') as f:
-                        json.dump(meta_info, f, ensure_ascii=False, separators=(',', ':'))
-                    
-                    logger.info(f"已清空draft_meta_info.json中的绝对路径（相对路径模式）")
-                except Exception as e:
-                    logger.warning(f"清空draft_meta_info.json路径失败: {e}")
+                    logger.info(f"draft_meta_info.json: 使用相对路径模式（清空路径）")
+                else:
+                    # 绝对路径模式：设置为正确的Windows/Mac路径
+                    if draft_folder:
+                        # 根据路径格式判断是Windows还是Mac
+                        if is_windows_path(draft_folder):
+                            # Windows路径格式
+                            meta_info["draft_root_path"] = draft_folder
+                            meta_info["draft_fold_path"] = f"{draft_folder}\\{draft_id}"
+                        else:
+                            # Mac/Linux路径格式
+                            meta_info["draft_root_path"] = draft_folder
+                            meta_info["draft_fold_path"] = f"{draft_folder}/{draft_id}"
+                        logger.info(f"draft_meta_info.json: 设置路径为 {draft_folder}")
+                    else:
+                        # 没有指定路径，使用相对路径
+                        meta_info["draft_root_path"] = ""
+                        meta_info["draft_fold_path"] = ""
+                        logger.info(f"draft_meta_info.json: 未指定路径，使用相对路径模式")
+                
+                # 更新草稿名称为draft_id（重要：剪映用这个来命名项目）
+                meta_info["draft_name"] = draft_id
+                
+                # 生成新的draft_id（避免剪映认为是重复草稿）
+                import uuid
+                meta_info["draft_id"] = str(uuid.uuid4()).upper()
+                
+                with open(meta_info_path, 'w', encoding='utf-8') as f:
+                    json.dump(meta_info, f, ensure_ascii=False, separators=(',', ':'))
+                
+                logger.info(f"✅ draft_meta_info.json 路径已更新（根本修复）")
+            except Exception as e:
+                logger.warning(f"更新draft_meta_info.json路径失败: {e}")
 
         update_draft_status(draft_id, 'processing', 80, '正在压缩草稿文件')
         zip_filename = f"{draft_id}.zip"

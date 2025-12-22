@@ -4,19 +4,53 @@ import time
 import requests
 import shutil
 from requests.exceptions import RequestException, Timeout
-from urllib.parse import urlparse, unquote, urlunparse
+from urllib.parse import urlparse, unquote, urlunparse, parse_qs, urlencode
 from settings.local import DOWNLOAD_HEADERS, FILE_SERVER_PUBLIC_HOST, FILE_SERVER_INTERNAL_BASE
 # 导入路径工具模块以支持相对路径
 from path_utils import normalize_path, ensure_directory_exists
 
-def download_video(video_url, draft_name, material_name):
+def strip_oss_signature(url):
+    """
+    去掉 OSS 签名参数，返回无签名的 URL
+    阿里云 OSS 签名参数以 x-oss- 开头
+    """
+    try:
+        parsed = urlparse(url)
+        if not parsed.query:
+            return url
+        
+        # 解析查询参数
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        
+        # 检查是否有 OSS 签名参数
+        oss_params = [k for k in params.keys() if k.lower().startswith('x-oss-')]
+        if not oss_params:
+            return url
+        
+        # 移除所有 OSS 签名参数
+        clean_params = {k: v for k, v in params.items() if not k.lower().startswith('x-oss-')}
+        
+        # 重建 URL
+        new_query = urlencode(clean_params, doseq=True) if clean_params else ''
+        new_parsed = parsed._replace(query=new_query)
+        clean_url = urlunparse(new_parsed)
+        
+        print(f"🔧 Stripped OSS signature from URL: {url[:60]}... -> {clean_url[:60]}...")
+        return clean_url
+    except Exception as e:
+        print(f"⚠️ Failed to strip OSS signature: {e}")
+        return url
+
+def download_video(video_url, draft_name, material_name, max_retries=3):
     """
     Download video to specified directory
     支持相对路径和绝对路径
+    使用 requests 下载以支持重试和 Headers，更稳定
     
     :param video_url: Video URL
     :param draft_name: Draft name (支持相对路径)
     :param material_name: Material name
+    :param max_retries: Maximum retry attempts
     :return: Local video path
     """
     # 🆕 支持相对路径：规范化draft_name
@@ -30,24 +64,85 @@ def download_video(video_url, draft_name, material_name):
     local_path = f"{video_dir}/{material_name}"
     
     # Check if file already exists
-    if os.path.exists(local_path):
+    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
         print(f"Video file already exists: {local_path}")
         return local_path
     
+    import requests
+    import time
+    
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            print(f"Downloading video (attempt {attempt+1}/{max_retries}): {video_url[:80]}...")
+            
+            # 自动设置 Referer
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept': '*/*',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            }
+            try:
+                parsed = urlparse(video_url)
+                if parsed.scheme in ('http', 'https'):
+                    origin = f"{parsed.scheme}://{parsed.netloc}"
+                    headers['Referer'] = origin
+            except:
+                pass
+
+            response = requests.get(
+                video_url, 
+                timeout=120,  # 视频通常较大，增加超时时间
+                stream=True, 
+                allow_redirects=True,
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            # 写入文件
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192 * 4):
+                    if chunk:
+                        f.write(chunk)
+            
+            # 验证
+            if not os.path.exists(local_path) or os.path.getsize(local_path) == 0:
+                raise Exception("File download failed or empty")
+                
+            print(f"✅ Video downloaded successfully: {material_name}")
+            return local_path
+            
+        except Exception as e:
+            last_error = str(e)
+            print(f"⚠️ Video download error: {last_error}")
+            
+            # 清理失败的文件
+            if os.path.exists(local_path):
+                try:
+                    os.remove(local_path)
+                except:
+                    pass
+            
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+
+    # 如果所有重试都失败，尝试使用 ffmpeg 作为备选方案
+    print(f"⚠️ Requests download failed, falling back to ffmpeg for: {video_url}")
     try:
-        # Use ffmpeg to download video
         command = [
             '/usr/bin/ffmpeg',
             '-i', video_url,
-            '-c', 'copy',  # Direct copy, no re-encoding
+            '-c', 'copy',
+            '-y',
+            '-v', 'error',
             local_path
         ]
         subprocess.run(command, check=True, capture_output=True)
         return local_path
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to download video: {e.stderr.decode('utf-8')}")
+    except Exception as e:
+        raise Exception(f"Failed to download video (both requests and ffmpeg failed): {str(e)}. Last error: {last_error}")
 
-def download_image(image_url, draft_name, material_name):
+def download_image(image_url, draft_name, material_name, max_retries=3):
     """
     Download image to specified directory, and convert to PNG format
     支持相对路径和绝对路径
@@ -55,6 +150,7 @@ def download_image(image_url, draft_name, material_name):
     :param image_url: Image URL
     :param draft_name: Draft name (支持相对路径)
     :param material_name: Material name
+    :param max_retries: Maximum retry attempts
     :return: Local image path
     """
     # 🆕 支持相对路径：规范化draft_name
@@ -68,25 +164,94 @@ def download_image(image_url, draft_name, material_name):
     local_path = f"{image_dir}/{material_name}"
     
     # Check if file already exists
-    if os.path.exists(local_path):
+    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
         print(f"Image file already exists: {local_path}")
         return local_path
     
-    try:
-        # Use ffmpeg to download and convert image to PNG format
-        command = [
-            '/usr/bin/ffmpeg',
-            '-headers', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36\r\nReferer: https://www.163.com/\r\n',
-            '-i', image_url,
-            '-vf', 'format=rgba',  # Convert to RGBA format to support transparency
-            '-frames:v', '1',      # Ensure only one frame is processed
-            '-y',                  # Overwrite existing files
-            local_path
-        ]
-        subprocess.run(command, check=True, capture_output=True)
-        return local_path
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to download image: {e.stderr.decode('utf-8')}")
+    import requests
+    import uuid
+    import time
+    
+    # 临时文件路径
+    temp_filename = f"temp_{uuid.uuid4().hex}"
+    temp_path = os.path.join(image_dir, temp_filename)
+    
+    last_error = None
+    
+    # 🆕 准备 URL 列表：先尝试原始 URL，如果失败再尝试去掉签名的 URL
+    urls_to_try = [image_url]
+    clean_url = strip_oss_signature(image_url)
+    if clean_url != image_url:
+        urls_to_try.append(clean_url)
+    
+    for url_index, current_url in enumerate(urls_to_try):
+        url_desc = "signed URL" if url_index == 0 else "clean URL (no signature)"
+        
+        for attempt in range(max_retries):
+            try:
+                # 1. 使用 requests 下载原图（更稳定，支持重试和Headers控制）
+                print(f"Downloading image [{url_desc}] (attempt {attempt+1}/{max_retries}): {current_url[:80]}...")
+                
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+                }
+                
+                # 🆕 注意：OSS 可能设置了 Referer 防盗链
+                # 只对非 OSS URL 设置 Referer，避免触发 403
+                try:
+                    parsed = urlparse(current_url)
+                    is_oss_url = 'aliyuncs.com' in parsed.netloc or 'oss' in parsed.netloc.lower()
+                    if parsed.scheme in ('http', 'https') and not is_oss_url:
+                        origin = f"{parsed.scheme}://{parsed.netloc}"
+                        headers['Referer'] = origin
+                except:
+                    pass
+                    
+                response = requests.get(current_url, headers=headers, timeout=60, stream=True)
+                response.raise_for_status()
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            
+                # 2. 使用 ffmpeg 转换为 PNG
+                command = [
+                    '/usr/bin/ffmpeg',
+                    '-i', temp_path,
+                    '-vf', 'format=rgba',  # Convert to RGBA format to support transparency
+                    '-frames:v', '1',      # Ensure only one frame is processed
+                    '-y',                  # Overwrite existing files
+                    '-v', 'error',         # 只显示错误信息
+                    local_path
+                ]
+                subprocess.run(command, check=True, capture_output=True)
+                
+                print(f"✅ Image downloaded and converted: {material_name}")
+                return local_path
+                
+            except Exception as e:
+                last_error = str(e)
+                print(f"⚠️ Image download error: {last_error}")
+                
+                # 🆕 如果是 403 错误且还有其他 URL 可以尝试，跳过剩余重试直接尝试下一个 URL
+                if '403' in last_error and url_index < len(urls_to_try) - 1:
+                    print(f"🔄 403 Forbidden with {url_desc}, will try clean URL...")
+                    break
+                    
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+            finally:
+                # 清理临时文件
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except:
+                        pass
+    
+    raise Exception(f"Failed to download image after {max_retries} attempts: {last_error}")
 
 def download_audio(audio_url, draft_name, material_name, max_retries=3):
     """
